@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List
+from typing import List, Union
 
 import flair.data
 from flair.data import Sentence, Label, Token
@@ -48,7 +48,7 @@ def print_tokens(token_dict):
 
 def might_be_code(s: str):
     # detect bool literals
-    if s.lower() in {"true", "false"}:
+    if s.lower() in {"true", "false", "self"}:
         return True
 
     # detect numbers
@@ -68,17 +68,19 @@ def correct_tokens(token_dict):
         if entity["text"].startswith("`"):
             entity["labels"][0] = Label("CODE")
 
+    for i, entity in enumerate(entities):
+        if might_be_code(entity["text"]):
+            entity["labels"][0] = Label("LIT")
+
     if len(entities) <= 2:
         return
 
     for i, entity in enumerate(entities):
         if i == 0 and entity["text"].lower() == "returns":
-            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {"NN", "NNP", "NNPS", "NNS", "CODE"}:
+            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {
+                "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
+            }:
                 entity["labels"][0] = Label("RET")
-
-    for i, entity in enumerate(entities):
-        if might_be_code(entity["text"]):
-            entity["labels"][0] = Label("LIT")
 
 
 class Code:
@@ -87,6 +89,14 @@ class Code:
 
     def __str__(self):
         return self.code.strip("`")
+
+
+class Literal:
+    def __init__(self, tree: Tree):
+        self.str: str = tree[0]
+
+    def __str__(self):
+        return self.str
 
 
 class Object:
@@ -101,7 +111,8 @@ class Object:
         if self.labels == ("CODE",):
             return Code(self.tree[0])
         if self.labels == ("LIT",):
-            return self.tree[0]
+            return Literal(self.tree[0])
+        raise ValueError(f"{self.labels} not handled.")
 
 
 class Property:
@@ -150,7 +161,7 @@ class Predicate:
 
 
 class ReturnIf:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Union[Tree, List[Tree]]):
         if tree[0].label() != "RET":
             raise ValueError(f"Bad tree - expected RET, got {tree[0].label()}")
 
@@ -170,8 +181,14 @@ class ReturnIf:
 
     def as_spec(self):
         if self.pred.iff:
-            return f"""#[ensures((result == {self.ret_val.as_code()}) ==> {self.pred.as_code()})]
-#[ensures({self.pred.as_code()} ==> (result == {self.ret_val.as_code()}))]"""
+            return f"""#[ensures({self.pred.as_code()} ==> (result == {self.ret_val.as_code()}))]
+#[ensures((result == {self.ret_val.as_code()}) ==> {self.pred.as_code()})]"""
+        return f"""#[ensures({self.pred.as_code()} ==> (result == {self.ret_val.as_code()}))]"""
+
+
+class IfReturn(ReturnIf):
+    def __init__(self, tree: Tree):
+        super().__init__([subtree for subtree in tree[::-1]])
 
 
 class Existential:
@@ -181,7 +198,13 @@ class Existential:
 
 class Specification:
     def __init__(self, tree: Tree):
-        pass
+        self.spec = {
+            "RETIF": ReturnIf,
+            "IFRET": IfReturn,
+        }[tree[0].label()](tree[0])
+
+    def as_spec(self):
+        return self.spec.as_spec()
 
 
 def get_bottom_nodes(tree: Tree, nodes: List[Tree]):
@@ -250,7 +273,9 @@ def main():
         "The index is less than `self.len()`",
         "The index is 0u32",
         "Returns `true` if and only if `self` is blue",
-        "Returns `true` if and only if `self` is 0u32"
+        "Returns `true` if and only if `self` is 0u32",
+        "Returns `true` if `self` is 0u32",
+        "Returns true if self is 0u32"
     ]
 
     parser = Parser()
@@ -260,8 +285,11 @@ def main():
         print("=" * 80)
         for tree in parser.parse_sentence(sentence):
             tree: nltk.tree.Tree = tree
-            if tree[0].label() == "RETIF":
-                print(ReturnIf(tree[0]).as_spec())
+            try:
+                spec = Specification(tree)
+                print(spec.as_spec())
+            except LookupError as e:
+                print(f"No specification found. {e}")
             print(tree)
             print()
 
