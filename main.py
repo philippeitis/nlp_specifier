@@ -145,6 +145,11 @@ def split_out_code(sentence: str) -> [str]:
 
 
 if __name__ == '__main__':
+    import nltk
+
+    nltk.download('tagsets')
+    nltk.help.upenn_tagset()
+    exit()
     parser = Parser()
 
     # Eg. Identify what this does as a simple description.
