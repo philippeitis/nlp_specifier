@@ -46,6 +46,21 @@ def print_tokens(token_dict):
     print()
 
 
+def might_be_code(s: str):
+    # detect bool literals
+    if s.lower() in {"true", "false"}:
+        return True
+
+    # detect numbers
+    if s.endswith(("u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64")):
+        return True
+
+    if s.isnumeric():
+        return True
+
+    return False
+
+
 def correct_tokens(token_dict):
     entities = token_dict["entities"]
 
@@ -61,6 +76,10 @@ def correct_tokens(token_dict):
             if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {"NN", "NNP", "NNPS", "NNS", "CODE"}:
                 entity["labels"][0] = Label("RET")
 
+    for i, entity in enumerate(entities):
+        if might_be_code(entity["text"]):
+            entity["labels"][0] = Label("LIT")
+
 
 class Code:
     def __init__(self, tree: Tree):
@@ -73,7 +92,7 @@ class Code:
 class Object:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("PRP",), ("DT", "NN"), ("CODE",)}:
+        if labels not in {("PRP",), ("DT", "NN"), ("CODE",), ("LIT",)}:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -81,19 +100,25 @@ class Object:
     def as_code(self):
         if self.labels == ("CODE",):
             return Code(self.tree[0])
+        if self.labels == ("LIT",):
+            return self.tree[0]
 
 
 class Property:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "REL")}:
+        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "REL"), ("VBZ", "LIT")}:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
 
     def as_code(self):
         if self.labels == ("VBZ", "JJ"):
-            return f"{self.tree[1][0]}"
+            return f".{self.tree[1][0]}()"
+        if self.labels == ("VBZ", "LIT"):
+            return f" == {self.tree[1][0]}"
+
+        raise ValueError(f"Case {self.labels} not handled.")
 
 
 class Assert:
@@ -107,7 +132,7 @@ class Assert:
         self.prop = Property(tree[1])
 
     def as_code(self):
-        return f"{self.obj.as_code()}.{self.prop.as_code()}()"
+        return f"{self.obj.as_code()}{self.prop.as_code()}"
 
 
 class Predicate:
@@ -223,8 +248,9 @@ def main():
         "I am red",
         "It is red",
         "The index is less than `self.len()`",
-        "The index is small",
-        "Returns `true` if and only if `self` is blue"
+        "The index is 0u32",
+        "Returns `true` if and only if `self` is blue",
+        "Returns `true` if and only if `self` is 0u32"
     ]
 
     parser = Parser()
