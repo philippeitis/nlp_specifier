@@ -60,8 +60,46 @@ def correct_tokens(token_dict):
 
     for i, entity in enumerate(entities):
         if i == 0 and entity["text"].lower() == "returns":
-            if i + 1 < len(entities) and entities[i+1]["labels"][0].value in {"NN", "NNP", "NNPS", "NNS", "CODE"}:
-                entity["labels"][0] = Label("VBZ")
+            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {"NN", "NNP", "NNPS", "NNS", "CODE"}:
+                entity["labels"][0] = Label("RET")
+
+
+class Production:
+    def __init__(self, root, idx, pieces: [str]):
+        self.root = root
+        self.idx = idx
+        self.pieces = pieces
+
+    def all_matches(self, labels: [Label]):
+        matches = []
+        # Check if start, and check if remaining start w/ curr value and so on
+        for j, label in enumerate(labels[:len(labels) - len(self.pieces) + 1]):
+            if label.value == self.pieces[0]:
+                num = 1
+                for labelx, piece in zip(labels[j + 1:], self.pieces[1:]):
+                    if labelx.value == piece:
+                        num += 1
+                    else:
+                        break
+                if num == len(self.pieces):
+                    matches.append((j, j + num))
+        return matches
+
+
+class ProductionRule:
+    def __init__(self, name, productions: [List[str]]):
+        self.name = name
+        self.productions = [Production(name, i, prod) for i, prod in enumerate(productions)]
+
+    def all_matches(self, labels: [Label]):
+        matches = {}
+        for production in self.productions:
+            matches[f"{self.name}-{production.idx}"] = production.all_matches(labels)
+        return matches
+
+
+def extract_all_trees(prod_rules, sent):
+    pass
 
 
 if __name__ == '__main__':
@@ -88,27 +126,68 @@ if __name__ == '__main__':
         "The index is small",
         "Returns `true` if and only if `self == 2^k` for some `k`"
     ]
+
+    prod_rules = {
+        "OBJ": [
+            # "I", "the index"
+            ["PRP"],
+            ["DT", "NN"],
+            ["CODE"]
+        ],
+        "REL": [
+            # less than `self.len()`.
+            ["JJR", "IN", "OBJ"]
+        ],
+        # Property of an object
+        "PROP": [
+            # "am red", "is red"
+            ["VBP", "JJ"],
+            ["VBZ", "JJ"],
+            # is less than
+            ["VBZ", "REL"]
+        ],
+        # Object has property
+        "ASSERT": [
+            # "I am red", "It is red", "The index is small"
+            ["OBJ", "PROP"],
+        ],
+        # If object has property
+        "PRED": [
+            ["IN", "ASSERT"],
+            ["IFF", "ASSERT"]
+        ],
+        "IFF": [
+            # if and only if
+            ["IN", "CC", "RB", "IN"]
+        ],
+        "EXIST": [
+            # "for some value"
+            ["IN", "DT", "OBJ"]
+        ],
+        "RETIF": [
+            # return obj if predicate
+            ["RET", "OBJ", "PRED"]
+        ],
+        "IFRET": [
+            ["PRED", "RET", "OBJ"]
+        ]
+    }
+
+    productions = []
+    for name, prods in prod_rules.items():
+        productions.append(ProductionRule(name, prods))
+
     for sent in predicates:
         sentence = Sentence(sent, use_tokenizer=CodeTokenizer())
         res = tagger.predict(sentence)
         token_dict = sentence.to_dict(tag_type="pos")
         correct_tokens(token_dict)
+
+        labels = [x["labels"][0] for x in token_dict["entities"]]
+        print(labels)
+        for production in productions:
+            print(production.all_matches(labels))
         print_tokens(token_dict)
-    prod_rules = {
-        "PRED": [
-            # "I am red"
-            ["PRP", "VBP", "JJ"],
-            # "It is red"
-            ["PRP", "VBZ", "JJ"],
-            # "The index is less than `self.len()`"
-            ["DT", "NN", "VBZ", "JJR", "IN", "``", "NN", "."],
-            # "The index is small"
-            ["DT", "NN", "VBZ", "JJ"],
-
-        ]
-
-    }
-
 
 # if __name__ == '__main__':
 #     print(CodeTokenzer().tokenize("this is a code segment: `hello world`."))
