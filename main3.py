@@ -1,9 +1,11 @@
+from copy import copy
 from typing import List
 
 import flair.data
 from flair.data import Sentence, Label, Token
 from flair.models import MultiTagger
 
+import nltk
 
 class CodeTokenizer(flair.data.Tokenizer):
     def tokenize(self, sentence: str) -> List[Token]:
@@ -94,11 +96,47 @@ class ProductionRule:
     def all_matches(self, labels: [Label]):
         matches = {}
         for production in self.productions:
-            matches[f"{self.name}-{production.idx}"] = production.all_matches(labels)
+            prod_matches = production.all_matches(labels)
+            if prod_matches:
+                matches[f"{self.name}-{production.idx}"] = prod_matches
         return matches
 
 
-def extract_all_trees(prod_rules, sent):
+class TreeLabel(Label):
+    def __init__(self, value, score=1., children=None):
+        super().__init__(value, score)
+        self.children = children
+
+    def __repr__(self):
+        if self.children:
+            children = ", ".join([str(child) for child in self.children])
+            return f"({self.value} ({self._score}) ({children}))"
+        return f"{self.value} ({self._score})"
+
+
+def replace_fragments(sentence: List[Label], name, matches):
+    sentence = copy(sentence)
+    for start, end in reversed(matches):
+        label = TreeLabel(name, children=sentence[start: end])
+        del sentence[start: end]
+        sentence.insert(start, label)
+    return sentence
+
+
+def extract_all_trees(prod_rules, labels: [Label]):
+    found_match = True
+    while found_match:
+        found_match = False
+        for prod_rule in prod_rules:
+            matches = prod_rule.all_matches(labels)
+            if matches:
+                found_match = True
+                for sub_matches in matches.values():
+                    labels = replace_fragments(labels, prod_rule.name, sub_matches)
+    return labels
+
+
+class Assert:
     pass
 
 
@@ -143,7 +181,7 @@ if __name__ == '__main__':
             # "am red", "is red"
             ["VBP", "JJ"],
             ["VBZ", "JJ"],
-            # is less than
+            # is (less than `self.len()`)
             ["VBZ", "REL"]
         ],
         # Object has property
@@ -177,6 +215,8 @@ if __name__ == '__main__':
     for name, prods in prod_rules.items():
         productions.append(ProductionRule(name, prods))
 
+    code_grammar = nltk.data.load("file:codegrammar.cfg")
+    rd_parser = nltk.RecursiveDescentParser(code_grammar)
     for sent in predicates:
         sentence = Sentence(sent, use_tokenizer=CodeTokenizer())
         res = tagger.predict(sentence)
@@ -184,10 +224,16 @@ if __name__ == '__main__':
         correct_tokens(token_dict)
 
         labels = [x["labels"][0] for x in token_dict["entities"]]
-        print(labels)
-        for production in productions:
-            print(production.all_matches(labels))
-        print_tokens(token_dict)
+        # print(sent)
+        # print(labels)
+        # print(extract_all_trees(productions, labels))
+
+        nltk_sent = [l.value for l in labels]
+        print(nltk_sent)
+        for tree in rd_parser.parse(nltk_sent):
+            print(tree)
 
 # if __name__ == '__main__':
 #     print(CodeTokenzer().tokenize("this is a code segment: `hello world`."))
+
+    # for some k
