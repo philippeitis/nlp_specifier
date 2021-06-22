@@ -1,4 +1,3 @@
-from copy import copy
 from typing import List
 
 import flair.data
@@ -6,6 +5,7 @@ from flair.data import Sentence, Label, Token
 from flair.models import MultiTagger
 
 import nltk
+
 
 class CodeTokenizer(flair.data.Tokenizer):
     def tokenize(self, sentence: str) -> List[Token]:
@@ -64,9 +64,26 @@ class Assert:
     pass
 
 
-if __name__ == '__main__':
-    tagger = MultiTagger.load(['pos'])
+class Parser:
+    def __init__(self, pos_tagger: str = "pos", grammar_path: str = "codegrammar.cfg"):
+        self.root_tagger = MultiTagger.load([pos_tagger])
+        self.grammar = nltk.data.load(f"file:{grammar_path}")
+        self.rd_parser = nltk.RecursiveDescentParser(self.grammar)
+        self.tokenizer = CodeTokenizer()
 
+    def parse_sentence(self, sentence: str):
+        sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
+        self.root_tagger.predict(sentence)
+        token_dict = sentence.to_dict(tag_type="pos")
+        correct_tokens(token_dict)
+        labels = [entity["labels"][0] for entity in token_dict["entities"]]
+
+        nltk_sent = [label.value for label in labels]
+
+        return [tree for tree in self.rd_parser.parse(nltk_sent)]
+
+
+def main():
     predicates = [
         "I am red",
         "It is red",
@@ -75,24 +92,12 @@ if __name__ == '__main__':
         "Returns `true` if and only if `self == 2^k` for some `k`"
     ]
 
-    code_grammar = nltk.data.load("file:codegrammar.cfg")
-    rd_parser = nltk.RecursiveDescentParser(code_grammar)
-    for sent in predicates:
-        # Use FLAIR for more flexible root level POS tags
-        sentence = Sentence(sent, use_tokenizer=CodeTokenizer())
-        tagger.predict(sentence)
-        # Correct tokens for words like "Return", which are not
-        # handled correctly.
-        token_dict = sentence.to_dict(tag_type="pos")
-        correct_tokens(token_dict)
-
-        # Extract labels for nltk CFG parser.
-        labels = [x["labels"][0] for x in token_dict["entities"]]
-
-        nltk_sent = [l.value for l in labels]
-
-        # Parse trees here.
-        for tree in rd_parser.parse(nltk_sent):
-            tree: nltk.tree.Tree = tree
+    parser = Parser()
+    for sentence in predicates:
+        print(sentence)
+        for tree in parser.parse_sentence(sentence):
             print(tree)
-            tree.label()
+
+
+if __name__ == '__main__':
+    main()
