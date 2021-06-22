@@ -112,13 +112,88 @@ class Object:
             return Code(self.tree[0])
         if self.labels == ("LIT",):
             return Literal(self.tree[0])
+        if self.labels == ("DT", "NN"):
+            # TODO: This assumes that val in "The val" is a variable.
+            return self.tree[1][0]
         raise ValueError(f"{self.labels} not handled.")
+
+
+class Comparator(Enum):
+    LT = auto()
+    GT = auto()
+    LTE = auto()
+    GTE = auto()
+    EQ = auto()
+    NEQ = auto()
+
+    @classmethod
+    def from_str(cls, s: str):
+        return {
+            "less": cls.LT,
+            "greater": cls.GT,
+            "equal": cls.EQ,
+        }[s]
+
+    def __str__(self):
+        return {
+            self.LT: "<",
+            self.GT: ">",
+            self.LTE: "<=",
+            self.GTE: ">=",
+            self.EQ: "==",
+            self.NEQ: "!=",
+        }[self]
+
+    def apply_eq(self):
+        return {
+            self.LT: self.LTE,
+            self.GT: self.GTE,
+        }.get(self, self)
+
+    def negate(self, negate):
+        if not negate:
+            return self
+
+        return {
+            self.LT: self.GTE,
+            self.GT: self.LTE,
+            self.LTE: self.GT,
+            self.GTE: self.LT,
+            self.EQ: self.NEQ,
+            self.NEQ: self.EQ,
+        }[self]
+
+
+class Relation:
+    def __init__(self, tree: Tree):
+        labels = tuple(x.label() for x in tree)
+        if labels not in {("JJR", "IN", "OBJ"), ("JJR", "EQTO", "OBJ"), ("JJ", "IN", "OBJ")}:
+            raise ValueError(f"Bad tree - expected REL productions, got {labels}")
+        self.labels = labels
+        self.tree = tree
+        self.negate = False
+
+    def as_code(self):
+        if self.labels in {("JJR", "IN", "OBJ"), ("JJ", "IN", "OBJ")}:
+            relation = Comparator.from_str(self.tree[0][0]).negate(self.negate)
+            return f" {relation} {Object(self.tree[2]).as_code()}"
+        if self.labels == ("JJR", "EQTO", "OBJ"):
+            relation = Comparator.from_str(self.tree[0][0]).apply_eq().negate(self.negate)
+            return f" {relation} {Object(self.tree[2]).as_code()}"
+
+        raise ValueError(f"Case {self.labels} not handled.")
+
+    def apply_adverb(self, s: str):
+        if s.lower() != "not":
+            raise ValueError(f"Only not is supported as an adverb for Relation: got {s}")
+        self.negate = True
+        return self
 
 
 class Property:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "REL"), ("VBZ", "LIT")}:
+        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "REL"), ("VBZ", "RB", "REL"), ("VBZ", "LIT")}:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -128,6 +203,10 @@ class Property:
             return f".{self.tree[1][0]}()"
         if self.labels == ("VBZ", "LIT"):
             return f" == {self.tree[1][0]}"
+        if self.labels == ("VBZ", "REL"):
+            return Relation(self.tree[1]).as_code()
+        if self.labels == ("VBZ", "RB", "REL"):
+            return Relation(self.tree[2]).apply_adverb(self.tree[1][0]).as_code()
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -258,7 +337,7 @@ class Parser:
         correct_tokens(token_dict)
         labels = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
-
+        print(labels)
         nltk_sent = [label.value for label in labels]
         return [
             attach_words_to_nodes(tree, words)
@@ -272,10 +351,16 @@ def main():
         "It is red",
         "The index is less than `self.len()`",
         "The index is 0u32",
-        "Returns `true` if and only if `self` is blue",
+        # Well handled.
         "Returns `true` if and only if `self` is 0u32",
         "Returns `true` if `self` is 0u32",
-        "Returns true if self is 0u32"
+        "Returns true if self is 0u32",
+        # Need to find a corresponding function or method for this case.
+        "Returns `true` if and only if `self` is blue",
+        "Returns `true` if the index is less than `self.len()`",
+        "Returns `true` if the index is greater than or equal to `self.len()`",
+        "Returns `true` if the index is equal to `self.len()`",
+        "Returns `true` if the index is not equal to `self.len()`",
     ]
 
     parser = Parser()
