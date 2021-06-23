@@ -96,11 +96,8 @@ def correct_tokens(token_dict):
 
     for i, entity in enumerate(entities):
         if entity["text"].lower() == "for":
-            if i + 1 < len(entities) and entities[i + 1]["text"].lower() in {
-                "each"
-            }:
+            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {"DT"}:
                 entity["labels"][0] = Label("FOR")
-                entities[i + 1]["labels"][0] = Label("EACH")
 
 
 class Code:
@@ -316,12 +313,19 @@ class Range:
         self.labels = tuple(x.label() for x in tree)
 
     def as_foreach_pred(self):
-        if self.labels == ("NN", "OBJ", "IN", "OBJ", "IN", "OBJ"):
+        if self.labels == ("MNN", "OBJ", "IN", "OBJ", "RSEP", "OBJ"):
             ident = Object(self.tree[1])
             start = Object(self.tree[3])
             end = Object(self.tree[5])
 
             return ident, start, end
+        if self.labels == ("OBJ", "IN", "OBJ", "RSEP", "OBJ"):
+            ident = Object(self.tree[0])
+            start = Object(self.tree[2])
+            end = Object(self.tree[4])
+
+            return ident, start, end
+
         raise ValueError(f"Range case not handled: {self.labels}")
 
 
@@ -345,9 +349,19 @@ class RangeMod(Enum):
 
 class ForEach:
     def __init__(self, tree: Tree):
-        self.tree = tree
-        self.range = Range(tree[2])
-        self.labels = tuple(x.label() for x in tree)
+        if tree[0].label() == "FOREACH":
+            print("NESTED")
+            # another range condition here
+            sub_foreach = ForEach(tree[0])
+            self.tree = sub_foreach.tree
+            self.range = sub_foreach.range
+            self.labels = sub_foreach.labels
+            self.range_conditions = sub_foreach.range_conditions + [ModRelation(tree[-1])]
+        else:
+            self.tree = tree
+            self.range = Range(tree[2])
+            self.labels = tuple(x.label() for x in tree)
+            self.range_conditions = []
 
     def as_code(self, cond: str):
         # need type hint about second
@@ -361,7 +375,13 @@ class ForEach:
         #                                    v do type introspection here
         xtype = "int"
         # detect multiple identifiers.
-        return f"forall(|{ident.as_code()}: {xtype}| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}) ==> ({cond}))"
+        extra_range_conds = ""
+        for range_condition in self.range_conditions:
+            # Has nothing attached
+            if isinstance(range_condition, ModRelation):
+                extra_range_conds += f" && {ident.as_code()}{range_condition.as_code()}"
+
+        return f"forall(|{ident.as_code()}: {xtype}| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}{extra_range_conds}) ==> ({cond}))"
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
@@ -487,7 +507,7 @@ class Parser:
         self.tokenizer = CodeTokenizer()
 
         self.grammar = nltk.data.load(f"file:{grammar_path}")
-        self.rd_parser = nltk.RecursiveDescentParser(self.grammar)
+        self.rd_parser = nltk.ChartParser(self.grammar)
 
     def parse_sentence(self, sentence: str):
         sentence = sentence \
@@ -536,8 +556,9 @@ def main():
         "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
         "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
         # differentiate btw will and must wrt result
-        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`"
-
+        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
+        "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
+        "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false."
     ]
 
     parser = Parser()
