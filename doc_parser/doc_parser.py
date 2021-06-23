@@ -336,7 +336,7 @@ class POSModel(Enum):
 
 
 class Parser:
-    def __init__(self, pos_model: POSModel = POSModel.POS, grammar_path: str = "codegrammar.cfg"):
+    def __init__(self, pos_model: POSModel = POSModel.POS, grammar_path: str = "doc_parser/codegrammar.cfg"):
         self.root_tagger = MultiTagger.load([str(pos_model)])
         self.tokenizer = CodeTokenizer()
 
