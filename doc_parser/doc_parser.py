@@ -23,7 +23,14 @@ class CodeTokenizer(flair.data.Tokenizer):
                 if ind != -1:
                     ind += 2
             else:
-                ind = sentence[a:].find(" ")
+                sind = sentence[a:].find(" ")
+                cind = sentence[a:].find(",")
+                if cind == -1:
+                    ind = sind
+                elif sind == -1:
+                    ind = cind
+                else:
+                    ind = min(sind, cind)
             if ind == -1:
                 t = Token(sentence[a:], num, whitespace_after=False, start_position=a)
                 parts.append(t)
@@ -34,7 +41,12 @@ class CodeTokenizer(flair.data.Tokenizer):
 
             num += 1
             a = a + ind
-            while a < len(sentence) and sentence[a] == " ":
+            while a < len(sentence) and sentence[a] in {",", " "}:
+                # if sentence[a] == ",":
+                #     t = Token(sentence[a], num, whitespace_after=False, start_position=a)
+                #     parts.append(t)
+                #     num += 1
+
                 a += 1
 
         return parts
@@ -81,6 +93,14 @@ def correct_tokens(token_dict):
                 "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
             }:
                 entity["labels"][0] = Label("RET")
+
+    for i, entity in enumerate(entities):
+        if entity["text"].lower() == "for":
+            if i + 1 < len(entities) and entities[i + 1]["text"].lower() in {
+                "each"
+            }:
+                entity["labels"][0] = Label("FOR")
+                entities[i + 1]["labels"][0] = Label("EACH")
 
 
 class Code:
@@ -169,7 +189,7 @@ class Comparator(Enum):
 class Relation:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("JJR", "IN", "OBJ"), ("JJR", "EQTO", "OBJ"), ("JJ", "IN", "OBJ")}:
+        if labels not in {("JJR", "IN", "OBJ"), ("JJ", "EQTO", "OBJ"), ("JJR", "EQTO", "OBJ"), ("JJ", "IN", "OBJ")}:
             raise ValueError(f"Bad tree - expected REL productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -179,7 +199,7 @@ class Relation:
         if self.labels in {("JJR", "IN", "OBJ"), ("JJ", "IN", "OBJ")}:
             relation = Comparator.from_str(self.tree[0][0]).negate(self.negate)
             return f" {relation} {Object(self.tree[2]).as_code()}"
-        if self.labels == ("JJR", "EQTO", "OBJ"):
+        if self.labels in {("JJR", "EQTO", "OBJ"), ("JJ", "EQTO", "OBJ")}:
             relation = Comparator.from_str(self.tree[0][0]).apply_eq().negate(self.negate)
             return f" {relation} {Object(self.tree[2]).as_code()}"
 
@@ -202,9 +222,17 @@ class ModRelation(Relation):
 
 
 class Property:
+    PRODUCTIONS = {
+        ("VBP", "JJ"),
+        ("VBZ", "JJ"),
+        ("VB", "MREL"),
+        ("VBZ", "MREL"),
+        ("VBZ", "LIT"),
+    }
+
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "MREL"), ("VBZ", "LIT")}:
+        if labels not in self.PRODUCTIONS:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -214,8 +242,8 @@ class Property:
             return f".{self.tree[1][0]}()"
         if self.labels == ("VBZ", "LIT"):
             return f" == {self.tree[1][0]}"
-        if self.labels == ("VBZ", "MREL"):
-            return ModRelation(self.tree[1]).as_code()
+        if self.labels in {("VBZ", "MREL"), ("VB", "MREL")}:
+            return ModRelation(self.tree[-1]).as_code()
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -232,6 +260,80 @@ class Assert:
 
     def as_code(self):
         return f"{self.obj.as_code()}{self.prop.as_code()}"
+
+
+class HardAssert(Assert):
+    def __init__(self, tree: Tree):
+        if tree[1].label() != "MD":
+            raise ValueError(f"Bad tree - expected MD as first HASSERT production, got {tree[0].label()}")
+        super().__init__([tree[0], tree[2]])
+
+    def as_spec(self):
+        return f"#[requires({self.as_code()})]"
+
+    def as_code(self):
+        return f"{self.obj.as_code()}{self.prop.as_code()}"
+
+
+class Range:
+    def __init__(self, tree: Tree):
+        self.tree = tree
+        self.labels = tuple(x.label() for x in tree)
+
+    def as_foreach_pred(self):
+        if self.labels == ("NN", "OBJ", "IN", "OBJ", "IN", "OBJ"):
+            ident = Object(self.tree[1])
+            start = Object(self.tree[3])
+            end = Object(self.tree[5])
+
+            return ident, start, end
+        raise ValueError(f"Range case not handled: {self.labels}")
+
+
+class RangeMod(Enum):
+    INCLUSIVE = auto()
+    EXCLUSIVE = auto()
+
+    @classmethod
+    def from_str(cls, s: str):
+        return {
+            "inclusive": cls.INCLUSIVE,
+            "exclusive": cls.EXCLUSIVE
+        }[s.lower()]
+
+    def as_code_lt(self):
+        return {
+            self.INCLUSIVE: "<=",
+            self.EXCLUSIVE: "<"
+        }[self]
+
+
+class ForEach:
+    def __init__(self, tree: Tree):
+        self.tree = tree
+        self.range = Range(tree[2])
+        self.labels = tuple(x.label() for x in tree)
+
+    def as_code(self, cond: str):
+        # need type hint about second
+        ident, start, end = self.range.as_foreach_pred()
+
+        if self.labels[-1] == "JJ":
+            upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
+        else:
+            upper_range = RangeMod.EXCLUSIVE.as_code_lt()
+        #                                    v do type introspection here
+        return f"forall(|{ident.as_code()}: int| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}) ==> {cond})"
+        # raise ValueError(f"ForEach case not handled: {self.labels}")
+
+
+class ForEachHardAssert:
+    def __init__(self, tree: Tree):
+        self.foreach = ForEach(tree[0])
+        self.hassert = HardAssert(tree[-1])
+
+    def as_spec(self):
+        return f"#[requires({self.foreach.as_code(self.hassert.as_code())})]"
 
 
 class Predicate:
@@ -293,6 +395,8 @@ class Specification:
         self.spec = {
             "RETIF": ReturnIf,
             "IFRET": IfReturn,
+            "HASSERT": HardAssert,
+            "UHASSERT": ForEachHardAssert,
         }[tree[0].label()](tree[0])
 
     def as_spec(self):
@@ -344,8 +448,8 @@ class Parser:
         self.rd_parser = nltk.RecursiveDescentParser(self.grammar)
 
     def parse_sentence(self, sentence: str):
-        sentence = sentence\
-            .replace("isn't", "is not")\
+        sentence = sentence \
+            .replace("isn't", "is not") \
             .rstrip(".")
 
         sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
@@ -355,6 +459,7 @@ class Parser:
         labels = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
         print(labels)
+        print(words)
         nltk_sent = [label.value for label in labels]
         return [
             attach_words_to_nodes(tree, words)
@@ -382,6 +487,12 @@ def main():
         "Returns `true` if the index is not less than `self.len()`",
         "Returns `true` if the index is smaller than or equal to `self.len()`",
         "If the index is smaller than or equal to `self.len()`, returns true.",
+        "`index` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
+        "`i` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`"
+
     ]
 
     parser = Parser()
