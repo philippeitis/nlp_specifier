@@ -76,7 +76,7 @@ def correct_tokens(token_dict):
         return
 
     for i, entity in enumerate(entities):
-        if i == 0 and entity["text"].lower() == "returns":
+        if entity["text"].lower() == "returns":
             if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {
                 "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
             }:
@@ -130,9 +130,11 @@ class Comparator(Enum):
     def from_str(cls, s: str):
         return {
             "less": cls.LT,
+            "smaller": cls.LT,
             "greater": cls.GT,
+            "larger": cls.GT,
             "equal": cls.EQ,
-        }[s]
+        }[s.lower()]
 
     def __str__(self):
         return {
@@ -190,10 +192,19 @@ class Relation:
         return self
 
 
+class ModRelation(Relation):
+    def __init__(self, tree: Tree):
+        if tree[0].label() == "RB":
+            super().__init__(tree[1])
+            self.apply_adverb(tree[0][0])
+        else:
+            super().__init__(tree[0])
+
+
 class Property:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "REL"), ("VBZ", "RB", "REL"), ("VBZ", "LIT")}:
+        if labels not in {("VBP", "JJ"), ("VBZ", "JJ"), ("VBZ", "MREL"), ("VBZ", "LIT")}:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -203,10 +214,8 @@ class Property:
             return f".{self.tree[1][0]}()"
         if self.labels == ("VBZ", "LIT"):
             return f" == {self.tree[1][0]}"
-        if self.labels == ("VBZ", "REL"):
-            return Relation(self.tree[1]).as_code()
-        if self.labels == ("VBZ", "RB", "REL"):
-            return Relation(self.tree[2]).apply_adverb(self.tree[1][0]).as_code()
+        if self.labels == ("VBZ", "MREL"):
+            return ModRelation(self.tree[1]).as_code()
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -267,7 +276,11 @@ class ReturnIf:
 
 class IfReturn(ReturnIf):
     def __init__(self, tree: Tree):
-        super().__init__([subtree for subtree in tree[::-1]])
+        # Swizzle the values as needed.
+        if tree[1].label() == "COMMA":
+            super().__init__([tree[2], tree[3], tree[0]])
+        else:
+            super().__init__([tree[1], tree[2], tree[0]])
 
 
 class Existential:
@@ -331,6 +344,10 @@ class Parser:
         self.rd_parser = nltk.RecursiveDescentParser(self.grammar)
 
     def parse_sentence(self, sentence: str):
+        sentence = sentence\
+            .replace("isn't", "is not")\
+            .rstrip(".")
+
         sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
         self.root_tagger.predict(sentence)
         token_dict = sentence.to_dict(tag_type="pos")
@@ -357,10 +374,14 @@ def main():
         "Returns true if self is 0u32",
         # Need to find a corresponding function or method for this case.
         "Returns `true` if and only if `self` is blue",
-        "Returns `true` if the index is less than `self.len()`",
+        # Well handled.
         "Returns `true` if the index is greater than or equal to `self.len()`",
         "Returns `true` if the index is equal to `self.len()`",
         "Returns `true` if the index is not equal to `self.len()`",
+        "Returns `true` if the index isn't equal to `self.len()`.",
+        "Returns `true` if the index is not less than `self.len()`",
+        "Returns `true` if the index is smaller than or equal to `self.len()`",
+        "If the index is smaller than or equal to `self.len()`, returns true.",
     ]
 
     parser = Parser()
