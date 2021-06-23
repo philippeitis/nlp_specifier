@@ -240,12 +240,35 @@ class MVB:
     def is_negation(self):
         return self.tree[0].label() == "RB" and self.tree[0][0].lower() == "not"
 
+    def vb(self):
+        return self.tree[-1][0]
+
+
+class MJJ:
+    def __init__(self, tree: Tree):
+        self.mod = tree[0] if tree[0].label() == "RB" else None
+        self.vb = tree[-1]
+
+    # TODO: Expand tests here.
+    def is_negative(self):
+        return self.mod is not None and self.mod[0] == "not"
+
+    # TODO: Expand tests for checking if a particular value is unchanged.
+    def unchanged(self):
+        if self.word() in {"unchanged"}:
+            return True
+        return False
+
+    def word(self):
+        return self.vb[0]
+
 
 class Property:
     PRODUCTIONS = {
-        ("MVB", "JJ"),
+        ("MVB", "MJJ"),
         ("MVB", "MREL"),
         ("MVB", "LIT"),
+        ("MVB",)
     }
 
     def __init__(self, tree: Tree):
@@ -254,17 +277,38 @@ class Property:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
-        self.negate = MVB(self.tree[0]).is_negation()
+        self.mvb = MVB(self.tree[0])
+        self.negate = self.mvb.is_negation()
 
+    # F F -> F no neg
+    # F T -> T is not changed
+    # T F -> T not is  changed -> is changed
+    # T T -> F (if 1, neg is true, otherwise true)
     def as_code(self, lhs: Object):
-        if self.labels[-1] == "JJ":
-            sym = "!" if self.negate else ""
-            return f"{sym}{lhs.as_code()}.{self.tree[1][0]}()"
+        if self.labels[-1] == "MJJ":
+            mjj = MJJ(self.tree[-1])
+            neg = mjj.is_negative() != self.negate
+            if mjj.unchanged():
+                sym = "!" if neg else "="
+                return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
+            sym = "!" if neg else ""
+            return f"{sym}{lhs.as_code()}.{mjj.word()}()"
         if self.labels[-1] == "LIT":
             cmp = Comparator.EQ.negate(self.negate)
             return f"{lhs.as_code()} {cmp} {self.tree[1][0]}"
         if self.labels[-1] == "MREL":
             return f"{lhs.as_code()}{ModRelation(self.tree[-1]).set_negate(MVB(self.tree[0]).is_negation()).as_code()}"
+        if self.labels[-1] == "MVB":
+            if self.mvb.vb() in {"changed", "modified", "altered", "change"}:
+                if self.negate:
+                    return f"{lhs.as_code()} == old({lhs.as_code()})"
+                return f"{lhs.as_code()} != old({lhs.as_code()})"
+            elif self.mvb.vb() in {"unchanged", "unmodified", "unaltered"}:
+                if self.negate:
+                    return f"{lhs.as_code()} != old({lhs.as_code()})"
+                return f"{lhs.as_code()} == old({lhs.as_code()})"
+            else:
+                raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.vb()})")
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -347,16 +391,26 @@ class RangeMod(Enum):
         }[self]
 
 
+class CC:
+    def __init__(self, tree: Tree):
+        self.tree = tree
+
+    def bool_op(self):
+        return {
+            "or": "||",
+            "and": "&&",
+        }[self.tree[0].lower()]
+
+
 class ForEach:
     def __init__(self, tree: Tree):
         if tree[0].label() == "FOREACH":
-            print("NESTED")
             # another range condition here
             sub_foreach = ForEach(tree[0])
             self.tree = sub_foreach.tree
             self.range = sub_foreach.range
             self.labels = sub_foreach.labels
-            self.range_conditions = sub_foreach.range_conditions + [ModRelation(tree[-1])]
+            self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
         else:
             self.tree = tree
             self.range = Range(tree[2])
@@ -364,6 +418,7 @@ class ForEach:
             self.range_conditions = []
 
     def as_code(self, cond: str):
+        ## (a && b) || (c && d && e) || (f)
         # need type hint about second
         ident, start, end = self.range.as_foreach_pred()
 
@@ -375,13 +430,16 @@ class ForEach:
         #                                    v do type introspection here
         xtype = "int"
         # detect multiple identifiers.
-        extra_range_conds = ""
-        for range_condition in self.range_conditions:
+        conditions = [[f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
+        for opx, range_condition in self.range_conditions:
             # Has nothing attached
-            if isinstance(range_condition, ModRelation):
-                extra_range_conds += f" && {ident.as_code()}{range_condition.as_code()}"
+            if opx.bool_op() == "&&":
+                conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
+            if opx.bool_op() == "||":
+                conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
 
-        return f"forall(|{ident.as_code()}: {xtype}| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}{extra_range_conds}) ==> ({cond}))"
+        conds = ") || (".join(" && ".join(conds) for conds in conditions)
+        return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({cond}))"
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
@@ -531,34 +589,41 @@ class Parser:
 
 def main():
     predicates = [
-        "I am red",
-        "It is red",
-        "The index is less than `self.len()`",
-        "The index is 0u32",
-        # Well handled.
-        "Returns `true` if and only if `self` is 0u32",
-        "Returns `true` if `self` is 0u32",
-        "Returns true if self is 0u32",
-        # Need to find a corresponding function or method for this case.
-        "Returns `true` if and only if `self` is blue",
-        # Well handled.
-        "Returns `true` if the index is greater than or equal to `self.len()`",
-        "Returns `true` if the index is equal to `self.len()`",
-        "Returns `true` if the index is not equal to `self.len()`",
-        "Returns `true` if the index isn't equal to `self.len()`.",
-        "Returns `true` if the index is not less than `self.len()`",
-        "Returns `true` if the index is smaller than or equal to `self.len()`",
-        "If the index is smaller than or equal to `self.len()`, returns true.",
-        "`index` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
-        "`i` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
-        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
-        # differentiate btw will and must wrt result
-        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
-        "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
-        "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false."
+        # "I am red",
+        # "It is red",
+        # "The index is less than `self.len()`",
+        # "The index is 0u32",
+        # # Well handled.
+        # "Returns `true` if and only if `self` is 0u32",
+        # "Returns `true` if `self` is 0u32",
+        # "Returns true if self is 0u32",
+        # # Need to find a corresponding function or method for this case.
+        # "Returns `true` if and only if `self` is blue",
+        # # Well handled.
+        # "Returns `true` if the index is greater than or equal to `self.len()`",
+        # "Returns `true` if the index is equal to `self.len()`",
+        # "Returns `true` if the index is not equal to `self.len()`",
+        # "Returns `true` if the index isn't equal to `self.len()`.",
+        # "Returns `true` if the index is not less than `self.len()`",
+        # "Returns `true` if the index is smaller than or equal to `self.len()`",
+        # "If the index is smaller than or equal to `self.len()`, returns true.",
+        # "`index` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
+        # "`i` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
+        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
+        # # differentiate btw will and must wrt result
+        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
+        # "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
+        # "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
+        # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
+        # "`self.lookup(index)` will be equal to `val`",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static."
+        "Returns true if self is not blue",
+        "`self` must be blue"
     ]
 
     parser = Parser()
