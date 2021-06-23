@@ -535,7 +535,7 @@ def main():
         "`i` must be less than `self.len()`",
         "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
         "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
-        # differentiate btw will and not
+        # differentiate btw will and must wrt result
         "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`"
 
     ]
