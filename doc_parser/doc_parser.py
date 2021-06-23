@@ -137,6 +137,11 @@ class Object:
             return self.tree[1][0]
         raise ValueError(f"{self.labels} not handled.")
 
+    def is_output(self):
+        # TODO: This should return true if self is "result" or "output".
+        pass
+        # TODO: implement method to cross-ref function inputs
+
 
 class Comparator(Enum):
     LT = auto()
@@ -154,6 +159,8 @@ class Comparator(Enum):
             "greater": cls.GT,
             "larger": cls.GT,
             "equal": cls.EQ,
+            "unequal": cls.NEQ,
+            "same": cls.EQ,
         }[s.lower()]
 
     def __str__(self):
@@ -186,29 +193,37 @@ class Comparator(Enum):
         }[self]
 
 
+class TJJ:
+    def __init__(self, tree: Tree):
+        self.tree = tree
+
+    def get_word(self):
+        return self.tree[-1][0]
+
+
 class Relation:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("JJR", "IN", "OBJ"), ("JJ", "EQTO", "OBJ"), ("JJR", "EQTO", "OBJ"), ("JJ", "IN", "OBJ")}:
+        if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ")}:
             raise ValueError(f"Bad tree - expected REL productions, got {labels}")
         self.labels = labels
         self.tree = tree
         self.negate = False
 
     def as_code(self):
-        if self.labels in {("JJR", "IN", "OBJ"), ("JJ", "IN", "OBJ")}:
-            relation = Comparator.from_str(self.tree[0][0]).negate(self.negate)
-            return f" {relation} {Object(self.tree[2]).as_code()}"
-        if self.labels in {("JJR", "EQTO", "OBJ"), ("JJ", "EQTO", "OBJ")}:
-            relation = Comparator.from_str(self.tree[0][0]).apply_eq().negate(self.negate)
-            return f" {relation} {Object(self.tree[2]).as_code()}"
-
-        raise ValueError(f"Case {self.labels} not handled.")
+        relation = Comparator.from_str(TJJ(self.tree[0]).get_word()).negate(self.negate)
+        if self.labels == ("TJJ", "EQTO", "OBJ"):
+            relation = relation.apply_eq()
+        return f" {relation} {Object(self.tree[2]).as_code()}"
 
     def apply_adverb(self, s: str):
         if s.lower() != "not":
             raise ValueError(f"Only not is supported as an adverb for Relation: got {s}")
         self.negate = True
+        return self
+
+    def set_negate(self, negate: bool):
+        self.negate = negate
         return self
 
 
@@ -221,13 +236,19 @@ class ModRelation(Relation):
             super().__init__(tree[0])
 
 
+class MVB:
+    def __init__(self, tree: Tree):
+        self.tree = tree
+
+    def is_negation(self):
+        return self.tree[0].label() == "RB" and self.tree[0][0].lower() == "not"
+
+
 class Property:
     PRODUCTIONS = {
-        ("VBP", "JJ"),
-        ("VBZ", "JJ"),
-        ("VB", "MREL"),
-        ("VBZ", "MREL"),
-        ("VBZ", "LIT"),
+        ("MVB", "JJ"),
+        ("MVB", "MREL"),
+        ("MVB", "LIT"),
     }
 
     def __init__(self, tree: Tree):
@@ -236,14 +257,17 @@ class Property:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
         self.labels = labels
         self.tree = tree
+        self.negate = MVB(self.tree[0]).is_negation()
 
-    def as_code(self):
-        if self.labels == ("VBZ", "JJ"):
-            return f".{self.tree[1][0]}()"
-        if self.labels == ("VBZ", "LIT"):
-            return f" == {self.tree[1][0]}"
-        if self.labels in {("VBZ", "MREL"), ("VB", "MREL")}:
-            return ModRelation(self.tree[-1]).as_code()
+    def as_code(self, lhs: Object):
+        if self.labels[-1] == "JJ":
+            sym = "!" if self.negate else ""
+            return f"{sym}{lhs.as_code()}.{self.tree[1][0]}()"
+        if self.labels[-1] == "LIT":
+            cmp = Comparator.EQ.negate(self.negate)
+            return f"{lhs.as_code()} {cmp} {self.tree[1][0]}"
+        if self.labels[-1] == "MREL":
+            return f"{lhs.as_code()}{ModRelation(self.tree[-1]).set_negate(MVB(self.tree[0]).is_negation()).as_code()}"
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -259,7 +283,7 @@ class Assert:
         self.prop = Property(tree[1])
 
     def as_code(self):
-        return f"{self.obj.as_code()}{self.prop.as_code()}"
+        return f"{self.prop.as_code(self.obj)}"
 
 
 class HardAssert(Assert):
@@ -267,12 +291,23 @@ class HardAssert(Assert):
         if tree[1].label() != "MD":
             raise ValueError(f"Bad tree - expected MD as first HASSERT production, got {tree[0].label()}")
         super().__init__([tree[0], tree[2]])
+        self.md = tree[1]
+
+    def is_precondition(self):
+        # TODO: This should be more rigourous:
+        #  eg. The [result] must be some value
+        #  vs. The input must be some value.
+        #  Check what MD is in relation to.
+        #  if self.obj.is_input() // if self.obj.is_output()
+        # will indicates future
+        return self.md[0] not in {"will"}
 
     def as_spec(self):
-        return f"#[requires({self.as_code()})]"
-
-    def as_code(self):
-        return f"{self.obj.as_code()}{self.prop.as_code()}"
+        if self.is_precondition():
+            cond = "requires"
+        else:
+            cond = "ensures"
+        return f"#[{cond}({self.as_code()})]"
 
 
 class Range:
@@ -322,8 +357,11 @@ class ForEach:
             upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
         else:
             upper_range = RangeMod.EXCLUSIVE.as_code_lt()
+        # type hints: start.as_code(), end.as_code()
         #                                    v do type introspection here
-        return f"forall(|{ident.as_code()}: int| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}) ==> {cond})"
+        xtype = "int"
+        # detect multiple identifiers.
+        return f"forall(|{ident.as_code()}: {xtype}| ({start.as_code()} <= {ident.as_code()} && {ident.as_code()} {upper_range} {end.as_code()}) ==> ({cond}))"
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
@@ -333,7 +371,11 @@ class ForEachHardAssert:
         self.hassert = HardAssert(tree[-1])
 
     def as_spec(self):
-        return f"#[requires({self.foreach.as_code(self.hassert.as_code())})]"
+        if self.hassert.is_precondition():
+            cond = "requires"
+        else:
+            cond = "ensures"
+        return f"#[{cond}({self.foreach.as_code(self.hassert.as_code())})]"
 
 
 class Predicate:
@@ -491,7 +533,10 @@ def main():
         "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
         "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
         "`i` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`"
+        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
+        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
+        # differentiate btw will and not
+        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`"
 
     ]
 
