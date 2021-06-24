@@ -14,6 +14,7 @@ https://huggingface.co/flair/pos-english
 
 ### NLTK Tree parsing
 https://stackoverflow.com/questions/24975573/how-to-parse-custom-tags-using-nltk-regexp-parser/25005857?iemail=1&noredirect=1#25005857
+
 https://www.nltk.org/book/ch08.html
 
 ### Set up
@@ -28,7 +29,9 @@ pip install nltk
 ```
 
 Further instructions are available at these links:
+
 https://www.nltk.org/install.html
+
 https://pypi.org/project/flair/
 
 ## Rust AST Parser
