@@ -104,7 +104,7 @@ class Code:
     def __init__(self, tree: Tree):
         self.code: str = tree[0]
 
-    def __str__(self):
+    def as_code(self):
         return self.code.strip("`")
 
 
@@ -112,26 +112,30 @@ class Literal:
     def __init__(self, tree: Tree):
         self.str: str = tree[0]
 
-    def __str__(self):
+    def as_code(self):
         return self.str
 
 
 class Object:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("PRP",), ("DT", "NN"), ("CODE",), ("LIT",)}:
+        if labels not in {("PRP",), ("DT", "NN"), ("CODE",), ("LIT",), ("MNN",)}:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
 
     def as_code(self):
         if self.labels == ("CODE",):
-            return Code(self.tree[0])
+            return Code(self.tree[0]).as_code()
         if self.labels == ("LIT",):
-            return Literal(self.tree[0])
+            return Literal(self.tree[0]).as_code()
         if self.labels == ("DT", "NN"):
             # TODO: This assumes that val in "The val" is a variable.
             return self.tree[1][0]
+        if self.labels == ("MNN",):
+            # TODO: This assumes that val in "The val" is a variable.
+            return self.tree[0][0]
+
         raise ValueError(f"{self.labels} not handled.")
 
     def is_output(self):
@@ -219,8 +223,9 @@ class Relation:
         self.negate = True
         return self
 
-    def set_negate(self, negate: bool):
-        self.negate = negate
+    def apply_negate(self, negate: bool):
+        if negate:
+            self.negate = not self.negate
         return self
 
 
@@ -297,7 +302,7 @@ class Property:
             cmp = Comparator.EQ.negate(self.negate)
             return f"{lhs.as_code()} {cmp} {self.tree[1][0]}"
         if self.labels[-1] == "MREL":
-            return f"{lhs.as_code()}{ModRelation(self.tree[-1]).set_negate(MVB(self.tree[0]).is_negation()).as_code()}"
+            return f"{lhs.as_code()}{ModRelation(self.tree[-1]).apply_negate(self.negate).as_code()}"
         if self.labels[-1] == "MVB":
             if self.mvb.vb() in {"changed", "modified", "altered", "change"}:
                 if self.negate:
@@ -357,12 +362,6 @@ class Range:
         self.labels = tuple(x.label() for x in tree)
 
     def as_foreach_pred(self):
-        if self.labels == ("MNN", "OBJ", "IN", "OBJ", "RSEP", "OBJ"):
-            ident = Object(self.tree[1])
-            start = Object(self.tree[3])
-            end = Object(self.tree[5])
-
-            return ident, start, end
         if self.labels == ("OBJ", "IN", "OBJ", "RSEP", "OBJ"):
             ident = Object(self.tree[0])
             start = Object(self.tree[2])
@@ -408,42 +407,107 @@ class ForEach:
             # another range condition here
             sub_foreach = ForEach(tree[0])
             self.tree = sub_foreach.tree
+            self.quant = sub_foreach.quant
             self.range = sub_foreach.range
             self.labels = sub_foreach.labels
             self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
         else:
             self.tree = tree
-            self.range = Range(tree[2])
+            self.quant = Quant(tree[0])
+            self.range = Range(tree[1]) if len(tree) > 1 else None
             self.labels = tuple(x.label() for x in tree)
             self.range_conditions = []
 
     def as_code(self, cond: str):
+        if not self.quant.is_universal:
+            raise UnsupportedSpec(f"Prusti does not support existential quantifiers (keyword {self.quant.coverage[0]}).")
         ## (a && b) || (c && d && e) || (f)
         # need type hint about second
-        ident, start, end = self.range.as_foreach_pred()
-
-        if self.labels[-1] == "JJ":
-            upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
-        else:
-            upper_range = RangeMod.EXCLUSIVE.as_code_lt()
         # type hints: start.as_code(), end.as_code()
         #                                    v do type introspection here
-        xtype = "int"
         # detect multiple identifiers.
-        conditions = [[f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
-        for opx, range_condition in self.range_conditions:
-            # Has nothing attached
-            if opx.bool_op() == "&&":
-                conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
-            if opx.bool_op() == "||":
-                conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
 
-        conds = ") || (".join(" && ".join(conds) for conds in conditions)
-        return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({cond}))"
+        xtype = "int"
+        if self.range is not None:
+            ident, start, end = self.range.as_foreach_pred()
+
+            if self.labels[-1] == "JJ":
+                upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
+            else:
+                upper_range = RangeMod.EXCLUSIVE.as_code_lt()
+            conditions = [
+                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
+            for opx, range_condition in self.range_conditions:
+                # Has nothing attached
+                if opx.bool_op() == "&&":
+                    conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
+                if opx.bool_op() == "||":
+                    conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
+
+            conds = ") || (".join(" && ".join(conds) for conds in conditions)
+            return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({cond}))"
+        else:
+            ident = self.quant.obj.as_code()
+            return f"forall(|{ident}: {xtype}| {cond})"
+        # raise ValueError(f"ForEach case not handled: {self.labels}")
+
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: str = Union[List[str], str], flip=False):
+        if not self.quant.is_universal:
+            raise UnsupportedSpec("Prusti does not support existential quantifiers.")
+        ## (a && b) || (c && d && e) || (f)
+        # need type hint about second
+        # type hints: start.as_code(), end.as_code()
+        #                                    v do type introspection here
+        # detect multiple identifiers.
+        if isinstance(post_cond, list):
+            post_cond = " && ".join(post_cond)
+        if isinstance(pre_cond, list):
+            pre_cond = " && ".join(pre_cond)
+
+        xtype = "int"
+        if self.range is not None:
+            ident, start, end = self.range.as_foreach_pred()
+
+            if self.labels[-1] == "JJ":
+                upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
+            else:
+                upper_range = RangeMod.EXCLUSIVE.as_code_lt()
+            conditions = [
+                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
+            if pre_cond:
+                if isinstance(pre_cond, list):
+                    conditions[-1].extend(pre_cond)
+                else:
+                    conditions[-1].append(pre_cond)
+            for opx, range_condition in self.range_conditions:
+                # Has nothing attached
+                if opx.bool_op() == "&&":
+                    conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
+                if opx.bool_op() == "||":
+                    conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
+
+            conds = ") || (".join(" && ".join(conds) for conds in conditions)
+            if flip:
+                conds, post_cond = post_cond, conds
+            return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({post_cond}))"
+        else:
+            ident = self.quant.obj.as_code()
+            if pre_cond:
+                if flip:
+                    return f"forall(|{ident}: {xtype}| {post_cond} ==> {pre_cond})"
+                return f"forall(|{ident}: {xtype}| {pre_cond} ==> {post_cond})"
+            return f"forall(|{ident}: {xtype}| {post_cond})"
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
-class ForEachHardAssert:
+class Quant:
+    def __init__(self, tree: Tree):
+        self.obj = Object(tree[2])
+        self.coverage = tree[1]
+        self.is_universal = tree[1][0].lower() in {"all", "each", "any"}
+
+
+class QuantifierHardAssert:
     def __init__(self, tree: Tree):
         self.foreach = ForEach(tree[0])
         self.hassert = HardAssert(tree[-1])
@@ -470,6 +534,78 @@ class Predicate:
         return self.assertion.as_code()
 
 
+class QuantAssert:
+    def __init__(self, tree: Tree):
+        labels = tuple(x.label() for x in tree)
+        if labels == ("FOREACH", "COMMA", "HASSERT"):
+            self.foreach = ForEach(tree[0])
+            self.assertion = HardAssert(tree[2])
+        elif labels == ("FOREACH", "HASSERT"):
+            self.foreach = ForEach(tree[0])
+            self.assertion = HardAssert(tree[1])
+        elif labels == ("HASSERT", "FOREACH"):
+            self.foreach = ForEach(tree[1])
+            self.assertion = HardAssert(tree[2])
+        elif labels == ("CODE", "FOREACH"):
+            self.foreach = ForEach(tree[1])
+            self.assertion = Code(tree[0])
+        else:
+            raise ValueError(f"Unexpected productions for QASSERT: {labels}")
+
+    def bound_vars(self):
+        # TODO: Fix bound vars to find actual bound variables
+        return self.foreach.quant.obj.as_code()
+
+    def as_code(self):
+        # eg. there exists some x such that y is true
+        #     to forall: !forall(x st y is not true)
+        return self.foreach.as_code(self.assertion.as_code())
+
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
+        def merge_to_list(a: Union[List[str], str], b: Union[List[str], str]):
+            if a is None:
+                return b
+            if b is None:
+                return a
+            if isinstance(a, list):
+                if isinstance(b, list):
+                    return a + b
+                return a + [b]
+            if isinstance(b, list):
+                return b + [a]
+            return [a, b]
+        if flip:
+            return self.foreach.with_conditions(post_cond, merge_to_list(pre_cond, self.assertion.as_code()), flip)
+        return self.foreach.with_conditions(merge_to_list(self.assertion.as_code(), post_cond), pre_cond, flip)
+
+    def as_spec(self):
+        if isinstance(self.assertion, HardAssert) and self.assertion.is_precondition():
+            cond = "requires"
+        else:
+            # TODO: Assumes that code is post-condition? How to fix?
+            cond = "ensures"
+        return f"#[{cond}({self.as_code()})]"
+
+class QuantPredicate:
+    def __init__(self, tree: Tree):
+        if tree[0].label() not in {"IFF", "IN"}:
+            raise ValueError(f"Bad tree - expected IFF or IN, got {tree[0].label()}")
+        if tree[1].label() != "QASSERT":
+            raise ValueError(f"Bad tree - expected ASSERT, got {tree[1].label()}")
+
+        self.iff = tree[0].label() == "IFF"
+        self.assertion = QuantAssert(tree[1])
+
+    def bound_vars(self):
+        return self.assertion.bound_vars()
+
+    def as_code(self):
+        return self.assertion.as_code()
+
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
+        return self.assertion.with_conditions(post_cond, pre_cond, flip)
+
+
 class ReturnIf:
     def __init__(self, tree: Union[Tree, List[Tree]]):
         if tree[0].label() != "RET":
@@ -478,22 +614,35 @@ class ReturnIf:
         if tree[1].label() != "OBJ":
             raise ValueError(f"Bad tree - expected OBJ, got {tree[1].label()}")
 
-        if tree[2].label() not in {"EPRED", "PRED"}:
-            raise ValueError(f"Bad tree - expected EPRED or PRED, got {tree[2].label()}")
+        if tree[2].label() not in {"QPRED", "PRED"}:
+            raise ValueError(f"Bad tree - expected QPRED or PRED, got {tree[2].label()}")
 
         # Need to find out what the ret value is.
 
         self.ret_val = Object(tree[1])
-        self.pred = Predicate(tree[2])
+        if tree[2].label() == "PRED":
+            self.pred = Predicate(tree[2])
+        else:
+            self.pred = QuantPredicate(tree[2])
 
     def __str__(self):
         return f"return {self.ret_val.as_code()};"
 
     def as_spec(self):
+        ret_assert = f"result == {self.ret_val.as_code()}"
+        if isinstance(self.pred, QuantPredicate):
+            if self.pred.iff:
+                # need to be able to put cond inside quant pred
+                # Need to handle ret val inside QASSERT.
+                return f"""#[ensures({self.pred.with_conditions(ret_assert)})]
+#[ensures({self.pred.with_conditions(ret_assert, flip=True)})]"""
+
+            return f"""#[ensures({self.pred.with_conditions()})]"""
+
         if self.pred.iff:
-            return f"""#[ensures({self.pred.as_code()} ==> (result == {self.ret_val.as_code()}))]
-#[ensures((result == {self.ret_val.as_code()}) ==> {self.pred.as_code()})]"""
-        return f"""#[ensures({self.pred.as_code()} ==> (result == {self.ret_val.as_code()}))]"""
+            return f"""#[ensures({self.pred.as_code()} ==> ({ret_assert}))]
+#[ensures(({ret_assert}) ==> {self.pred.as_code()})]"""
+        return f"""#[ensures({self.pred.as_code()} ==> ({ret_assert}))]"""
 
 
 class IfReturn(ReturnIf):
@@ -516,7 +665,7 @@ class Specification:
             "RETIF": ReturnIf,
             "IFRET": IfReturn,
             "HASSERT": HardAssert,
-            "UHASSERT": ForEachHardAssert,
+            "QASSERT": QuantAssert,
         }[tree[0].label()](tree[0])
 
     def as_spec(self):
@@ -587,45 +736,63 @@ class Parser:
         ]
 
 
+class UnsupportedSpec(ValueError):
+    pass
+
+
 def main():
     predicates = [
         # "I am red",
         # "It is red",
         # "The index is less than `self.len()`",
         # "The index is 0u32",
-        # # Well handled.
-        # "Returns `true` if and only if `self` is 0u32",
-        # "Returns `true` if `self` is 0u32",
-        # "Returns true if self is 0u32",
-        # # Need to find a corresponding function or method for this case.
-        # "Returns `true` if and only if `self` is blue",
-        # # Well handled.
-        # "Returns `true` if the index is greater than or equal to `self.len()`",
-        # "Returns `true` if the index is equal to `self.len()`",
-        # "Returns `true` if the index is not equal to `self.len()`",
-        # "Returns `true` if the index isn't equal to `self.len()`.",
-        # "Returns `true` if the index is not less than `self.len()`",
-        # "Returns `true` if the index is smaller than or equal to `self.len()`",
-        # "If the index is smaller than or equal to `self.len()`, returns true.",
-        # "`index` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
-        # "`i` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
-        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
-        # # differentiate btw will and must wrt result
-        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
-        # "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
-        # "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
+        # Well handled.
+        "Returns `true` if and only if `self` is 0u32",
+        "Returns `true` if `self` is 0u32",
+        "Returns true if self is 0u32",
+        # Need to find a corresponding function or method for this case.
+        "Returns `true` if and only if `self` is blue",
+        # Well handled.
+        "Returns `true` if the index is greater than or equal to `self.len()`",
+        "Returns `true` if the index is equal to `self.len()`",
+        "Returns `true` if the index is not equal to `self.len()`",
+        "Returns `true` if the index isn't equal to `self.len()`.",
+        "Returns `true` if the index is not less than `self.len()`",
+        "Returns `true` if the index is smaller than or equal to `self.len()`",
+        "If the index is smaller than or equal to `self.len()`, returns true.",
+        "`index` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
+        "`i` must be less than `self.len()`",
+        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
+        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
+        # differentiate btw will and must wrt result
+        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
+        "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
+        "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
         # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
-        # "`self.lookup(index)` will be equal to `val`",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static."
+        "`self.lookup(index)` will be equal to `val`",
+        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
+        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
         "Returns true if self is not blue",
-        "`self` must be blue"
+        "`self` must be blue",
+        "`other.v` must not be equal to 0",
+        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
+        "Returns `true` if and only if `self == 2^k` for all `k`.",
+        "Returns `true` if and only if `self == 2^k` for any `k`."
     ]
-
+    #         "Returns `true` if and only if `self == 2^k` for some `k`."
+    #                                                  ^ not as it appears in Rust (programmer error, obviously)
+    #                                                   (eg. allow mathematical notation?)
+    #
+    # TODO: Find examples that are not supported by Prusti
+    #  async fns (eg. eventually) ? (out of scope)
+    #  for all / for each
+    #  Greater than
+    #  https://doc.rust-lang.org/std/primitive.u32.html#method.checked_next_power_of_two
+    #  If the next power of two is greater than the type’s maximum value
+    #  No direct support for existential
+    #  For any index that meets some condition, x is true. (eg. forall)
     parser = Parser()
     for sentence in predicates:
         print("=" * 80)
@@ -634,10 +801,11 @@ def main():
         for tree in parser.parse_sentence(sentence):
             tree: nltk.tree.Tree = tree
             try:
-                spec = Specification(tree)
-                print(spec.as_spec())
+                print(Specification(tree).as_spec())
             except LookupError as e:
-                print(f"No specification found. {e}")
+                print(f"No specification found: {e}")
+            except UnsupportedSpec as s:
+                print(f"Specification element not supported ({s})")
             print(tree)
             print()
 
