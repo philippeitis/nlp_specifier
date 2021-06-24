@@ -124,7 +124,7 @@ class Object:
         self.labels = labels
         self.tree = tree
 
-    def as_code(self):
+    def as_code(self) -> str:
         if self.labels == ("CODE",):
             return Code(self.tree[0]).as_code()
         if self.labels == ("LIT",):
@@ -134,7 +134,7 @@ class Object:
             return self.tree[1][0]
         if self.labels == ("MNN",):
             # TODO: This assumes that val in "The val" is a variable.
-            return self.tree[0][0]
+            return self.tree[0][0][0]
 
         raise ValueError(f"{self.labels} not handled.")
 
@@ -368,6 +368,21 @@ class Range:
             end = Object(self.tree[4])
 
             return ident, start, end
+        if self.labels == ("IN", "OBJ", "RSEP", "OBJ"):
+            start = Object(self.tree[1])
+            end = Object(self.tree[3])
+            return None, start, end
+        # TODO: What other cases other than "up to" (eg. up to and not including)
+        if self.labels == ("IN", "IN", "OBJ"):
+            end = Object(self.tree[2])
+            return None, None, end
+
+        # if self.labels == ("IN", "IN", "OBJ"):
+        #     ident = Object(self.tree[0])
+        #     start = Object(self.tree[2])
+        #     end = Object(self.tree[4])
+        #
+        #     return ident, start, end
 
         raise ValueError(f"Range case not handled: {self.labels}")
 
@@ -413,45 +428,15 @@ class ForEach:
             self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
         else:
             self.tree = tree
-            self.quant = Quant(tree[0])
+            self.quant = Quantifier(tree[0])
             self.range = Range(tree[1]) if len(tree) > 1 else None
             self.labels = tuple(x.label() for x in tree)
             self.range_conditions = []
 
     def as_code(self, cond: str):
-        if not self.quant.is_universal:
-            raise UnsupportedSpec(f"Prusti does not support existential quantifiers (keyword {self.quant.coverage[0]}).")
-        ## (a && b) || (c && d && e) || (f)
-        # need type hint about second
-        # type hints: start.as_code(), end.as_code()
-        #                                    v do type introspection here
-        # detect multiple identifiers.
+        return self.with_conditions(cond)
 
-        xtype = "int"
-        if self.range is not None:
-            ident, start, end = self.range.as_foreach_pred()
-
-            if self.labels[-1] == "JJ":
-                upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
-            else:
-                upper_range = RangeMod.EXCLUSIVE.as_code_lt()
-            conditions = [
-                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
-            for opx, range_condition in self.range_conditions:
-                # Has nothing attached
-                if opx.bool_op() == "&&":
-                    conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
-                if opx.bool_op() == "||":
-                    conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
-
-            conds = ") || (".join(" && ".join(conds) for conds in conditions)
-            return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({cond}))"
-        else:
-            ident = self.quant.obj.as_code()
-            return f"forall(|{ident}: {xtype}| {cond})"
-        # raise ValueError(f"ForEach case not handled: {self.labels}")
-
-    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: str = Union[List[str], str], flip=False):
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str]=None, flip=False):
         if not self.quant.is_universal:
             raise UnsupportedSpec("Prusti does not support existential quantifiers.")
         ## (a && b) || (c && d && e) || (f)
@@ -465,15 +450,21 @@ class ForEach:
             pre_cond = " && ".join(pre_cond)
 
         xtype = "int"
+        xtype_min = {
+            "int": Literal(["-1"])
+        }
         if self.range is not None:
             ident, start, end = self.range.as_foreach_pred()
-
+            ident = ident or self.quant.obj
+            if start is None:
+                start = xtype_min[xtype]
             if self.labels[-1] == "JJ":
                 upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
             else:
                 upper_range = RangeMod.EXCLUSIVE.as_code_lt()
             conditions = [
-                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]]
+                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]
+            ]
             if pre_cond:
                 if isinstance(pre_cond, list):
                     conditions[-1].extend(pre_cond)
@@ -500,24 +491,11 @@ class ForEach:
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
-class Quant:
+class Quantifier:
     def __init__(self, tree: Tree):
         self.obj = Object(tree[2])
         self.coverage = tree[1]
         self.is_universal = tree[1][0].lower() in {"all", "each", "any"}
-
-
-class QuantifierHardAssert:
-    def __init__(self, tree: Tree):
-        self.foreach = ForEach(tree[0])
-        self.hassert = HardAssert(tree[-1])
-
-    def as_spec(self):
-        if self.hassert.is_precondition():
-            cond = "requires"
-        else:
-            cond = "ensures"
-        return f"#[{cond}({self.foreach.as_code(self.hassert.as_code())})]"
 
 
 class Predicate:
@@ -574,6 +552,7 @@ class QuantAssert:
             if isinstance(b, list):
                 return b + [a]
             return [a, b]
+
         if flip:
             return self.foreach.with_conditions(post_cond, merge_to_list(pre_cond, self.assertion.as_code()), flip)
         return self.foreach.with_conditions(merge_to_list(self.assertion.as_code(), post_cond), pre_cond, flip)
@@ -585,6 +564,7 @@ class QuantAssert:
             # TODO: Assumes that code is post-condition? How to fix?
             cond = "ensures"
         return f"#[{cond}({self.as_code()})]"
+
 
 class QuantPredicate:
     def __init__(self, tree: Tree):
@@ -629,7 +609,14 @@ class ReturnIf:
         return f"return {self.ret_val.as_code()};"
 
     def as_spec(self):
-        ret_assert = f"result == {self.ret_val.as_code()}"
+        ret_val = self.ret_val.as_code()
+        if ret_val == "true":
+            ret_assert = "result"
+        elif ret_val == "false":
+            ret_assert = "!result"
+        else:
+            ret_assert = f"(result == {ret_val})"
+
         if isinstance(self.pred, QuantPredicate):
             if self.pred.iff:
                 # need to be able to put cond inside quant pred
@@ -637,12 +624,12 @@ class ReturnIf:
                 return f"""#[ensures({self.pred.with_conditions(ret_assert)})]
 #[ensures({self.pred.with_conditions(ret_assert, flip=True)})]"""
 
-            return f"""#[ensures({self.pred.with_conditions()})]"""
+            return f"""#[ensures({self.pred.with_conditions(ret_assert)})]"""
 
         if self.pred.iff:
-            return f"""#[ensures({self.pred.as_code()} ==> ({ret_assert}))]
+            return f"""#[ensures({self.pred.as_code()} ==> {ret_assert})]
 #[ensures(({ret_assert}) ==> {self.pred.as_code()})]"""
-        return f"""#[ensures({self.pred.as_code()} ==> ({ret_assert}))]"""
+        return f"""#[ensures({self.pred.as_code()} ==> {ret_assert})]"""
 
 
 class IfReturn(ReturnIf):
@@ -652,11 +639,6 @@ class IfReturn(ReturnIf):
             super().__init__([tree[2], tree[3], tree[0]])
         else:
             super().__init__([tree[1], tree[2], tree[0]])
-
-
-class Existential:
-    def __init__(self, tree: Tree):
-        pass
 
 
 class Specification:
@@ -723,17 +705,18 @@ class Parser:
 
         sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
         self.root_tagger.predict(sentence)
+
         token_dict = sentence.to_dict(tag_type="pos")
         correct_tokens(token_dict)
+
         labels = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
         print(labels)
         print(words)
+
         nltk_sent = [label.value for label in labels]
-        return [
-            attach_words_to_nodes(tree, words)
-            for tree in self.rd_parser.parse(nltk_sent)
-        ]
+        for tree in self.rd_parser.parse(nltk_sent):
+            yield attach_words_to_nodes(tree, words)
 
 
 class UnsupportedSpec(ValueError):
@@ -741,45 +724,52 @@ class UnsupportedSpec(ValueError):
 
 
 def main():
+    test_cases = [
+        ("Returns `true` if `self` is 0u32", "#[ensures(self == 0u32 ==> result)]")
+    ]
     predicates = [
         # "I am red",
         # "It is red",
         # "The index is less than `self.len()`",
         # "The index is 0u32",
         # Well handled.
-        "Returns `true` if and only if `self` is 0u32",
-        "Returns `true` if `self` is 0u32",
-        "Returns true if self is 0u32",
-        # Need to find a corresponding function or method for this case.
-        "Returns `true` if and only if `self` is blue",
-        # Well handled.
-        "Returns `true` if the index is greater than or equal to `self.len()`",
-        "Returns `true` if the index is equal to `self.len()`",
-        "Returns `true` if the index is not equal to `self.len()`",
-        "Returns `true` if the index isn't equal to `self.len()`.",
-        "Returns `true` if the index is not less than `self.len()`",
-        "Returns `true` if the index is smaller than or equal to `self.len()`",
-        "If the index is smaller than or equal to `self.len()`, returns true.",
-        "`index` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
-        "`i` must be less than `self.len()`",
-        "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
-        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
-        # differentiate btw will and must wrt result
-        "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
-        "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
-        "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
-        # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
-        "`self.lookup(index)` will be equal to `val`",
-        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
-        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
-        "Returns true if self is not blue",
-        "`self` must be blue",
-        "`other.v` must not be equal to 0",
-        "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
+        # "Returns `true` if and only if `self` is 0u32",
+        # "Returns `true` if `self` is 0u32",
+        # "Returns true if self is 0u32",
+        # # Need to find a corresponding function or method for this case.
+        # "Returns `true` if and only if `self` is blue",
+        # # Well handled.
+        # "Returns `true` if the index is greater than or equal to `self.len()`",
+        # "Returns `true` if the index is equal to `self.len()`",
+        # "Returns `true` if the index is not equal to `self.len()`",
+        # "Returns `true` if the index isn't equal to `self.len()`.",
+        # "Returns `true` if the index is not less than `self.len()`",
+        # "Returns `true` if the index is smaller than or equal to `self.len()`",
+        # "If the index is smaller than or equal to `self.len()`, returns true.",
+        # "`index` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
+        # "for each index `i` up to `self.len()`, `i` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
+        # "`i` must be less than `self.len()`",
+        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
+        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
+        # # differentiate btw will and must wrt result
+        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
+        # "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
+        # "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
+        # # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
+        # "`self.lookup(index)` will be equal to `val`",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
+        # "Returns true if self is not blue",
+        # "`self` must be blue",
+        # "`other.v` must not be equal to 0",
+        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
         "Returns `true` if and only if `self == 2^k` for all `k`.",
         "Returns `true` if and only if `self == 2^k` for any `k`."
+        "For each index from 0 to 5, `self.lookup(index)` must be true.",
+        "For each index up to 5, `self.lookup(index)` must be true."
+
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
@@ -809,6 +799,12 @@ def main():
             print(tree)
             print()
 
+    for sentence, expected in test_cases:
+        try:
+            tree = next(parser.parse_sentence(sentence))
+            assert Specification(tree).as_spec() == expected
+        except AssertionError as a:
+            print(a)
 
 if __name__ == '__main__':
     main()
