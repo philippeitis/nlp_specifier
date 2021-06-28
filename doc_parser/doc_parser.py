@@ -14,7 +14,7 @@ class CodeTokenizer(flair.data.Tokenizer):
         parts = []
         num = 1
         a = 0
-        while sentence[a].isspace() and a < len(sentence):
+        while a < len(sentence) and sentence[a].isspace():
             a += 1
 
         while a < len(sentence):
