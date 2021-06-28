@@ -205,7 +205,7 @@ class TJJ:
 class Relation:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ")}:
+        if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
             raise ValueError(f"Bad tree - expected REL productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -273,6 +273,7 @@ class Property:
         ("MVB", "MJJ"),
         ("MVB", "MREL"),
         ("MVB", "LIT"),
+        ("MVB", "RANGEMOD"),
         ("MVB",)
     }
 
@@ -314,7 +315,12 @@ class Property:
                 return f"{lhs.as_code()} == old({lhs.as_code()})"
             else:
                 raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.vb()})")
-
+        if self.labels[-1] == "RANGEMOD":
+            r = RangeMod(self.tree[-1])
+            ident, start, stop = r.as_foreach_pred()
+            if ident:
+                raise ValueError(f"PROP: Unexpected ident in RANGE case: {ident}")
+            return f"{start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {stop.as_code()}"
         raise ValueError(f"Case {self.labels} not handled.")
 
 
@@ -387,7 +393,7 @@ class Range:
         raise ValueError(f"Range case not handled: {self.labels}")
 
 
-class RangeMod(Enum):
+class UpperBound(Enum):
     INCLUSIVE = auto()
     EXCLUSIVE = auto()
 
@@ -403,6 +409,15 @@ class RangeMod(Enum):
             self.INCLUSIVE: "<=",
             self.EXCLUSIVE: "<"
         }[self]
+
+
+class RangeMod(Range):
+    def __init__(self, tree: Tree):
+        super().__init__(tree[0])
+        if tree[-1].label() == "JJ":
+            self.upper_bound = UpperBound.from_str(tree[-1]).as_code_lt()
+        else:
+            self.upper_bound = UpperBound.EXCLUSIVE.as_code_lt()
 
 
 class CC:
@@ -429,14 +444,14 @@ class ForEach:
         else:
             self.tree = tree
             self.quant = Quantifier(tree[0])
-            self.range = Range(tree[1]) if len(tree) > 1 else None
+            self.range = RangeMod(tree[1]) if len(tree) > 1 else None
             self.labels = tuple(x.label() for x in tree)
             self.range_conditions = []
 
     def as_code(self, cond: str):
         return self.with_conditions(cond)
 
-    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str]=None, flip=False):
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
         if not self.quant.is_universal:
             raise UnsupportedSpec("Prusti does not support existential quantifiers.")
         ## (a && b) || (c && d && e) || (f)
@@ -458,12 +473,11 @@ class ForEach:
             ident = ident or self.quant.obj
             if start is None:
                 start = xtype_min[xtype]
-            if self.labels[-1] == "JJ":
-                upper_range = RangeMod.from_str(self.tree[-1][0]).as_code_lt()
-            else:
-                upper_range = RangeMod.EXCLUSIVE.as_code_lt()
             conditions = [
-                [f"{start.as_code()} <= {ident.as_code()}", f"{ident.as_code()} {upper_range} {end.as_code()}"]
+                [
+                    f"{start.as_code()} <= {ident.as_code()}",
+                    f"{ident.as_code()} {self.range.upper_bound} {end.as_code()}"
+                ]
             ]
             if pre_cond:
                 if isinstance(pre_cond, list):
@@ -768,8 +782,8 @@ def main():
         "Returns `true` if and only if `self == 2^k` for all `k`.",
         "Returns `true` if and only if `self == 2^k` for any `k`."
         "For each index from 0 to 5, `self.lookup(index)` must be true.",
-        "For each index up to 5, `self.lookup(index)` must be true."
-
+        "For each index up to 5, `self.lookup(index)` must be true.",
+        "`a` must be between 0 and `self.len()`."
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
@@ -805,6 +819,7 @@ def main():
             assert Specification(tree).as_spec() == expected
         except AssertionError as a:
             print(a)
+
 
 if __name__ == '__main__':
     main()
