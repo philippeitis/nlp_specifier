@@ -1,7 +1,17 @@
 from enum import Enum, auto
-from typing import Optional, List, Tuple
+from typing import Optional, List, Union
 
 from pprint import pprint
+from doc_parser.doc_parser import Parser, Specification
+
+from .docs import Docs
+
+PARSER = None
+
+
+def init_global_parser():
+    global PARSER
+    PARSER = Parser()
 
 
 def ast_items_from_json(items: []) -> []:
@@ -110,9 +120,17 @@ class Attr:
             return self.tokens[1].val.strip("\" ")
 
 
+class LitAttr:
+    def __init__(self, lit: str):
+        self.lit = lit
+
+    def __str__(self):
+        return self.lit
+
+
 class HasAttrs:
     def __init__(self, **kwargs):
-        self.attrs = [Attr(**attr) for attr in kwargs.get("attrs", [])]
+        self.attrs: List[Union[Attr, LitAttr]] = [Attr(**attr) for attr in kwargs.get("attrs", [])]
 
     def extract_docs(self):
         docs = Docs()
@@ -126,6 +144,26 @@ class HasAttrs:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
+
+    def discover_specifications(self):
+        if PARSER is None:
+            init_global_parser()
+        assert isinstance(PARSER, Parser)
+
+        sections = self.extract_docs().sections()
+        print([(section.header, section.lines, section.body) for section in self.extract_docs().sections()])
+        for section in sections:
+            if section.header is None:
+                print("SECTION:", section.header, section.sentences)
+                for sentence in section.sentences:
+                    try:
+                        attr = LitAttr(Specification(next(PARSER.parse_sentence(sentence))).as_spec())
+                        print("PRINTING SPEC:", attr)
+                        self.attrs.append(attr)
+                    except ValueError as v:
+                        print(f"Unexpected spec {v}")
+                    except StopIteration as s:
+                        print(f"Did not find spec for \"{sentence}\"")
 
 
 class SingletonType:
@@ -287,24 +325,6 @@ class TokenStream:
         return self.tokens[item]
 
 
-class Docs:
-    def __init__(self):
-        self.sections: [Tuple[Optional[str], List[str]]] = [(None, [])]
-
-    def push_line(self, line: str):
-        line_strip = line.strip("\" ")
-        if line_strip.startswith("#"):
-            self.sections.append((line, []))
-        else:
-            self.sections[-1][1].append(line_strip)
-
-    def section_headers(self) -> [str]:
-        return [section[0] for section in self.sections[1:]]
-
-    def is_empty(self):
-        return len(self.sections) == 1 and len(self.sections[0][1]) == 0
-
-
 class Receiver:
     def __init__(self, **kwargs):
         self.mut = kwargs.get("mut", False)
@@ -336,6 +356,7 @@ class Fn(HasAttrs):
         # self.block = kwargs.get("block")
 
     def __str__(self):
+        self.discover_specifications()
         inputs = ", ".join([str(x) for x in self.inputs])
         return f"{self.fmt_attrs()}fn {self.ident}({inputs}) -> {self.output};"
 
@@ -532,5 +553,3 @@ class AstFile(HasAttrs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
         self.items = ast_items_from_json(kwargs.get("items", []))
-
-
