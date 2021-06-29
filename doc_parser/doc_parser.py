@@ -272,7 +272,7 @@ class Property:
     PRODUCTIONS = {
         ("MVB", "MJJ"),
         ("MVB", "MREL"),
-        ("MVB", "LIT"),
+        ("MVB", "OBJ"),
         ("MVB", "RANGEMOD"),
         ("MVB",)
     }
@@ -299,11 +299,14 @@ class Property:
                 return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
             sym = "!" if neg else ""
             return f"{sym}{lhs.as_code()}.{mjj.word()}()"
-        if self.labels[-1] == "LIT":
-            cmp = Comparator.EQ.negate(self.negate)
-            return f"{lhs.as_code()} {cmp} {self.tree[1][0]}"
+
         if self.labels[-1] == "MREL":
             return f"{lhs.as_code()}{ModRelation(self.tree[-1]).apply_negate(self.negate).as_code()}"
+
+        if self.labels[-1] == "OBJ":
+            cmp = Comparator.EQ.negate(self.negate)
+            return f"{lhs.as_code()} {cmp} {Object(self.tree[1]).as_code()}"
+
         if self.labels[-1] == "MVB":
             if self.mvb.vb() in {"changed", "modified", "altered", "change"}:
                 if self.negate:
@@ -315,12 +318,14 @@ class Property:
                 return f"{lhs.as_code()} == old({lhs.as_code()})"
             else:
                 raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.vb()})")
+
         if self.labels[-1] == "RANGEMOD":
             r = RangeMod(self.tree[-1])
             ident, start, stop = r.as_foreach_pred()
             if ident:
                 raise ValueError(f"PROP: Unexpected ident in RANGE case: {ident}")
             return f"{start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {stop.as_code()}"
+
         raise ValueError(f"Case {self.labels} not handled.")
 
 
