@@ -7,6 +7,7 @@ from doc_parser.doc_parser import Parser, Specification
 from .docs import Docs
 
 PARSER = None
+VERBOSE = False
 
 
 def init_global_parser():
@@ -25,21 +26,6 @@ def ast_items_from_json(items: []) -> []:
 
 def indent(block):
     return "\n".join(["    " + s for s in str(block).splitlines()])
-
-
-class IdentPrinter:
-    def __init__(self):
-        self.indentation = 0
-
-    def indent(self):
-        self.indentation += 4
-
-    def dedent(self):
-        self.indentation = max(0, self.indentation - 4)
-
-    def print(self, s: str):
-        for line in s.splitlines():
-            print(" " * self.indentation + line)
 
 
 class LitExpr:
@@ -95,6 +81,9 @@ class Path:
     def __init__(self, **kwargs):
         self.segments = [Segment(**segment) for segment in kwargs["segments"]]
 
+    def __getitem__(self, i: int):
+        return self.segments[i]
+
     def __str__(self):
         return "::".join([str(segment) for segment in self.segments])
 
@@ -107,9 +96,6 @@ class Attr:
 
     def __str__(self):
         c = "!" if self.style == "inner" else ""
-        # print(f"IDENT: {self.ident}")
-        # if str(self.ident) == "ensures":
-        #     print([(token, str(token)) for token in self.tokens])
         return f"#{c}[{self.ident}{self.tokens}]"
 
     def is_doc(self):
@@ -144,26 +130,6 @@ class HasAttrs:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
-
-    def discover_specifications(self):
-        if PARSER is None:
-            init_global_parser()
-        assert isinstance(PARSER, Parser)
-
-        sections = self.extract_docs().sections()
-        print([(section.header, section.lines, section.body) for section in self.extract_docs().sections()])
-        for section in sections:
-            if section.header is None:
-                print("SECTION:", section.header, section.sentences)
-                for sentence in section.sentences:
-                    try:
-                        attr = LitAttr(Specification(next(PARSER.parse_sentence(sentence))).as_spec())
-                        print("PRINTING SPEC:", attr)
-                        self.attrs.append(attr)
-                    except ValueError as v:
-                        print(f"Unexpected spec {v}")
-                    except StopIteration as s:
-                        print(f"Did not find spec for \"{sentence}\"")
 
 
 class SingletonType:
@@ -337,6 +303,7 @@ class Receiver:
 
 
 class Fn(HasAttrs):
+    # TODO: Provide context as to the type of self.
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
@@ -354,6 +321,45 @@ class Fn(HasAttrs):
         # self.vis = kwargs.get("attrs", [])
         # self.sig = kwargs.get("signature")
         # self.block = kwargs.get("block")
+
+    def type_tuples(self) -> [(str, str)]:
+        types = []
+        for inputx in self.inputs:
+            if isinstance(inputx, Receiver):
+                types.append(("?", "self"))
+            elif isinstance(inputx, BoundVariable):
+                types.append((str(inputx.ty), inputx.ident))
+            else:
+                raise ValueError("Unexpected type in self.inputs")
+        return types
+
+    def discover_specifications(self):
+        if PARSER is None:
+            init_global_parser()
+        assert isinstance(PARSER, Parser)
+
+        def vprint(*args):
+            if VERBOSE:
+                print(*args)
+
+        idents = [type_tuple[1] for type_tuple in self.type_tuples()]
+
+        sections = self.extract_docs().sections()
+        vprint([(section.header, section.lines, section.body) for section in self.extract_docs().sections()])
+        for section in sections:
+            if section.header is not None:
+                continue
+            vprint("SECTION:", section.header, section.sentences)
+            for sentence in section.sentences:
+                try:
+                    attr = LitAttr(Specification(next(PARSER.parse_sentence(sentence, idents=idents))).as_spec())
+
+                    vprint("PRINTING SPEC:", attr)
+                    self.attrs.append(attr)
+                except ValueError as v:
+                    vprint(f"Unexpected spec {v}")
+                except StopIteration as s:
+                    vprint(f"Did not find spec for \"{sentence}\"")
 
     def __str__(self):
         self.discover_specifications()

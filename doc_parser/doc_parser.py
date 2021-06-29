@@ -58,22 +58,25 @@ def print_tokens(token_dict):
     print()
 
 
-def might_be_code(s: str):
+def might_be_code(word: str, key_words=None) -> bool:
     # detect bool literals
-    if s.lower() in {"true", "false", "self"}:
+    if word.lower() in {"true", "false", "self"}:
+        return True
+
+    if key_words and word in key_words:
         return True
 
     # detect numbers
-    if s.endswith(("u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64")):
+    if word.endswith(("u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64")):
         return True
 
-    if s.isnumeric():
+    if word.isnumeric():
         return True
 
     return False
 
 
-def correct_tokens(token_dict):
+def correct_tokens(token_dict, key_words=None):
     entities = token_dict["entities"]
 
     for entity in entities:
@@ -81,7 +84,7 @@ def correct_tokens(token_dict):
             entity["labels"][0] = Label("CODE")
 
     for i, entity in enumerate(entities):
-        if might_be_code(entity["text"]):
+        if might_be_code(entity["text"], key_words):
             entity["labels"][0] = Label("LIT")
 
     if len(entities) <= 2:
@@ -119,7 +122,7 @@ class Literal:
 class Object:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("PRP",), ("DT", "NN"), ("CODE",), ("LIT",), ("MNN",)}:
+        if labels not in {("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",)}:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -127,9 +130,9 @@ class Object:
     def as_code(self) -> str:
         if self.labels == ("CODE",):
             return Code(self.tree[0]).as_code()
-        if self.labels == ("LIT",):
-            return Literal(self.tree[0]).as_code()
-        if self.labels == ("DT", "NN"):
+        if self.labels[-1] == "LIT":
+            return Literal(self.tree[-1]).as_code()
+        if self.labels == ("DT", "MNN"):
             # TODO: This assumes that val in "The val" is a variable.
             return self.tree[1][0]
         if self.labels == ("MNN",):
@@ -204,18 +207,21 @@ class TJJ:
 
 class Relation:
     def __init__(self, tree: Tree):
-        labels = tuple(x.label() for x in tree)
-        if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
-            raise ValueError(f"Bad tree - expected REL productions, got {labels}")
-        self.labels = labels
-        self.tree = tree
-        self.negate = False
+        if tree[0].label() == "REL":
+            raise ValueError("Recursive MREL not supported")
+        else:
+            labels = tuple(x.label() for x in tree)
+            if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
+                raise ValueError(f"Bad tree - expected REL productions, got {labels}")
+            self.labels = labels
+            self.tree = tree
+            self.negate = False
 
-    def as_code(self):
+    def as_code(self, lhs: Object):
         relation = Comparator.from_str(TJJ(self.tree[0]).get_word()).negate(self.negate)
         if self.labels == ("TJJ", "EQTO", "OBJ"):
             relation = relation.apply_eq()
-        return f" {relation} {Object(self.tree[2]).as_code()}"
+        return f"{lhs.as_code()} {relation} {Object(self.tree[2]).as_code()}"
 
     def apply_adverb(self, s: str):
         if s.lower() != "not":
@@ -301,7 +307,7 @@ class Property:
             return f"{sym}{lhs.as_code()}.{mjj.word()}()"
 
         if self.labels[-1] == "MREL":
-            return f"{lhs.as_code()}{ModRelation(self.tree[-1]).apply_negate(self.negate).as_code()}"
+            return ModRelation(self.tree[-1]).apply_negate(self.negate).as_code(lhs)
 
         if self.labels[-1] == "OBJ":
             cmp = Comparator.EQ.negate(self.negate)
@@ -333,22 +339,50 @@ class Assert:
     def __init__(self, tree: Tree):
         if tree[0].label() != "OBJ":
             raise ValueError(f"Bad tree - expected OBJ, got {tree[0].label()}")
-        if tree[1].label() != "PROP":
-            raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
 
-        self.obj = Object(tree[0])
-        self.prop = Property(tree[1])
+        if tree[-1].label() == "ASSERT":
+            if tree[1].label() != "CC":
+                raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
+
+            assertx = Assert(tree[-1])
+            self.objs = assertx.objs + [(Object(tree[0]), CC(tree[1]))]
+            self.prop = assertx.prop
+        else:
+            if tree[1].label() != "PROP":
+                raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
+
+            self.objs = [(Object(tree[0]), None)]
+            self.prop = Property(tree[1])
 
     def as_code(self):
-        return f"{self.prop.as_code(self.obj)}"
+        if len(self.objs) == 1:
+            return f"{self.prop.as_code(self.objs[0][0])}"
+
+        conditions = [[f"{self.prop.as_code(self.objs[0][0])}"]]
+        for obj, cc in self.objs[1:]:
+            assert isinstance(cc, CC)
+            if cc.bool_op() == "||":
+                conditions.append([f"{self.prop.as_code(obj)}"])
+            else:
+                conditions[-1].append(f"{self.prop.as_code(obj)}")
+
+        if len(conditions) == 1:
+            return " && ".join(conditions[0])
+        else:
+            conds = ") || (".join(" && ".join(conds) for conds in conditions)
+            return f"({conds})"
 
 
 class HardAssert(Assert):
     def __init__(self, tree: Tree):
-        if tree[1].label() != "MD":
-            raise ValueError(f"Bad tree - expected MD as first HASSERT production, got {tree[0].label()}")
-        super().__init__([tree[0], tree[2]])
-        self.md = tree[1]
+        if tree[-1].label() == "HASSERT":
+            hassert = HardAssert(tree[-1])
+            self.md = hassert.md
+            self.objs = hassert.objs + [(Object(tree[0]), CC(tree[1]))]
+            self.prop = hassert.prop
+        else:
+            super().__init__([tree[0], tree[2]])
+            self.md = tree[1]
 
     def is_precondition(self):
         # TODO: This should be more rigourous:
@@ -496,9 +530,9 @@ class ForEach:
             for range_condition in self.range_conditions:
                 # Has nothing attached
                 if isinstance(range_condition, tuple) and range_condition[0].bool_op() == "||":
-                    conditions.append([f"{ident.as_code()}{range_condition[1].as_code()}"])
+                    conditions.append([range_condition[1].as_code(ident)])
                 else:
-                    conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
+                    conditions[-1].append(range_condition.as_code(ident))
 
             conds = ") || (".join(" && ".join(conds) for conds in conditions)
             if flip:
@@ -721,7 +755,7 @@ class Parser:
         self.grammar = nltk.data.load(f"file:{grammar_path}")
         self.rd_parser = nltk.ChartParser(self.grammar)
 
-    def parse_sentence(self, sentence: str):
+    def parse_sentence(self, sentence: str, idents=None):
         sentence = sentence \
             .replace("isn't", "is not") \
             .rstrip(".")
@@ -730,7 +764,7 @@ class Parser:
         self.root_tagger.predict(sentence)
 
         token_dict = sentence.to_dict(tag_type="pos")
-        correct_tokens(token_dict)
+        correct_tokens(token_dict, key_words=idents)
 
         labels = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
