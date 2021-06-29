@@ -440,7 +440,11 @@ class ForEach:
             self.quant = sub_foreach.quant
             self.range = sub_foreach.range
             self.labels = sub_foreach.labels
-            self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
+            if tree[1].label() == "CC":
+                self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
+            else:
+                self.range_conditions = sub_foreach.range_conditions + [(ModRelation(tree[-1]))]
+
         else:
             self.tree = tree
             self.quant = Quantifier(tree[0])
@@ -484,12 +488,12 @@ class ForEach:
                     conditions[-1].extend(pre_cond)
                 else:
                     conditions[-1].append(pre_cond)
-            for opx, range_condition in self.range_conditions:
+            for range_condition in self.range_conditions:
                 # Has nothing attached
-                if opx.bool_op() == "&&":
+                if isinstance(range_condition, tuple) and range_condition[0].bool_op() == "||":
+                    conditions.append([f"{ident.as_code()}{range_condition[1].as_code()}"])
+                else:
                     conditions[-1].append(f"{ident.as_code()}{range_condition.as_code()}")
-                if opx.bool_op() == "||":
-                    conditions.append([f"{ident.as_code()}{range_condition.as_code()}"])
 
             conds = ") || (".join(" && ".join(conds) for conds in conditions)
             if flip:
