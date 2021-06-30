@@ -1,7 +1,6 @@
 from typing import Optional, Tuple, List
 
 import re
-from doc_parser.doc_parser import CodeTokenizer
 
 CODE_REGEX = re.compile(r"\.(?=(?:[^\`']*[\`'][^\`']*[\`'])*[^\`']*$)")
 
@@ -53,7 +52,3 @@ class Docs:
 
     def is_empty(self):
         return len(self._sections) == 1 and len(self._sections[0]) == 0
-
-
-if __name__ == '__main__':
-    print(CODE_REGEX.split("self.body"))

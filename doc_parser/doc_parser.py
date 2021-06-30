@@ -59,8 +59,15 @@ def print_tokens(token_dict):
 
 
 def might_be_code(word: str, key_words=None) -> bool:
+    """Determines whether `word` is likely to be code - specifically,
+     if the word is a Rust literal or a function argument.
+
+    :param word:
+    :param key_words:
+    :return:
+    """
     # detect bool literals
-    if word.lower() in {"true", "false", "self"}:
+    if word.lower() in {"true", "false"}:
         return True
 
     if key_words and word in key_words:
@@ -142,6 +149,7 @@ class Object:
         raise ValueError(f"{self.labels} not handled.")
 
     def is_output(self):
+        raise NotImplementedError()
         # TODO: This should return true if self is "result" or "output".
         pass
         # TODO: implement method to cross-ref function inputs
@@ -711,7 +719,13 @@ class Specification:
         return self.spec.as_spec()
 
 
-def get_bottom_nodes(tree: Tree, nodes: List[Tree]):
+def get_leaf_nodes(tree: Tree, nodes: List[Tree]) -> [Tree]:
+    """Returns all leaf nodes, from left to right. Modifies `nodes` in place.
+
+    :param tree:
+    :param nodes:
+    :return:
+    """
     if isinstance(tree, str):
         return nodes
 
@@ -719,13 +733,19 @@ def get_bottom_nodes(tree: Tree, nodes: List[Tree]):
         nodes.append(tree)
     else:
         for sub_tree in tree:
-            get_bottom_nodes(sub_tree, nodes)
+            get_leaf_nodes(sub_tree, nodes)
 
     return nodes
 
 
-def attach_words_to_nodes(tree: Tree, words: List[str]):
-    nodes = get_bottom_nodes(tree, [])
+def attach_words_to_nodes(tree: Tree, words: List[str]) -> Tree:
+    """Modifies `tree` in place, by assigning each word in words to a leaf node in tree, in sequential order.
+
+    :param tree:
+    :param words:
+    :return: modified tree
+    """
+    nodes = get_leaf_nodes(tree, [])
     for node, word in zip(nodes, words):
         node[0] = word
 
@@ -755,7 +775,7 @@ class Parser:
         self.grammar = nltk.data.load(f"file:{grammar_path}")
         self.rd_parser = nltk.ChartParser(self.grammar)
 
-    def parse_sentence(self, sentence: str, idents=None):
+    def parse_sentence(self, sentence: str, idents=None) -> Tree:
         sentence = sentence \
             .replace("isn't", "is not") \
             .rstrip(".")
