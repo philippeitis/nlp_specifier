@@ -5,6 +5,8 @@ from pprint import pprint
 from doc_parser.doc_parser import Parser, Specification
 
 from .docs import Docs
+from .types import Path, Type
+from .scope import Scope
 
 PARSER = None
 VERBOSE = False
@@ -15,12 +17,12 @@ def init_global_parser():
     PARSER = Parser()
 
 
-def ast_items_from_json(items: []) -> []:
+def ast_items_from_json(scope, items: [], parent_type=None) -> []:
     results = []
     for i, item in enumerate(items):
         item: dict = item
         item_kind = next(iter(item.keys()))
-        results.append(KEY_TO_CLASS[item_kind](**item[item_kind]))
+        results.append(KEY_TO_CLASS[item_kind](scope=scope, parent_type=parent_type, **item[item_kind]))
     return results
 
 
@@ -54,38 +56,6 @@ class Expr:
         if expr_type == "struct":
             return "STRUCT"
         raise ValueError(f"{expr_type}: {val}")
-
-
-class Segment:
-    def __init__(self, **kwargs):
-        self.arguments = kwargs.get("arguments")
-        self.ident = kwargs["ident"]
-
-    def __str__(self):
-        if self.arguments is None:
-            return self.ident
-        arg_type, args = next(iter(self.arguments.items()))
-        if arg_type == "angle_bracketed":
-            args = args["args"]
-            res = []
-            for arg in args:
-                arg_type, arg = next(iter(arg.items()))
-                if arg_type == "type":
-                    res.append(str(Type(**arg)))
-                else:
-                    raise ValueError(f"{arg_type}, {arg}")
-            return f"{self.ident}<{', '.join(res)}>"
-
-
-class Path:
-    def __init__(self, **kwargs):
-        self.segments = [Segment(**segment) for segment in kwargs["segments"]]
-
-    def __getitem__(self, i: int):
-        return self.segments[i]
-
-    def __str__(self):
-        return "::".join([str(segment) for segment in self.segments])
 
 
 class Attr:
@@ -130,59 +100,6 @@ class HasAttrs:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
-
-
-class SingletonType:
-    def __init__(self, **kwargs):
-        self.path = Path(**kwargs)
-
-    def __str__(self):
-        return str(self.path)
-
-
-class TupleType:
-    def __init__(self, **kwargs):
-        self.elems = [Type(**elem) for elem in kwargs["elems"]]
-
-    def __str__(self):
-        elems = ", ".join([str(elem) for elem in self.elems])
-        return f"({elems})"
-
-
-class RefType:
-    def __init__(self, **kwargs):
-        self.elem = Type(**kwargs["elem"])
-        self.lifetime = kwargs.get("lifetime")
-
-    def __str__(self):
-        if self.lifetime:
-            return f"&'{self.lifetime} {self.elem}"
-        else:
-            return f"&{self.elem}"
-
-
-TYPE_DICT = {
-    "path": SingletonType,
-    "tuple": TupleType,
-    "reference": RefType
-}
-
-
-class EmptyType:
-    def __str__(self):
-        return "()"
-
-
-class Type:
-    def __init__(self, **kwargs):
-        try:
-            type_key, val = next(iter(kwargs.items()))
-            self.ty = TYPE_DICT[type_key](**val)
-        except StopIteration:
-            self.ty = EmptyType()
-
-    def __str__(self):
-        return str(self.ty)
 
 
 class TokenType(Enum):
@@ -304,20 +221,20 @@ class Receiver:
 
 class Fn(HasAttrs):
     # TODO: Provide context as to the type of self.
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.inputs = kwargs["inputs"]
         self.generics = kwargs.get("generics")
         if kwargs["output"] is None:
-            self.output = Type()
+            self.output = scope.define_type()
         else:
-            self.output = Type(**kwargs["output"])
+            self.output = scope.define_type(**kwargs["output"])
         for i, inputx in enumerate(self.inputs):
             if "receiver" in inputx:
                 self.inputs[i] = Receiver(**inputx["receiver"])
             else:
-                self.inputs[i] = BoundVariable(**inputx["typed"])
+                self.inputs[i] = BoundVariable(scope=scope, **inputx["typed"])
         # self.vis = kwargs.get("attrs", [])
         # self.sig = kwargs.get("signature")
         # self.block = kwargs.get("block")
@@ -379,8 +296,8 @@ class Fn(HasAttrs):
 
 
 class BoundVariable:
-    def __init__(self, **kwargs):
-        self.ty = Type(**kwargs["ty"])
+    def __init__(self, scope=None, **kwargs):
+        self.ty = scope.define_type(**kwargs["ty"])
         self.ident = kwargs["pat"]["ident"]["ident"]
 
     def __str__(self):
@@ -388,9 +305,9 @@ class BoundVariable:
 
 
 class NamedField(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
-        self.ty = Type(**kwargs["ty"])
+        self.ty = scope.define_type(**kwargs["ty"])
         self.ident = kwargs["ident"]
 
     def __str__(self):
@@ -398,10 +315,10 @@ class NamedField(HasAttrs):
 
 
 class Const(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.ty = Type(**kwargs["ty"])
+        self.ty = scope.define_type(**kwargs["ty"])
         self.expr = Expr(**kwargs["expr"])
 
     def __str__(self):
@@ -409,15 +326,15 @@ class Const(HasAttrs):
 
 
 class Fields:
-    def __init__(self, kwargs):
+    def __init__(self, scope, kwargs):
         if kwargs == "unit":
             self.is_unit = True
             return
         self.is_unit = False
         type_key, fields = next(iter(kwargs.items()))
         fn = {
-            "named": NamedField,
-            "unnamed": lambda **x: Type(**x["ty"])
+            "named": lambda **x: NamedField(scope=scope, **x),
+            "unnamed": lambda **x: scope.define_type(**x["ty"])
         }[type_key]
         self.style = type_key
         self.fields = [fn(**field) for field in fields]
@@ -430,11 +347,12 @@ class Fields:
 
 
 class Struct(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.generics = kwargs.get("generics")
         self.ident = kwargs["ident"]
-        self.fields = Fields(kwargs["fields"])
+        self.fields = Fields(scope, kwargs["fields"])
+        scope.add_struct(self.ident, self)
 
     def __str__(self):
         if self.fields.is_unit:
@@ -450,14 +368,18 @@ class Struct(HasAttrs):
 
 
 class Method(Fn):
-    pass
+    def __init__(self, parent_type=None, **kwargs):
+        super().__init__(**kwargs)
+
+        if len(self.inputs) > 0 and isinstance(self.inputs[0], Receiver):
+            self.inputs[0].ty = parent_type
 
 
 class Impl(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
-        self.ty = Path(**kwargs["self_ty"]["path"])
-        self.items = ast_items_from_json(kwargs.get("items", []))
+        self.ty = scope.find_type(str(Path(**kwargs["self_ty"]["path"])))
+        self.items = ast_items_from_json(scope, kwargs.get("items", []), parent_type=self.ty)
 
     def __str__(self):
         items = "\n\n".join([indent(item) for item in self.items])
@@ -467,10 +389,10 @@ class Impl(HasAttrs):
 
 
 class Mod(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.content = ast_items_from_json(kwargs.get("content", []))
+        self.content = ast_items_from_json(scope, kwargs.get("content", []))
 
     def __str__(self):
         content = "\n".join([indent(item) for item in self.content])
@@ -503,8 +425,8 @@ class Use(HasAttrs):
 
 
 class EnumVariant:
-    def __init__(self, **kwargs):
-        self.fields = Fields(kwargs["fields"])
+    def __init__(self, scope=None, **kwargs):
+        self.fields = Fields(scope, kwargs["fields"])
         self.ident = kwargs["ident"]
 
     def __str__(self):
@@ -519,10 +441,10 @@ class EnumVariant:
 
 
 class Enum(HasAttrs):
-    def __init__(self, **kwargs):
+    def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.variants = [EnumVariant(**v) for v in kwargs["variants"]]
+        self.variants = [EnumVariant(scope, **v) for v in kwargs["variants"]]
 
     def __str__(self):
         enum_vals = ",\n    ".join([str(v) for v in self.variants])
@@ -558,4 +480,4 @@ class AstFile(HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
-        self.items = ast_items_from_json(kwargs.get("items", []))
+        self.items = ast_items_from_json(Scope(), kwargs.get("items", []))

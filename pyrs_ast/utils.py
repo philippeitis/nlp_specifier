@@ -5,6 +5,7 @@ from pyrs_ast import AstFile
 import astx
 
 from pyrs_ast.lib import HasAttrs
+from pyrs_ast.scope import Scope
 
 
 class LexError(ValueError):
@@ -14,7 +15,7 @@ class LexError(ValueError):
 def read_ast_from_str(s: str) -> AstFile:
     result = astx.ast_from_str(s)
     try:
-        return AstFile(**jsons.loads(result))
+        return AstFile(scope=Scope(), **jsons.loads(result))
     except json.decoder.JSONDecodeError:
         pass
     raise LexError(result)

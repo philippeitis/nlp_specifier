@@ -1,8 +1,8 @@
 from pyrs_ast.utils import read_ast_from_path, print_ast_docs, print_ast
 
 
-def main():
-    ast = read_ast_from_path("pyrs_ast/test.rs")
+def main(path):
+    ast = read_ast_from_path(path)
     print("PRINTING DOCS")
     print_ast_docs(ast)
     print("PRINTING FILE")
@@ -10,7 +10,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main("pyrs_ast/test.rs")
 
     # Add examples
     # Motivate problems with what is being accomplished
