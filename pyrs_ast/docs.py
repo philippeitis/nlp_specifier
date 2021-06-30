@@ -25,7 +25,7 @@ class Section:
     def consolidate(self):
         self.body = " ".join(self.lines)
 
-        self.sentences = CODE_REGEX.split(self.body)
+        self.sentences = [s for s in CODE_REGEX.split(self.body) if s]
 
 
 class Docs:
