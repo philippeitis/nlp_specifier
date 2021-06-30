@@ -216,20 +216,39 @@ class TJJ:
 class Relation:
     def __init__(self, tree: Tree):
         if tree[0].label() == "REL":
-            raise ValueError("Recursive MREL not supported")
+            rel = Relation(tree[0])
+            self.objs = rel.objs + [(CC(tree[1]), Object(tree[2]))]
+            self.op = rel.op
+            self.negate = rel.negate
         else:
             labels = tuple(x.label() for x in tree)
             if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
                 raise ValueError(f"Bad tree - expected REL productions, got {labels}")
-            self.labels = labels
-            self.tree = tree
+
+            self.op = Comparator.from_str(TJJ(tree[0]).get_word())
+            if labels[1] == "EQTO":
+                self.op = self.op.apply_eq()
+            self.objs = [(None, Object(tree[-1]))]
             self.negate = False
 
     def as_code(self, lhs: Object):
-        relation = Comparator.from_str(TJJ(self.tree[0]).get_word()).negate(self.negate)
-        if self.labels == ("TJJ", "EQTO", "OBJ"):
-            relation = relation.apply_eq()
-        return f"{lhs.as_code()} {relation} {Object(self.tree[2]).as_code()}"
+        relation = self.op.negate(self.negate)
+        if len(self.objs) == 1:
+            return f"{lhs.as_code()} {relation} {self.objs[0][1].as_code()}"
+
+        relations = [[f"{lhs.as_code()} {relation} {self.objs[0][1].as_code()}"]]
+        for cc, obj in self.objs[1:]:
+            assert isinstance(cc, CC)
+            if cc.bool_op() == "||":
+                relations.append([f"{lhs.as_code()} {relation} {obj.as_code()}"])
+            else:
+                relations[-1].append(f"{lhs.as_code()} {relation} {obj.as_code()}")
+
+        if len(relations) == 1:
+            return " && ".join(relations[0])
+        else:
+            relations = ") || (".join(" && ".join(rels) for rels in relations)
+            return f"({relations})"
 
     def apply_adverb(self, s: str):
         if s.lower() != "not":
@@ -374,11 +393,8 @@ class Assert:
             else:
                 conditions[-1].append(f"{self.prop.as_code(obj)}")
 
-        if len(conditions) == 1:
-            return " && ".join(conditions[0])
-        else:
-            conds = ") || (".join(" && ".join(conds) for conds in conditions)
-            return f"({conds})"
+        conds = ") || (".join(" && ".join(conds) for conds in conditions)
+        return f"({conds})"
 
 
 class HardAssert(Assert):
@@ -846,7 +862,8 @@ def main():
         "Returns `true` if and only if `self == 2^k` for any `k`."
         "For each index from 0 to 5, `self.lookup(index)` must be true.",
         "For each index up to 5, `self.lookup(index)` must be true.",
-        "`a` must be between 0 and `self.len()`."
+        "`a` must be between 0 and `self.len()`.",
+        "`a` and `b` must be equal to 0 or `self.len()`."
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
