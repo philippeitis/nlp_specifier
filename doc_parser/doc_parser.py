@@ -1,15 +1,21 @@
 from enum import Enum, auto
 from typing import List, Union
+import logging
 
-import flair.data
-from flair.data import Sentence, Label, Token
+from flair.data import Sentence, Label, Token, Tokenizer
 from flair.models import MultiTagger
 
-from nltk.tree import Tree
 import nltk
+from nltk.tree import Tree
+from nltk.stem import WordNetLemmatizer
+
+LEMMATIZER = WordNetLemmatizer()
+
+logger = logging.getLogger("flair")
+logger.setLevel(logging.ERROR)
 
 
-class CodeTokenizer(flair.data.Tokenizer):
+class CodeTokenizer(Tokenizer):
     def tokenize(self, sentence: str) -> List[Token]:
         parts = []
         num = 1
@@ -141,10 +147,10 @@ class Object:
             return Literal(self.tree[-1]).as_code()
         if self.labels == ("DT", "MNN"):
             # TODO: This assumes that val in "The val" is a variable.
-            return self.tree[1][0]
+            return LEMMATIZER.lemmatize(self.tree[1][0][0])
         if self.labels == ("MNN",):
             # TODO: This assumes that val in "The val" is a variable.
-            return self.tree[0][0][0]
+            return LEMMATIZER.lemmatize(self.tree[0][0][0])
 
         raise ValueError(f"{self.labels} not handled.")
 
@@ -531,6 +537,7 @@ class ForEach:
         if isinstance(pre_cond, list):
             pre_cond = " && ".join(pre_cond)
 
+        # TODO: Implement code for type detection.
         xtype = "int"
         xtype_min = {
             "int": Literal(["-1"])
@@ -883,7 +890,7 @@ def main():
         print("Sentence:", sentence)
         print("=" * 80)
         for tree in parser.parse_sentence(sentence):
-            tree: nltk.tree.Tree = tree
+            tree: Tree = tree
             try:
                 print(Specification(tree).as_spec())
             except LookupError as e:
