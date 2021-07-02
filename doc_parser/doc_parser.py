@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List, Union
+from typing import List, Union, Tuple
 import logging
 
 from flair.data import Sentence, Label, Token, Tokenizer
@@ -64,7 +64,7 @@ def print_tokens(token_dict):
     print()
 
 
-def might_be_code(word: str, key_words=None) -> bool:
+def might_be_code(word: str, key_words=None) -> Tuple[bool, str]:
     """Determines whether `word` is likely to be code - specifically,
      if the word is a Rust literal or a function argument.
 
@@ -74,46 +74,78 @@ def might_be_code(word: str, key_words=None) -> bool:
     """
     # detect bool literals
     if word.lower() in {"true", "false"}:
-        return True
+        return True, word.lower()
 
     if key_words and word in key_words:
-        return True
+        return True, word
 
     # detect numbers
     if word.endswith(("u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64")):
-        return True
+        return True, word
 
     if word.isnumeric():
-        return True
+        return True, word
 
-    return False
+    return False, word
 
 
 def correct_tokens(token_dict, key_words=None):
+    def get_label(t) -> str:
+        return t["labels"][0].value
+
+    def set_label(t, label: Label):
+        t["labels"][0] = label
+
+    def text(t) -> str:
+        return t["text"]
+
+    def set_text(t, word: str):
+        t["text"] = word
+
+    def is_obj(t: str) -> bool:
+        return t in {
+            "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
+        }
+
+    def get_pos(label: str) -> str:
+        if is_obj(label):
+            return "n"
+        if label.startswith("VB"):
+            return "v"
+        raise ValueError(f"Have not handled get_pos case for {label}")
+
     entities = token_dict["entities"]
 
     for entity in entities:
-        if entity["text"].startswith("`"):
+        if text(entity).startswith("`"):
             entity["labels"][0] = Label("CODE")
 
     for i, entity in enumerate(entities):
-        if might_be_code(entity["text"], key_words):
-            entity["labels"][0] = Label("LIT")
+        mbc, word = might_be_code(text(entity), key_words)
+        if mbc:
+            set_label(entity, Label("LIT"))
+            set_text(entity, word)
+
+    for i, entity in enumerate(entities):
+        try:
+            word = LEMMATIZER.lemmatize(text(entity).lower(), get_pos(get_label(entity)))
+        except ValueError:
+            continue
+        if word == "return":
+            if i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
+                set_label(entity, Label("RET"))
+            elif i >= 2 and is_obj(get_label(entities[i - 2])) and get_label(entities[i - 1]) in {"VBZ"}:
+                set_label(entity, Label("RET"))
+            elif i >= 1 and is_obj(get_label(entities[i - 1])):
+                set_label(entity, Label("RET"))
 
     if len(entities) <= 2:
         return
 
     for i, entity in enumerate(entities):
-        if entity["text"].lower() == "returns":
-            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {
-                "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
-            }:
-                entity["labels"][0] = Label("RET")
-
-    for i, entity in enumerate(entities):
-        if entity["text"].lower() == "for":
-            if i + 1 < len(entities) and entities[i + 1]["labels"][0].value in {"DT"}:
-                entity["labels"][0] = Label("FOR")
+        if text(entity).lower() == "for":
+            if i + 1 < len(entities) and get_label(entities[i + 1]) in {"DT"}:
+                set_label(entity, Label("FOR"))
 
 
 class Code:
@@ -674,24 +706,38 @@ class QuantPredicate:
         return self.assertion.with_conditions(post_cond, pre_cond, flip)
 
 
-class ReturnIf:
+class MReturn:
+    def __init__(self, tree: Tree):
+        if tree.label() != "MRET":
+            raise ValueError(f"Bad tree - expected MRET, got {tree.label()}")
+
+        labels = tuple(x.label() for x in tree)
+        if labels == ("RET", "OBJ"):
+            self.ret_val = Object(tree[1])
+        elif labels == ("OBJ", "VBZ", "RET"):
+            if tree[1][0].lower() != "is":
+                raise ValueError(f"Expected 'is' for OBJ VBZ RET tree, got {tree[1][0]}")
+            self.ret_val = Object(tree[0])
+        elif labels == ("OBJ", "RET"):
+            self.ret_val = Object(tree[0])
+        else:
+            raise ValueError(f"Unexpected tree structure - got {labels}")
+
+    def as_spec(self):
+        return f"#[ensures(result == {self.ret_val.as_code()})]"
+
+
+class ReturnIf(MReturn):
     def __init__(self, tree: Union[Tree, List[Tree]]):
-        if tree[0].label() != "RET":
-            raise ValueError(f"Bad tree - expected RET, got {tree[0].label()}")
+        super().__init__(tree[0])
 
-        if tree[1].label() != "OBJ":
-            raise ValueError(f"Bad tree - expected OBJ, got {tree[1].label()}")
-
-        if tree[2].label() not in {"QPRED", "PRED"}:
+        if tree[1].label() not in {"QPRED", "PRED"}:
             raise ValueError(f"Bad tree - expected QPRED or PRED, got {tree[2].label()}")
 
-        # Need to find out what the ret value is.
-
-        self.ret_val = Object(tree[1])
-        if tree[2].label() == "PRED":
-            self.pred = Predicate(tree[2])
+        if tree[1].label() == "PRED":
+            self.pred = Predicate(tree[1])
         else:
-            self.pred = QuantPredicate(tree[2])
+            self.pred = QuantPredicate(tree[1])
 
     def __str__(self):
         return f"return {self.ret_val.as_code()};"
@@ -724,9 +770,9 @@ class IfReturn(ReturnIf):
     def __init__(self, tree: Tree):
         # Swizzle the values as needed.
         if tree[1].label() == "COMMA":
-            super().__init__([tree[2], tree[3], tree[0]])
+            super().__init__([tree[2], tree[0]])
         else:
-            super().__init__([tree[1], tree[2], tree[0]])
+            super().__init__([tree[1], tree[0]])
 
 
 class Specification:
@@ -736,6 +782,7 @@ class Specification:
             "IFRET": IfReturn,
             "HASSERT": HardAssert,
             "QASSERT": QuantAssert,
+            "MRET": MReturn
         }[tree[0].label()](tree[0])
 
     def as_spec(self):
@@ -870,7 +917,8 @@ def main():
         "For each index from 0 to 5, `self.lookup(index)` must be true.",
         "For each index up to 5, `self.lookup(index)` must be true.",
         "`a` must be between 0 and `self.len()`.",
-        "`a` and `b` must be equal to 0 or `self.len()`."
+        "`a` and `b` must be equal to 0 or `self.len()`.",
+        "True is returned."
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
