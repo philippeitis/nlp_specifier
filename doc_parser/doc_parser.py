@@ -64,7 +64,7 @@ def print_tokens(token_dict):
     print()
 
 
-def might_be_code(word: str, key_words=None) -> Tuple[bool, str]:
+def might_be_obj(word: str, key_words=None) -> Tuple[bool, str]:
     """Determines whether `word` is likely to be code - specifically,
      if the word is a Rust literal or a function argument.
 
@@ -87,6 +87,19 @@ def might_be_code(word: str, key_words=None) -> Tuple[bool, str]:
         return True, word
 
     return False, word
+
+
+def might_be_op(word: str, key_words=None) -> Tuple[bool, str]:
+    """Determines whether `word` is likely to be code - specifically,
+     if the word is a Rust literal or a function argument.
+
+    :param word:
+    :param key_words:
+    :return:
+    """
+    # detect bool literals
+    if word.lower() in {"xor"}:
+        return True, word.lower()
 
 
 def correct_tokens(token_dict, key_words=None):
@@ -121,7 +134,7 @@ def correct_tokens(token_dict, key_words=None):
             entity["labels"][0] = Label("CODE")
 
     for i, entity in enumerate(entities):
-        mbc, word = might_be_code(text(entity), key_words)
+        mbc, word = might_be_obj(text(entity), key_words)
         if mbc:
             set_label(entity, Label("LIT"))
             set_text(entity, word)
@@ -730,23 +743,94 @@ class MReturn:
         return f"#[ensures(result == {self.ret_val.as_code()})]"
 
 
+class Negate:
+    def __init__(self, pred):
+        if isinstance(pred, Predicate):
+            self.pred = pred
+            self.iff = self.pred.iff
+        elif isinstance(pred, QuantPredicate):
+            raise ValueError("Quantifiers can not be negated")
+        else:
+            raise ValueError(f"Can't negate {type(pred)}")
+
+    def as_code(self):
+        return f"!{self.pred.as_code()}"
+
+
 class ReturnIf(MReturn):
     def __init__(self, tree: Union[Tree, List[Tree]]):
-        super().__init__(tree[0])
-
-        if tree[1].label() not in {"QPRED", "PRED"}:
-            raise ValueError(f"Bad tree - expected QPRED or PRED, got {tree[2].label()}")
-
-        if tree[1].label() == "PRED":
-            self.pred = Predicate(tree[1])
+        if tree[0].label() == "RETIF":
+            lhs = ReturnIf(tree[0])
+            self.preds = lhs.preds
+            self.ret_vals = lhs.ret_vals
+            if tree[1][0].lower() != "otherwise":
+                raise ValueError(f"Unexpected RB {tree[1][0]} in ReturnIf")
+            if tree[2].label() == "RETIF":
+                rhs = ReturnIf(tree[2])
+                self.preds += rhs.preds
+                self.ret_vals += rhs.ret_vals
+            else:
+                self.ret_vals.append(Object(tree[2]))
+                self.preds.append(Negate(self.preds[-1]))
+            return
+        if tree[0].label() == "MRET":
+            super().__init__(tree[0])
+            pred = tree[1]
+        elif tree[-1].label() == "MRET":
+            super().__init__(tree[-1])
+            pred = tree[0]
         else:
-            self.pred = QuantPredicate(tree[1])
+            raise ValueError("Did not find MRET")
+
+        self.ret_vals = [self.ret_val]
+        if pred.label() == "PRED":
+            self.preds = [Predicate(pred)]
+        elif pred.label() == "QPRED":
+            self.preds = [QuantPredicate(pred)]
+        else:
+            raise ValueError(f"Bad tree - expected QPRED or PRED, got {pred.label()}")
 
     def __str__(self):
         return f"return {self.ret_val.as_code()};"
 
+    @classmethod
+    def spec(cls, pred: Union[Negate, Predicate, QuantPredicate], ret_val: Object) -> str:
+        ret_val = ret_val.as_code()
+        if ret_val == "true":
+            ret_assert = "result"
+        elif ret_val == "false":
+            ret_assert = "!result"
+        else:
+            ret_assert = f"(result == {ret_val})"
+
+        if isinstance(pred, QuantPredicate):
+            if pred.iff:
+                # need to be able to put cond inside quant pred
+                # Need to handle ret val inside QASSERT.
+                return f"""#[ensures({pred.with_conditions(ret_assert)})]
+#[ensures({pred.with_conditions(ret_assert, flip=True)})]"""
+
+            return f"""#[ensures({pred.with_conditions(ret_assert)})]"""
+
+        if pred.iff:
+            return f"""#[ensures({pred.as_code()} ==> {ret_assert})]
+#[ensures(({ret_assert}) ==> {pred.as_code()})]"""
+        return f"""#[ensures({pred.as_code()} ==> {ret_assert})]"""
+
     def as_spec(self):
-        ret_val = self.ret_val.as_code()
+        return "\n".join(self.spec(p, rv) for p, rv in zip(self.preds, self.ret_vals))
+
+
+class ReturnIfElse(ReturnIf):
+    def __init__(self, tree: Tree):
+        super().__init__(tree[0])
+        if tree[1][0].lower() != "otherwise":
+            raise ValueError(f"Unexpected RB {tree[1][0]} in IfElseRet")
+        self.op_ret_val = Object(tree[2])
+
+    def as_spec(self):
+        if_part = super().as_spec()
+        ret_val = self.op_ret_val.as_code()
         if ret_val == "true":
             ret_assert = "result"
         elif ret_val == "false":
@@ -755,34 +839,19 @@ class ReturnIf(MReturn):
             ret_assert = f"(result == {ret_val})"
 
         if isinstance(self.pred, QuantPredicate):
-            if self.pred.iff:
-                # need to be able to put cond inside quant pred
-                # Need to handle ret val inside QASSERT.
-                return f"""#[ensures({self.pred.with_conditions(ret_assert)})]
-#[ensures({self.pred.with_conditions(ret_assert, flip=True)})]"""
-
-            return f"""#[ensures({self.pred.with_conditions(ret_assert)})]"""
+            raise ValueError("Can not negate quantifier in IfRetElse.")
 
         if self.pred.iff:
-            return f"""#[ensures({self.pred.as_code()} ==> {ret_assert})]
-#[ensures(({ret_assert}) ==> {self.pred.as_code()})]"""
-        return f"""#[ensures({self.pred.as_code()} ==> {ret_assert})]"""
-
-
-class IfReturn(ReturnIf):
-    def __init__(self, tree: Tree):
-        # Swizzle the values as needed.
-        if tree[1].label() == "COMMA":
-            super().__init__([tree[2], tree[0]])
-        else:
-            super().__init__([tree[1], tree[0]])
+            return f"""{if_part}\n#[ensures(!{self.pred.as_code()} ==> {ret_assert})]
+        #[ensures(({ret_assert}) ==> {self.pred.as_code()})]"""
+        return f"""{if_part}\n#[ensures(!{self.pred.as_code()} ==> {ret_assert})]"""
 
 
 class Specification:
     def __init__(self, tree: Tree):
         self.spec = {
             "RETIF": ReturnIf,
-            "IFRET": IfReturn,
+            "RETIFELSE": ReturnIfElse,
             "HASSERT": HardAssert,
             "QASSERT": QuantAssert,
             "MRET": MReturn
@@ -921,7 +990,12 @@ def main():
         "For each index up to 5, `self.lookup(index)` must be true.",
         "`a` must be between 0 and `self.len()`.",
         "`a` and `b` must be equal to 0 or `self.len()`.",
-        "True is returned."
+        "True is returned.",
+        "Returns `a` if `self.check(b)`, otherwise `b`",
+        "Returns `a` if `fn(a)`",
+        "If `fn(a)`, returns `a`",
+        "If `fn(a)`, returns `a`, otherwise `b`"
+
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
