@@ -89,17 +89,59 @@ def might_be_obj(word: str, key_words=None) -> Tuple[bool, str]:
     return False, word
 
 
-def might_be_op(word: str, key_words=None) -> Tuple[bool, str]:
-    """Determines whether `word` is likely to be code - specifically,
-     if the word is a Rust literal or a function argument.
+def apply_operation_tokens(token_dict):
+    entities = token_dict["entities"]
 
-    :param word:
-    :param key_words:
-    :return:
-    """
-    # detect bool literals
-    if word.lower() in {"xor"}:
-        return True, word.lower()
+    def get_label(t) -> str:
+        return t["labels"][0].value
+
+    def set_label(t, label: str):
+        t["labels"][0] = Label(label)
+
+    def text(t) -> str:
+        return t["text"]
+
+    def set_text(t, word: str):
+        t["text"] = word
+
+    def is_obj(t: str) -> bool:
+        return get_label(t) in {
+            "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
+        }
+
+    def is_arith(t) -> bool:
+        if text(t).lower() in {"add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
+                               "rem"}:
+            return True
+        return text(t).lower() in {"added", "subtracted", "divided", "multiplied"}
+
+    for i, entity in enumerate(entities):
+        if i == 0:
+            continue
+
+        if is_obj(entity):
+            delta = len(entities) - i - 1
+            if delta >= 6 and is_obj(entities[i + 6]):
+                # SHIFT IN DT NN IN
+                if LEMMATIZER.lemmatize(text(entities[i + 1]).lower(), "v") == "shift" \
+                        and get_label(entities[i + 2]) == "IN" \
+                        and get_label(entities[i + 3]) == "DT" \
+                        and get_label(entities[i + 4]).startswith("NN") \
+                        and get_label(entities[i + 5]) == "IN":
+                    set_label(entities[i + 1], "SHIFT")
+            if delta >= 3 and is_obj(entities[i + 3]):
+                # JJ SHIFT
+                if get_label(entities[i + 1]).startswith("JJ") \
+                        and LEMMATIZER.lemmatize(text(entities[i + 2]).lower(), "v") == "shift":
+                    set_label(entities[i + 2], "SHIFT")
+                # ARITH IN
+                elif is_arith(entities[i + 1]) \
+                        and get_label(entities[i + 2]) == "IN":
+                    set_label(entities[i + 1], "ARITH")
+            # ARITH
+            if delta >= 2 and is_obj(entities[i + 2]):
+                if is_arith(entities[i + 1]) or text(entities[i + 1]).lower() == "xor":
+                    set_label(entities[i + 1], "ARITH")
 
 
 def correct_tokens(token_dict, key_words=None):
@@ -160,6 +202,8 @@ def correct_tokens(token_dict, key_words=None):
             if i + 1 < len(entities) and get_label(entities[i + 1]) in {"DT"}:
                 set_label(entity, Label("FOR"))
 
+    apply_operation_tokens(token_dict)
+
 
 class Code:
     def __init__(self, tree: Tree):
@@ -177,10 +221,108 @@ class Literal:
         return self.str
 
 
+class Ops(Enum):
+    ADD = auto()
+    SUB = auto()
+    DIV = auto()
+    MUL = auto()
+    REM = auto()
+    SHIFT = auto()
+    SHIFTL = auto()
+    SHIFTR = auto()
+    AND = auto()
+    ANDL = auto()
+    ANDB = auto()
+    OR = auto()
+    ORL = auto()
+    ORB = auto()
+    XOR = auto()
+
+    @classmethod
+    def from_str(cls, s: str):
+        return {
+            "add": cls.ADD,
+            "added": cls.ADD,
+            "plus": cls.ADD,
+            "sub": cls.SUB,
+            "subtract": cls.SUB,
+            "subtracted": cls.SUB,
+            "div": cls.DIV,
+            "divide": cls.DIV,
+            "divided": cls.DIV,
+            "mul": cls.MUL,
+            "multiply": cls.MUL,
+            "multiplied": cls.MUL,
+            "rem": cls.REM,
+            "remainder": cls.REM,
+            "xor": cls.XOR,
+            "and": cls.AND,
+            "or": cls.OR,
+        }[s.lower()]
+
+    def apply_jj(self, jj: str):
+        if self == self.AND:
+            if jj.lower() == "logical":
+                return self.ANDL
+            if jj.lower() in {"boolean", "bitwise"}:
+                return self.ANDB
+        if self == self.OR:
+            if jj.lower() == "logical":
+                return self.ORL
+            if jj.lower() in {"boolean", "bitwise"}:
+                return self.ORB
+        return self
+
+    def apply_dir(self, d: str):
+        if self == self.SHIFT:
+            if d.lower() == "right":
+                return self.SHIFTR
+            if d.lower() == "left":
+                return self.SHIFTL
+        return self
+
+    def __str__(self):
+        return {
+            self.ADD: "+",
+            self.SUB: "-",
+            self.DIV: "/",
+            self.MUL: "*",
+            self.REM: "%",
+            self.SHIFTL: "<<",
+            self.SHIFTR: ">>",
+            self.ANDL: "&&",
+            self.ANDB: "&",
+            self.ORL: "||",
+            self.ORB: "|",
+            self.XOR: "^",
+        }[self]
+
+
+class Op:
+    def __init__(self, tree):
+        self.lhs = Object(tree[0])
+        op = tree[1][0]
+        if op.label() == "BITOP":
+            self.op = Ops.from_str(op[1][0]).apply_jj(op[0][0])
+        elif op.label() == "ARITHOP":
+            self.op = Ops.from_str(op[0][0])
+        elif op.label() == "SHIFTOP":
+            if op[0].label() == "SHIFT":
+                self.op = Ops.SHIFT.apply_dir(op[3][0])
+            else:
+                self.op = Ops.SHIFT.apply_dir(op[0][0])
+        else:
+            raise ValueError(f"Unexpected op: {op}")
+        self.rhs = Object(tree[2])
+
+    def as_code(self):
+        return f"({self.lhs.as_code()} {self.op} {self.rhs.as_code()})"
+
+
 class Object:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",)}:
+        if labels not in {("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ")}:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -196,6 +338,8 @@ class Object:
         if self.labels == ("MNN",):
             # TODO: This assumes that val in "The val" is a variable.
             return LEMMATIZER.lemmatize(self.tree[0][0][0])
+        if self.labels == ("OBJ", "OP", "OBJ"):
+            return Op(self.tree).as_code()
 
         raise ValueError(f"{self.labels} not handled.")
 
@@ -984,17 +1128,29 @@ def main():
         # "`self` must be blue",
         # "`other.v` must not be equal to 0",
         # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
-        "Returns `true` if and only if `self == 2^k` for all `k`.",
-        "Returns `true` if and only if `self == 2^k` for any `k`."
-        "For each index from 0 to 5, `self.lookup(index)` must be true.",
-        "For each index up to 5, `self.lookup(index)` must be true.",
-        "`a` must be between 0 and `self.len()`.",
-        "`a` and `b` must be equal to 0 or `self.len()`.",
-        "True is returned.",
-        "Returns `a` if `self.check(b)`, otherwise `b`",
-        "Returns `a` if `fn(a)`",
-        "If `fn(a)`, returns `a`",
-        "If `fn(a)`, returns `a`, otherwise `b`"
+        # "Returns `true` if and only if `self == 2^k` for all `k`.",
+        # "Returns `true` if and only if `self == 2^k` for any `k`."
+        # "For each index from 0 to 5, `self.lookup(index)` must be true.",
+        # "For each index up to 5, `self.lookup(index)` must be true.",
+        # "`a` must be between 0 and `self.len()`.",
+        # "`a` and `b` must be equal to 0 or `self.len()`.",
+        # "True is returned.",
+        # "Returns `a` if `self.check(b)`, otherwise `b`",
+        # "Returns `a` if `fn(a)`",
+        # "If `fn(a)`, returns `a`",
+        # "If `fn(a)`, returns `a`, otherwise `b`",
+        "Returns `a` logical and `b`",
+        "Returns `a` bitwise and `b`",
+        "Returns `a` xor `b`",
+        "Returns `a` multiplied by `b`",
+        "Returns `a` divided by `b`",
+        "Returns `a` subtracted by `b`",
+        "Returns `a` subtracted from `b`",
+        "Returns `a` added to `b`",
+        "Returns `a` shifted to the right by `b`",
+        "Returns `a` shifted to the left by `b`",
+        "Returns `a` left shift `b`",
+        "Returns `a` right shift `b`",
 
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
