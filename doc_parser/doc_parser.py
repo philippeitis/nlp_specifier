@@ -622,11 +622,14 @@ class Predicate:
     def __init__(self, tree: Tree):
         if tree[0].label() not in {"IFF", "IN"}:
             raise ValueError(f"Bad tree - expected IFF or IN, got {tree[0].label()}")
-        if tree[1].label() != "ASSERT":
-            raise ValueError(f"Bad tree - expected ASSERT, got {tree[1].label()}")
+        if tree[1].label() not in {"CODE", "ASSERT"}:
+            raise ValueError(f"Bad tree - expected ASSERT or CODE, got {tree[1].label()}")
 
         self.iff = tree[0].label() == "IFF"
-        self.assertion = Assert(tree[1])
+        if tree[1].label() == "CODE":
+            self.assertion = Code(tree[1])
+        else:
+            self.assertion = Assert(tree[1])
 
     def as_code(self):
         return self.assertion.as_code()
