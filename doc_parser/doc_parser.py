@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 import logging
 
 from flair.data import Sentence, Label, Token, Tokenizer
@@ -110,9 +110,13 @@ def apply_operation_tokens(token_dict):
         }
 
     def is_arith(t) -> bool:
-        if text(t).lower() in {"add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
-                               "rem"}:
+        # short-hand / passive
+        if text(t).lower() in {
+            "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
+            "rem"
+        }:
             return True
+        # past-tense
         return text(t).lower() in {"added", "subtracted", "divided", "multiplied"}
 
     for i, entity in enumerate(entities):
@@ -237,14 +241,19 @@ class Ops(Enum):
     ORL = auto()
     ORB = auto()
     XOR = auto()
+    NEGATE = auto()
 
     @classmethod
-    def from_str(cls, s: str):
+    def from_str(cls, s: str) -> Optional[str]:
         return {
             "add": cls.ADD,
             "added": cls.ADD,
+            "increment": cls.ADD,
+            "incremented": cls.ADD,
             "plus": cls.ADD,
             "sub": cls.SUB,
+            "decremented": cls.SUB,
+            "decrement": cls.SUB,
             "subtract": cls.SUB,
             "subtracted": cls.SUB,
             "div": cls.DIV,
@@ -258,7 +267,11 @@ class Ops(Enum):
             "xor": cls.XOR,
             "and": cls.AND,
             "or": cls.OR,
-        }[s.lower()]
+            "shift": cls.SHIFT,
+            "shifted": cls.SHIFT,
+            "negate": cls.NEGATE,
+            "negated": cls.NEGATE,
+        }.get(s.lower())
 
     def apply_jj(self, jj: str):
         if self == self.AND:
@@ -415,16 +428,17 @@ class Relation:
             self.objs = rel.objs + [(CC(tree[1]), Object(tree[2]))]
             self.op = rel.op
             self.negate = rel.negate
-        else:
-            labels = tuple(x.label() for x in tree)
-            if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
-                raise ValueError(f"Bad tree - expected REL productions, got {labels}")
+            return
 
-            self.op = Comparator.from_str(TJJ(tree[0]).get_word())
-            if labels[1] == "EQTO":
-                self.op = self.op.apply_eq()
-            self.objs = [(None, Object(tree[-1]))]
-            self.negate = False
+        labels = tuple(x.label() for x in tree)
+        if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
+            raise ValueError(f"Bad tree - expected REL productions, got {labels}")
+
+        self.op = Comparator.from_str(TJJ(tree[0]).get_word())
+        if labels[1] == "EQTO":
+            self.op = self.op.apply_eq()
+        self.objs = [(None, Object(tree[-1]))]
+        self.negate = False
 
     def as_code(self, lhs: Object):
         relation = self.op.negate(self.negate)
@@ -473,7 +487,7 @@ class MVB:
     def is_negation(self):
         return self.tree[0].label() == "RB" and self.tree[0][0].lower() == "not"
 
-    def vb(self):
+    def vb(self) -> str:
         return self.tree[-1][0]
 
 
@@ -991,6 +1005,49 @@ class ReturnIfElse(ReturnIf):
         return f"""{if_part}\n#[ensures(!{self.pred.as_code()} ==> {ret_assert})]"""
 
 
+class SideEffect:
+    def __init__(self, tree: Tree):
+        self.target = Object(tree[0])
+        if len(tree) > 3:
+            if tree[2].label() == "MJJ":
+                self.fn_mod = MJJ(tree[2])
+                self.fn = MVB(tree[3])
+                target_i = 4
+            else:
+                self.fn = MVB(tree[2])
+                self.fn_mod = None
+                target_i = 3
+
+            if tree[target_i][0].lower() in {"by", "in"}:
+                self.target = Object(tree[0])
+                self.inputs = [Object(tree[target_i + 1])]
+            elif tree[target_i][0].lower() in {"to"}:
+                self.target = Object(tree[target_i + 1])
+                self.inputs = [Object(tree[0])]
+        else:
+            self.fn = MVB(tree[2])
+            self.fn_mod = None
+            self.inputs = None
+
+    def as_spec(self) -> str:
+        # x is applied to b
+        # a is affected by b
+        # a is stored in b
+
+        vb = LEMMATIZER.lemmatize(self.fn.vb().lower(), "v")
+        op = Ops.from_str(self.fn.vb().lower())
+        if op is not None:
+            if op == Ops.NEGATE:
+                return f"#[ensures(*{self.target.as_code()} == !*{self.target.as_code()})]"
+            if op == Ops.SHIFT:
+                if self.fn_mod is None:
+                    raise ValueError("Side Effect: got shift operation without corresponding direction.")
+                op = op.apply_dir(self.fn_mod.word())
+            return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
+        else:
+            raise ValueError(f"Not expecting non-op side effects (got {vb})")
+
+
 class Specification:
     def __init__(self, tree: Tree):
         self.spec = {
@@ -998,7 +1055,8 @@ class Specification:
             "RETIFELSE": ReturnIfElse,
             "HASSERT": HardAssert,
             "QASSERT": QuantAssert,
-            "MRET": MReturn
+            "MRET": MReturn,
+            "SIDE": SideEffect,
         }[tree[0].label()](tree[0])
 
     def as_spec(self):
@@ -1139,19 +1197,49 @@ def main():
         # "Returns `a` if `fn(a)`",
         # "If `fn(a)`, returns `a`",
         # "If `fn(a)`, returns `a`, otherwise `b`",
-        "Returns `a` logical and `b`",
-        "Returns `a` bitwise and `b`",
-        "Returns `a` xor `b`",
-        "Returns `a` multiplied by `b`",
-        "Returns `a` divided by `b`",
-        "Returns `a` subtracted by `b`",
-        "Returns `a` subtracted from `b`",
-        "Returns `a` added to `b`",
-        "Returns `a` shifted to the right by `b`",
-        "Returns `a` shifted to the left by `b`",
-        "Returns `a` left shift `b`",
-        "Returns `a` right shift `b`",
-
+        # "Returns `a` logical and `b`",
+        # "Returns `a` bitwise and `b`",
+        # "Returns `a` xor `b`",
+        # "Returns `a` multiplied by `b`",
+        # "Returns `a` divided by `b`",
+        # "Returns `a` subtracted by `b`",
+        # "Returns `a` subtracted from `b`",
+        # "Returns `a` added to `b`",
+        # "Returns `a` shifted to the right by `b`",
+        # "Returns `a` shifted to the left by `b`",
+        # "Returns `a` left shift `b`",
+        # "Returns `a` right shift `b`",
+        # TODO: Side effects:
+        #  Assignment operation:
+        #  Assign result of fn to val
+        #  Assign result of operation to val
+        #   eg. Increments a by n
+        #       Decrements a by n
+        #       Divides a by n
+        #       Increases a by n
+        #       Decreases a by n
+        #       Negates a
+        #       Multiplies a by n
+        #       Subtracts n from a
+        #       Adds n to a
+        #       Shifts a to the DIR by n
+        #       DIR shifts a by n
+        #       a is shifted to the right by n
+        #       a is divided by n
+        #       a is multiplied by n
+        #       a is increased by n
+        #       a is incremented by n
+        #       a is decremented by a
+        #       a is negated
+        #       a is right shifted by n
+        #       a is ?VB?
+        # "Sets `a` to 1",
+        # "Assigns 1 to `a`.",
+        # "Increments `a` by 1",
+        # "Adds 1 to `a`"
+        "`a` is incremented by 1",
+        "`a` is negated",
+        "`a` is right shifted by `n`",
     ]
     #         "Returns `true` if and only if `self == 2^k` for some `k`."
     #                                                  ^ not as it appears in Rust (programmer error, obviously)
