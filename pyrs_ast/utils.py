@@ -4,7 +4,7 @@ import json
 from pyrs_ast import AstFile
 import astx
 
-from pyrs_ast.lib import HasAttrs
+from pyrs_ast.lib import HasAttrs, HasItems
 from pyrs_ast.scope import Scope
 
 
@@ -27,14 +27,15 @@ def read_ast_from_path(path):
     return read_ast_from_str(code)
 
 
-def print_ast_docs(ast: AstFile):
+def print_ast_docs(ast: HasItems):
     for item in ast.items:
         if isinstance(item, HasAttrs):
             docs = item.extract_docs()
-            if docs.is_empty():
-                pass
-            else:
-                print(docs.sections)
+            for section in docs.sections():
+                print(section.header)
+                print(section.body)
+        if isinstance(item, HasItems):
+            print_ast_docs(item)
 
 
 def print_ast(ast: AstFile):

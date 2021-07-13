@@ -1,7 +1,6 @@
 from enum import Enum, auto
 from typing import Optional, List, Union
 
-from pprint import pprint
 from doc_parser.doc_parser import Parser, Specification
 
 from .docs import Docs
@@ -100,6 +99,12 @@ class HasAttrs:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
+
+
+class HasItems:
+    def __init__(self, scope=None, parent_type=None, **kwargs):
+        super().__init__(**kwargs)
+        self.items = ast_items_from_json(scope or Scope(), kwargs.get("items", []), parent_type=parent_type)
 
 
 class TokenType(Enum):
@@ -375,11 +380,11 @@ class Method(Fn):
             self.inputs[0].ty = parent_type
 
 
-class Impl(HasAttrs):
-    def __init__(self, scope=None, **kwargs):
-        super().__init__(**kwargs)
-        self.ty = scope.find_type(str(Path(**kwargs["self_ty"]["path"])))
-        self.items = ast_items_from_json(scope, kwargs.get("items", []), parent_type=self.ty)
+class Impl(HasItems, HasAttrs):
+    def __init__(self, scope=None, parent_type=None, **kwargs):
+        ty = scope.find_type(str(Path(**kwargs["self_ty"]["path"])))
+        super().__init__(scope=scope, parent_type=ty, **kwargs)
+        self.ty = ty
 
     def __str__(self):
         items = "\n\n".join([indent(item) for item in self.items])
@@ -476,8 +481,8 @@ KEY_TO_CLASS = {
 }
 
 
-class AstFile(HasAttrs):
+class AstFile(HasItems, HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
-        self.items = ast_items_from_json(Scope(), kwargs.get("items", []))
+
