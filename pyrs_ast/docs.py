@@ -29,7 +29,7 @@ class Section:
 
 class Docs:
     def __init__(self):
-        self._sections: [Tuple[Optional[str], Section]] = [(Section(None))]
+        self._sections: [Tuple[Optional[str], Section]] = []
         self._consolidated = False
 
     def _consolidate(self):
@@ -43,12 +43,11 @@ class Docs:
         if line_strip.startswith("#"):
             self._sections.append(Section(line))
         else:
+            if not self._sections:
+                self._sections.append(Section(None))
             self._sections[-1].push_line(line_strip)
         self._consolidated = False
 
     def sections(self) -> [Section]:
         self._consolidate()
         return self._sections
-
-    def is_empty(self):
-        return len(self._sections) == 1 and len(self._sections[0]) == 0

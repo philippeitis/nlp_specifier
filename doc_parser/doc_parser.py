@@ -209,6 +209,10 @@ def correct_tokens(token_dict, key_words=None):
     apply_operation_tokens(token_dict)
 
 
+def is_quote(word: str) -> bool:
+    return word[0] in "\"'`"
+
+
 class Code:
     def __init__(self, tree: Tree):
         self.code: str = tree[0]
@@ -1045,11 +1049,11 @@ class SideEffect:
                 op = op.apply_dir(self.fn_mod.word())
             return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
         else:
-            raise ValueError(f"Not expecting non-op side effects (got {vb})")
+            raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
 
 
 class Specification:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, function_initializer: "InvocationFactory"):
         self.spec = {
             "RETIF": ReturnIf,
             "RETIFELSE": ReturnIfElse,
@@ -1057,6 +1061,7 @@ class Specification:
             "QASSERT": QuantAssert,
             "MRET": MReturn,
             "SIDE": SideEffect,
+            "FNCALL": function_initializer,
         }[tree[0].label()](tree[0])
 
     def as_spec(self):
@@ -1112,12 +1117,32 @@ class POSModel(Enum):
 
 
 class Parser:
-    def __init__(self, pos_model: POSModel = POSModel.POS, grammar_path: str = "doc_parser/codegrammar.cfg"):
+    def __init__(self, grammar: str, pos_model: POSModel = POSModel.POS):
         self.root_tagger = MultiTagger.load([str(pos_model)])
         self.tokenizer = CodeTokenizer()
 
-        self.grammar = nltk.data.load(f"file:{grammar_path}")
+        self.grammar = nltk.CFG.fromstring(grammar)
         self.rd_parser = nltk.ChartParser(self.grammar)
+
+    @classmethod
+    def from_path(cls, pos_model: POSModel = POSModel.POS, grammar_path: str = "doc_parser/codegrammar.cfg"):
+        with open(grammar_path) as f:
+            return cls(f.read(), pos_model)
+
+    def tokenize_sentence(self, sentence: str, idents=None):
+        sentence = sentence \
+            .replace("isn't", "is not") \
+            .rstrip(".")
+
+        sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
+        self.root_tagger.predict(sentence)
+
+        token_dict = sentence.to_dict(tag_type="pos")
+        correct_tokens(token_dict, key_words=idents)
+
+        labels = [entity["labels"][0] for entity in token_dict["entities"]]
+        words = [entity["text"] for entity in token_dict["entities"]]
+        return labels, words
 
     def parse_sentence(self, sentence: str, idents=None) -> Tree:
         sentence = sentence \
@@ -1135,13 +1160,164 @@ class Parser:
         print(labels)
         print(words)
 
-        nltk_sent = [label.value for label in labels]
+        nltk_sent = [label.value if is_quote(word) else f"{word}_{label.value}"
+                     for label, word in zip(labels, words)]
+
         for tree in self.rd_parser.parse(nltk_sent):
             yield attach_words_to_nodes(tree, words)
 
 
 class UnsupportedSpec(ValueError):
     pass
+
+
+class Rule:
+    def __init__(self, word: str):
+        body = word[1:-1]
+        self.ident, self.symbol = body.split(":")
+
+    def __str__(self):
+        return f"?{{{self.ident}:{self.symbol}}}"
+
+    def _sym(self):
+        return self.symbol
+
+
+class InvokeToken:
+    def __init__(self, word: str, index: int, is_symbol: bool, **kwargs):
+        self.word = word
+        self.index = index
+        self.is_symbol = is_symbol
+        if is_symbol:
+            self.word = Rule(self.word)
+        self.kwargs = kwargs
+
+    def __str__(self):
+        return f"{self.word}[{self.index}]"
+
+    def symbol(self):
+        if self.is_symbol:
+            return f"{self.word.symbol}"
+        return f"\"{self.word}\""
+
+
+SYMBOLS = {
+    "CODE": Code,
+    "OBJ": Object,
+    "LIT": Literal,
+    "IDENT": Literal,
+}
+
+
+class InvocationFactory:
+    def __init__(self):
+        self.invocations = {}
+        self.productions = {}
+        self.initializers = {}
+
+    def add_invocation(self, fn: str, invocation: str):
+        invocation = Invocation(fn, invocation)
+        if fn in self.invocations:
+            name = f"FN_{fn.upper()}_{len(self.invocations[fn])}"
+            self.invocations[fn].append(name)
+        else:
+            name = f"FN_{fn.upper()}_0"
+            self.invocations[fn] = [name]
+        self.productions[name] = invocation.as_grammar(name)
+        self.initializers[name] = invocation.constructor()
+
+    def grammar(self):
+        rules = []
+        productions = []
+        for fn, invocations in self.invocations.items():
+            rules.extend(invocations)
+            productions.extend((self.productions[invoke] for invoke in invocations))
+
+        rule_line = f"FNCALL -> {' | '.join(rules)}"
+        productions = "\n".join(productions)
+        return f"{rule_line}\n{productions}"
+
+    def __call__(self, tree: Tree):
+        return self.initializers[tree[0].label()](tree[0])
+
+
+class Invocation:
+    def __init__(self, fn: str, sentence: str):
+        self.fn = fn
+        parts = []
+        num = 0
+        a = 0
+        while a < len(sentence) and sentence[a].isspace():
+            a += 1
+
+        while a < len(sentence):
+            is_symbol = False
+            if sentence[a] == "{":
+                is_symbol = True
+                ind = sentence[a + 1:].find("}")
+                if ind != -1:
+                    ind += 2
+            else:
+                sind = sentence[a:].find(" ")
+                cind = sentence[a:].find(",")
+                if cind == -1:
+                    ind = sind
+                elif sind == -1:
+                    ind = cind
+                else:
+                    ind = min(sind, cind)
+            if ind == -1:
+                t = InvokeToken(sentence[a:], num, is_symbol, whitespace_after=False, start_position=a)
+                parts.append(t)
+                break
+            else:
+                t = InvokeToken(sentence[a: a + ind], num, is_symbol, whitespace_after=True, start_position=a)
+                parts.append(t)
+
+            num += 1
+            a = a + ind
+            while a < len(sentence) and sentence[a] in {",", " "}:
+                # if sentence[a] == ",":
+                #     t = Token(sentence[a], num, whitespace_after=False, start_position=a)
+                #     parts.append(t)
+                #     num += 1
+
+                a += 1
+
+        self.parts = parts
+        self.inputs = {}
+        for part in parts:
+            if part.is_symbol:
+                self.inputs[part.word.ident] = (part.word.symbol, part.index)
+
+    def __str__(self):
+        return " ".join(str(x) for x in self.parts)
+
+    def as_grammar(self, name: str):
+        tokens = " ".join(x.symbol() for x in self.parts)
+        return f"{name} -> {tokens}"
+
+    def constructor(self):
+        xself = self
+
+        class CustomFnCall:
+            def __init__(self, tree: Tree):
+                self.fn = xself.fn
+                self.inputs = []
+                for ident, (symbol, ind) in xself.inputs.items():
+                    self.inputs.append(SYMBOLS[symbol](tree[ind]))
+
+            def as_code(self):
+                inputs = ", ".join(x.as_code() for x in self.inputs)
+                return f"{self.fn}({inputs})"
+
+            def as_spec(self):
+                raise UnsupportedSpec("Can not forward specifications from functions.")
+
+        return CustomFnCall
+
+    def __hash__(self):
+        return hash(self.fn)
 
 
 def main():
@@ -1253,7 +1429,7 @@ def main():
     #  If the next power of two is greater than the type’s maximum value
     #  No direct support for existential
     #  For any index that meets some condition, x is true. (eg. forall)
-    parser = Parser()
+    parser = Parser.from_path()
     for sentence in predicates:
         print("=" * 80)
         print("Sentence:", sentence)
@@ -1278,4 +1454,64 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    invocations = [
+        ("print", "Prints {item:OBJ}", "Prints 0u32"),
+        ("print", "{item:OBJ} is printed", "`self.x()` is printed"),
+        ("add", "{self:OBJ} is incremented by {rhs:IDENT}", "`self` is incremented by 1")
+    ]
+
+    meta = InvocationFactory()
+    parser = Parser.from_path()
+    word_replacements = {}
+    sym_replacements = {}
+    for fn, invocation, sample in invocations:
+        meta.add_invocation(fn, invocation)
+
+    grammar = meta.grammar()
+
+    sentences = [
+        "Returns `true` if `self` is green."
+    ] + [sample for _, _, sample in invocations]
+
+    for sentence in sentences:
+        tokens, words = parser.tokenize_sentence(sentence)
+        for sym, word in zip(tokens, words):
+            if is_quote(word):
+                continue
+            if word not in word_replacements:
+                word_replacements[word] = set()
+            if sym.value not in sym_replacements:
+                sym_replacements[sym.value] = set()
+            word_replacements[word].add(sym.value)
+            sym_replacements[sym.value].add(word)
+
+    replacement_grammar = ""
+    for word, syms in word_replacements.items():
+        syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
+        grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
+        replacement_grammar += f"WD_{word} -> {syms}\n"
+    for sym, words in sym_replacements.items():
+        syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
+        grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
+        replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
+
+    with open("doc_parser/codegrammar.cfg") as f:
+        full_grammar = f.read() + "\n" + grammar + "\n" + replacement_grammar
+
+    parser = Parser(full_grammar)
+    for sentence in sentences:
+        print("=" * 80)
+        print("Sentence:", sentence)
+        print("=" * 80)
+        for tree in parser.parse_sentence(sentence):
+            tree: Tree = tree
+            try:
+                print(Specification(tree, meta).as_spec())
+            except LookupError as e:
+                print(f"No specification found: {e}")
+            except UnsupportedSpec as s:
+                print(f"Specification element not supported ({s})")
+
+            print(tree)
+            print()
+    # main()
