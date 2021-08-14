@@ -1133,7 +1133,7 @@ class Parser:
         words = [entity["text"] for entity in token_dict["entities"]]
         return labels, words
 
-    def parse_sentence(self, sentence: str, idents=None) -> Tree:
+    def parse_sentence(self, sentence: str, idents=None, verbose=False) -> Tree:
         sentence = sentence \
             .replace("isn't", "is not") \
             .rstrip(".")
@@ -1146,13 +1146,15 @@ class Parser:
 
         labels = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
-        print(labels)
-        print(words)
 
         nltk_sent = [label.value if is_quote(word) else f"{word}_{label.value}"
                      for label, word in zip(labels, words)]
 
-        print(nltk_sent)
+        if verbose:
+            print(labels)
+            print(words)
+            print(nltk_sent)
+
         for tree in self.rd_parser.parse(nltk_sent):
             yield attach_words_to_nodes(tree, words)
 
