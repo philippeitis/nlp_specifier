@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from typing import List, Union, Tuple, Optional
 import logging
+import os
 
 from flair.data import Sentence, Label
 from flair.models import MultiTagger
@@ -8,14 +9,21 @@ import nltk
 from nltk.tree import Tree
 from nltk.stem import WordNetLemmatizer
 
-from fn_calls import Rule, InvokeToken, InvocationFactory
-from tokenizer import CodeTokenizer
+try:
+    from tokenizer import CodeTokenizer
+    from fn_calls import Rule, InvokeToken, InvocationFactory
+except ModuleNotFoundError:
+    from .tokenizer import CodeTokenizer
+    from .fn_calls import Rule, InvokeToken, InvocationFactory
 
 LEMMATIZER = WordNetLemmatizer()
 FUNCTION_INITIALIZER = None
 
+GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
+
 logger = logging.getLogger("flair")
 logger.setLevel(logging.ERROR)
+
 
 
 def is_quote(word: str) -> bool:
@@ -1103,11 +1111,10 @@ class Parser:
         self.tokenizer = CodeTokenizer()
 
         self.grammar = nltk.CFG.fromstring(grammar)
-        print(grammar)
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, pos_model: POSModel = POSModel.POS, grammar_path: str = "doc_parser/codegrammar.cfg"):
+    def from_path(cls, pos_model: POSModel = POSModel.POS, grammar_path: str = GRAMMAR_PATH):
         with open(grammar_path) as f:
             return cls(f.read(), pos_model)
 

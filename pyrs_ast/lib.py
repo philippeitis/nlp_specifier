@@ -13,7 +13,7 @@ VERBOSE = False
 
 def init_global_parser():
     global PARSER
-    PARSER = Parser()
+    PARSER = Parser.from_path()
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
@@ -485,4 +485,3 @@ class AstFile(HasItems, HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
-
