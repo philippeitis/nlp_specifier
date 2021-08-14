@@ -19,8 +19,8 @@ fn yeehaw(y: u32, a: crate2::Lemon) -> u32 {
 /** Does other stuff. */
 /// # Exceptions:
 /// ```
-struct AAAAA<T> {
-    a: T,
+struct AAAAA<'a, T> {
+    a: &'a T,
     b: crate2::Orange
 }
 

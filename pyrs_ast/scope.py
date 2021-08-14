@@ -19,11 +19,13 @@ class Scope:
         return self.functions.get(fn)
 
     def find_type(self, ty: str):
-        return self.named_types.get(ty)
+        res = self.named_types.get(ty, self.structs.get(ty))
+        return res
 
     def define_type(self, **kwargs) -> Type:
         ty = Type(**kwargs)
         name = ty.name()
+
         if name is None:
             return ty
         name = str(name)

@@ -100,3 +100,31 @@ class Type:
         if isinstance(self.ty, RefType):
             return self.ty.name()
 
+
+class LifetimeParam:
+    def __init__(self, **kwargs):
+        self.lifetime = kwargs.get("lifetime")
+
+    def __str__(self):
+        return f"'{self.lifetime}"
+
+
+class IdentParam:
+    def __init__(self, **kwargs):
+        self.ident = kwargs.get("ident")
+
+    def __str__(self):
+        return self.ident
+
+
+class TypeParam:
+    def __init__(self, **kwargs):
+        if "lifetime" in kwargs:
+            self.param = LifetimeParam(**kwargs["lifetime"])
+        elif "type" in kwargs:
+            self.param = IdentParam(**kwargs["type"])
+        else:
+            raise ValueError(f"Expected lifetime or type in kwargs, got {kwargs}")
+
+    def __str__(self):
+        return str(self.param)

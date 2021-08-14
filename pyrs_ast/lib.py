@@ -4,7 +4,7 @@ from typing import Optional, List, Union
 from doc_parser.doc_parser import Parser, Specification
 
 from .docs import Docs
-from .types import Path, Type
+from .types import Path, Type, TypeParam
 from .scope import Scope
 
 PARSER = None
@@ -354,7 +354,10 @@ class Fields:
 class Struct(HasAttrs):
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
-        self.generics = kwargs.get("generics")
+        if "generics" in kwargs:
+            self.params = [TypeParam(**param) for param in kwargs["generics"]["params"]]
+        else:
+            self.params = None
         self.ident = kwargs["ident"]
         self.fields = Fields(scope, kwargs["fields"])
         scope.add_struct(self.ident, self)
@@ -366,11 +369,19 @@ class Struct(HasAttrs):
             fields = " {\n" + ",\n".join([indent(field) for field in self.fields]) + ",\n}"
         else:
             fields = "(" + ", ".join([indent(field) for field in self.fields]) + ");"
-        return f"{self.fmt_attrs()}struct {self.ident}{fields}"
+        return f"{self.fmt_attrs()}struct {self.ident}{self._generics_fmt()}{fields}"
+
+    def _generics_fmt(self):
+        if self.params:
+            return f"<{', '.join([str(x) for x in self.params])}>"
+        else:
+            return ""
 
     def is_generic(self):
-        return self.generics is not None
+        return self.params is not None
 
+    def name(self):
+        return self.ident
 
 class Method(Fn):
     def __init__(self, parent_type=None, **kwargs):
@@ -383,12 +394,13 @@ class Method(Fn):
 class Impl(HasItems, HasAttrs):
     def __init__(self, scope=None, parent_type=None, **kwargs):
         ty = scope.find_type(str(Path(**kwargs["self_ty"]["path"])))
+        print("IMPL: GOT", ty)
         super().__init__(scope=scope, parent_type=ty, **kwargs)
         self.ty = ty
 
     def __str__(self):
         items = "\n\n".join([indent(item) for item in self.items])
-        return f"""{self.fmt_attrs()}impl {self.ty} {{
+        return f"""{self.fmt_attrs()}impl {self.ty.name()} {{
 {items}
 }}"""
 
