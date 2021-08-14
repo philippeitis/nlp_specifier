@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union, List
 
 from pyrs_ast.types import Type
 
@@ -33,3 +33,25 @@ class Scope:
 
         self.named_types[name] = ty
         return ty
+
+
+class FnArg:
+    def __init__(self, xtype, keyword: str = None, position: int = None):
+        self.type = xtype
+        self.keyword = keyword
+        self.position = position
+
+
+class QueryField:
+    def __init__(self, item: Union[List[str], FnArg], synonyms: bool, optional: bool):
+        self.item = item
+        self.synonyms = synonyms
+        self.optional = optional
+
+
+class Query:
+    def __init__(self, fields):
+        self.fields = fields
+
+    def matches(self, item):
+        raise NotImplementedError()

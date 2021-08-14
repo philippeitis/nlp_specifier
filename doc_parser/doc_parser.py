@@ -2,60 +2,24 @@ from enum import Enum, auto
 from typing import List, Union, Tuple, Optional
 import logging
 
-from flair.data import Sentence, Label, Token, Tokenizer
+from flair.data import Sentence, Label
 from flair.models import MultiTagger
-
 import nltk
 from nltk.tree import Tree
 from nltk.stem import WordNetLemmatizer
 
+from fn_calls import Rule, InvokeToken, InvocationFactory
+from tokenizer import CodeTokenizer
+
 LEMMATIZER = WordNetLemmatizer()
+FUNCTION_INITIALIZER = None
 
 logger = logging.getLogger("flair")
 logger.setLevel(logging.ERROR)
 
 
-class CodeTokenizer(Tokenizer):
-    def tokenize(self, sentence: str) -> List[Token]:
-        parts = []
-        num = 1
-        a = 0
-        while a < len(sentence) and sentence[a].isspace():
-            a += 1
-
-        while a < len(sentence):
-            if sentence[a] == "`":
-                ind = sentence[a + 1:].find("`")
-                if ind != -1:
-                    ind += 2
-            else:
-                sind = sentence[a:].find(" ")
-                cind = sentence[a:].find(",")
-                if cind == -1:
-                    ind = sind
-                elif sind == -1:
-                    ind = cind
-                else:
-                    ind = min(sind, cind)
-            if ind == -1:
-                t = Token(sentence[a:], num, whitespace_after=False, start_position=a)
-                parts.append(t)
-                break
-            else:
-                t = Token(sentence[a: a + ind], num, whitespace_after=True, start_position=a)
-                parts.append(t)
-
-            num += 1
-            a = a + ind
-            while a < len(sentence) and sentence[a] in {",", " "}:
-                # if sentence[a] == ",":
-                #     t = Token(sentence[a], num, whitespace_after=False, start_position=a)
-                #     parts.append(t)
-                #     num += 1
-
-                a += 1
-
-        return parts
+def is_quote(word: str) -> bool:
+    return word[0] in "\"'`"
 
 
 def print_tokens(token_dict):
@@ -64,8 +28,8 @@ def print_tokens(token_dict):
     print()
 
 
-def might_be_obj(word: str, key_words=None) -> Tuple[bool, str]:
-    """Determines whether `word` is likely to be code - specifically,
+def might_be_literal(word: str, key_words=None) -> Tuple[bool, str]:
+    """Determines whether `word` matches the pattern for a code literal - specifically,
      if the word is a Rust literal or a function argument.
 
     :param word:
@@ -84,6 +48,9 @@ def might_be_obj(word: str, key_words=None) -> Tuple[bool, str]:
         return True, word
 
     if word.isnumeric():
+        return True, word
+
+    if word[0] in "\"'":
         return True, word
 
     return False, word
@@ -180,8 +147,8 @@ def correct_tokens(token_dict, key_words=None):
             entity["labels"][0] = Label("CODE")
 
     for i, entity in enumerate(entities):
-        mbc, word = might_be_obj(text(entity), key_words)
-        if mbc:
+        mbl, word = might_be_literal(text(entity), key_words)
+        if mbl:
             set_label(entity, Label("LIT"))
             set_text(entity, word)
 
@@ -193,10 +160,14 @@ def correct_tokens(token_dict, key_words=None):
         if word == "return":
             if i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
                 set_label(entity, Label("RET"))
+            elif i + 2 < len(entities) and is_obj(get_label(entities[i + 2])):
+                set_label(entity, Label("RET"))
             elif i >= 2 and is_obj(get_label(entities[i - 2])) and get_label(entities[i - 1]) in {"VBZ"}:
                 set_label(entity, Label("RET"))
             elif i >= 1 and is_obj(get_label(entities[i - 1])):
                 set_label(entity, Label("RET"))
+        elif word == "if":
+            set_label(entity, Label("IF"))
 
     if len(entities) <= 2:
         return
@@ -207,10 +178,6 @@ def correct_tokens(token_dict, key_words=None):
                 set_label(entity, Label("FOR"))
 
     apply_operation_tokens(token_dict)
-
-
-def is_quote(word: str) -> bool:
-    return word[0] in "\"'`"
 
 
 class Code:
@@ -339,7 +306,10 @@ class Op:
 class Object:
     def __init__(self, tree: Tree):
         labels = tuple(x.label() for x in tree)
-        if labels not in {("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ")}:
+        if labels not in {
+            ("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
+            ("DT", "MNN", "IN", "OBJ")
+        }:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
@@ -357,6 +327,8 @@ class Object:
             return LEMMATIZER.lemmatize(self.tree[0][0][0])
         if self.labels == ("OBJ", "OP", "OBJ"):
             return Op(self.tree).as_code()
+        if self.labels == ("DT", "MNN", "IN", "OBJ"):
+            return f"{Object(self.tree[-1]).as_code()}.{LEMMATIZER.lemmatize(self.tree[1][0][0])}()"
 
         raise ValueError(f"{self.labels} not handled.")
 
@@ -550,6 +522,10 @@ class Property:
             return ModRelation(self.tree[-1]).apply_negate(self.negate).as_code(lhs)
 
         if self.labels[-1] == "OBJ":
+            if self.mvb.vb().lower() not in {"is"}:
+                # TODO: Support generic properties
+                raise UnsupportedSpec(f"Unexpected verb in PROPERTY ({self.mvb.vb()})")
+
             cmp = Comparator.EQ.negate(self.negate)
             return f"{lhs.as_code()} {cmp} {Object(self.tree[1]).as_code()}"
 
@@ -795,16 +771,18 @@ class Quantifier:
 
 class Predicate:
     def __init__(self, tree: Tree):
-        if tree[0].label() not in {"IFF", "IN"}:
-            raise ValueError(f"Bad tree - expected IFF or IN, got {tree[0].label()}")
-        if tree[1].label() not in {"CODE", "ASSERT"}:
-            raise ValueError(f"Bad tree - expected ASSERT or CODE, got {tree[1].label()}")
+        if tree[0].label() not in {"IFF", "IF"}:
+            raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
+        if tree[1].label() not in {"CODE", "ASSERT", "FNCALL"}:
+            raise ValueError(f"Bad tree - expected ASSERT or CODE or FNCALL, got {tree[1].label()}")
 
         self.iff = tree[0].label() == "IFF"
         if tree[1].label() == "CODE":
             self.assertion = Code(tree[1])
-        else:
+        elif tree[1].label() == "ASSERT":
             self.assertion = Assert(tree[1])
+        else:
+            self.assertion = FUNCTION_INITIALIZER(tree[1])
 
     def as_code(self):
         return self.assertion.as_code()
@@ -866,8 +844,8 @@ class QuantAssert:
 
 class QuantPredicate:
     def __init__(self, tree: Tree):
-        if tree[0].label() not in {"IFF", "IN"}:
-            raise ValueError(f"Bad tree - expected IFF or IN, got {tree[0].label()}")
+        if tree[0].label() not in {"IFF", "IF"}:
+            raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
         if tree[1].label() != "QASSERT":
             raise ValueError(f"Bad tree - expected ASSERT, got {tree[1].label()}")
 
@@ -1064,6 +1042,9 @@ class Specification:
             "FNCALL": function_initializer,
         }[tree[0].label()](tree[0])
 
+        global FUNCTION_INITIALIZER
+        FUNCTION_INITIALIZER = function_initializer
+
     def as_spec(self):
         return self.spec.as_spec()
 
@@ -1122,6 +1103,7 @@ class Parser:
         self.tokenizer = CodeTokenizer()
 
         self.grammar = nltk.CFG.fromstring(grammar)
+        print(grammar)
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
@@ -1163,6 +1145,7 @@ class Parser:
         nltk_sent = [label.value if is_quote(word) else f"{word}_{label.value}"
                      for label, word in zip(labels, words)]
 
+        print(nltk_sent)
         for tree in self.rd_parser.parse(nltk_sent):
             yield attach_words_to_nodes(tree, words)
 
@@ -1171,307 +1154,210 @@ class UnsupportedSpec(ValueError):
     pass
 
 
-class Rule:
-    def __init__(self, word: str):
-        body = word[1:-1]
-        self.ident, self.symbol = body.split(":")
-
-    def __str__(self):
-        return f"?{{{self.ident}:{self.symbol}}}"
-
-    def _sym(self):
-        return self.symbol
-
-
-class InvokeToken:
-    def __init__(self, word: str, index: int, is_symbol: bool, **kwargs):
-        self.word = word
-        self.index = index
-        self.is_symbol = is_symbol
-        if is_symbol:
-            self.word = Rule(self.word)
-        self.kwargs = kwargs
-
-    def __str__(self):
-        return f"{self.word}[{self.index}]"
-
-    def symbol(self):
-        if self.is_symbol:
-            return f"{self.word.symbol}"
-        return f"\"{self.word}\""
-
-
-SYMBOLS = {
-    "CODE": Code,
-    "OBJ": Object,
-    "LIT": Literal,
-    "IDENT": Literal,
-}
-
-
-class InvocationFactory:
-    def __init__(self):
-        self.invocations = {}
-        self.productions = {}
-        self.initializers = {}
-
-    def add_invocation(self, fn: str, invocation: str):
-        invocation = Invocation(fn, invocation)
-        if fn in self.invocations:
-            name = f"FN_{fn.upper()}_{len(self.invocations[fn])}"
-            self.invocations[fn].append(name)
-        else:
-            name = f"FN_{fn.upper()}_0"
-            self.invocations[fn] = [name]
-        self.productions[name] = invocation.as_grammar(name)
-        self.initializers[name] = invocation.constructor()
-
-    def grammar(self):
-        rules = []
-        productions = []
-        for fn, invocations in self.invocations.items():
-            rules.extend(invocations)
-            productions.extend((self.productions[invoke] for invoke in invocations))
-
-        rule_line = f"FNCALL -> {' | '.join(rules)}"
-        productions = "\n".join(productions)
-        return f"{rule_line}\n{productions}"
-
-    def __call__(self, tree: Tree):
-        return self.initializers[tree[0].label()](tree[0])
-
-
-class Invocation:
-    def __init__(self, fn: str, sentence: str):
-        self.fn = fn
-        parts = []
-        num = 0
-        a = 0
-        while a < len(sentence) and sentence[a].isspace():
-            a += 1
-
-        while a < len(sentence):
-            is_symbol = False
-            if sentence[a] == "{":
-                is_symbol = True
-                ind = sentence[a + 1:].find("}")
-                if ind != -1:
-                    ind += 2
-            else:
-                sind = sentence[a:].find(" ")
-                cind = sentence[a:].find(",")
-                if cind == -1:
-                    ind = sind
-                elif sind == -1:
-                    ind = cind
+def generate_constructor_from_grammar(fn: str, grammar: List[InvokeToken]):
+    class CustomFnCall:
+        def __init__(self, tree: Tree):
+            self.det = None
+            self.is_method = False
+            self.fn = fn
+            self.inputs = []
+            for ind, token in enumerate(grammar):
+                if not isinstance(token.word, Rule):
+                    continue
+                if token.symbol() == "MD":
+                    self.det = tree[ind][0]
                 else:
-                    ind = min(sind, cind)
-            if ind == -1:
-                t = InvokeToken(sentence[a:], num, is_symbol, whitespace_after=False, start_position=a)
-                parts.append(t)
-                break
-            else:
-                t = InvokeToken(sentence[a: a + ind], num, is_symbol, whitespace_after=True, start_position=a)
-                parts.append(t)
+                    obj = {
+                        "CODE": Code,
+                        "OBJ": Object,
+                        "LIT": Literal,
+                        "IDENT": Literal,
+                    }[token.symbol()](tree[ind])
+                    if token.word.ident == "self":
+                        self.inputs.insert(0, obj)
+                        self.is_method = True
+                    else:
+                        self.inputs.append(obj)
 
-            num += 1
-            a = a + ind
-            while a < len(sentence) and sentence[a] in {",", " "}:
-                # if sentence[a] == ",":
-                #     t = Token(sentence[a], num, whitespace_after=False, start_position=a)
-                #     parts.append(t)
-                #     num += 1
+        def as_code(self):
+            if self.is_method:
+                inputs = ", ".join(x.as_code() for x in self.inputs[1:])
+                return f"{self.inputs[0].as_code()}.{self.fn}({inputs})"
+            inputs = ", ".join(x.as_code() for x in self.inputs)
+            return f"{self.fn}({inputs})"
 
-                a += 1
+        def as_spec(self):
+            if self.det:
+                if self.det in {"will"}:
+                    return f"#[ensures({self.as_code()})]"
+                elif self.det in {"must"}:
+                    return f"#[requires({self.as_code()})]"
 
-        self.parts = parts
-        self.inputs = {}
-        for part in parts:
-            if part.is_symbol:
-                self.inputs[part.word.ident] = (part.word.symbol, part.index)
+            raise UnsupportedSpec("Can not forward specifications from functions.")
 
-    def __str__(self):
-        return " ".join(str(x) for x in self.parts)
+    return CustomFnCall
 
-    def as_grammar(self, name: str):
-        tokens = " ".join(x.symbol() for x in self.parts)
-        return f"{name} -> {tokens}"
 
-    def constructor(self):
-        xself = self
-
-        class CustomFnCall:
-            def __init__(self, tree: Tree):
-                self.fn = xself.fn
-                self.inputs = []
-                for ident, (symbol, ind) in xself.inputs.items():
-                    self.inputs.append(SYMBOLS[symbol](tree[ind]))
-
-            def as_code(self):
-                inputs = ", ".join(x.as_code() for x in self.inputs)
-                return f"{self.fn}({inputs})"
-
-            def as_spec(self):
-                raise UnsupportedSpec("Can not forward specifications from functions.")
-
-        return CustomFnCall
-
-    def __hash__(self):
-        return hash(self.fn)
+# def main():
+#     test_cases = [
+#         ("Returns `true` if `self` is 0u32", "#[ensures(self == 0u32 ==> result)]")
+#     ]
+#     predicates = [
+#         # "I am red",
+#         # "It is red",
+#         # "The index is less than `self.len()`",
+#         # "The index is 0u32",
+#         # Well handled.
+#         # "Returns `true` if and only if `self` is 0u32",
+#         # "Returns `true` if `self` is 0u32",
+#         # "Returns true if self is 0u32",
+#         # # Need to find a corresponding function or method for this case.
+#         # "Returns `true` if and only if `self` is blue",
+#         # # Well handled.
+#         # "Returns `true` if the index is greater than or equal to `self.len()`",
+#         # "Returns `true` if the index is equal to `self.len()`",
+#         # "Returns `true` if the index is not equal to `self.len()`",
+#         # "Returns `true` if the index isn't equal to `self.len()`.",
+#         # "Returns `true` if the index is not less than `self.len()`",
+#         # "Returns `true` if the index is smaller than or equal to `self.len()`",
+#         # "If the index is smaller than or equal to `self.len()`, returns true.",
+#         # "`index` must be less than `self.len()`",
+#         # "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
+#         # "for each index `i` up to `self.len()`, `i` must be less than `self.len()`",
+#         # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
+#         # "`i` must be less than `self.len()`",
+#         # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
+#         # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
+#         # # differentiate btw will and must wrt result
+#         # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
+#         # "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
+#         # "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
+#         # # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
+#         # "`self.lookup(index)` will be equal to `val`",
+#         # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
+#         # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
+#         # "Returns true if self is not blue",
+#         # "`self` must be blue",
+#         # "`other.v` must not be equal to 0",
+#         # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
+#         # "Returns `true` if and only if `self == 2^k` for all `k`.",
+#         # "Returns `true` if and only if `self == 2^k` for any `k`."
+#         # "For each index from 0 to 5, `self.lookup(index)` must be true.",
+#         # "For each index up to 5, `self.lookup(index)` must be true.",
+#         # "`a` must be between 0 and `self.len()`.",
+#         # "`a` and `b` must be equal to 0 or `self.len()`.",
+#         # "True is returned.",
+#         # "Returns `a` if `self.check(b)`, otherwise `b`",
+#         # "Returns `a` if `fn(a)`",
+#         # "If `fn(a)`, returns `a`",
+#         # "If `fn(a)`, returns `a`, otherwise `b`",
+#         # "Returns `a` logical and `b`",
+#         # "Returns `a` bitwise and `b`",
+#         # "Returns `a` xor `b`",
+#         # "Returns `a` multiplied by `b`",
+#         # "Returns `a` divided by `b`",
+#         # "Returns `a` subtracted by `b`",
+#         # "Returns `a` subtracted from `b`",
+#         # "Returns `a` added to `b`",
+#         # "Returns `a` shifted to the right by `b`",
+#         # "Returns `a` shifted to the left by `b`",
+#         # "Returns `a` left shift `b`",
+#         # "Returns `a` right shift `b`",
+#         # TODO: Side effects:
+#         #  Assignment operation:
+#         #  Assign result of fn to val
+#         #  Assign result of operation to val
+#         #   eg. Increments a by n
+#         #       Decrements a by n
+#         #       Divides a by n
+#         #       Increases a by n
+#         #       Decreases a by n
+#         #       Negates a
+#         #       Multiplies a by n
+#         #       Subtracts n from a
+#         #       Adds n to a
+#         #       Shifts a to the DIR by n
+#         #       DIR shifts a by n
+#         #       a is shifted to the right by n
+#         #       a is divided by n
+#         #       a is multiplied by n
+#         #       a is increased by n
+#         #       a is incremented by n
+#         #       a is decremented by a
+#         #       a is negated
+#         #       a is right shifted by n
+#         #       a is ?VB?
+#         # "Sets `a` to 1",
+#         # "Assigns 1 to `a`.",
+#         # "Increments `a` by 1",
+#         # "Adds 1 to `a`"
+#         "`a` is incremented by 1",
+#         "`a` is negated",
+#         "`a` is right shifted by `n`",
+#     ]
+#     #         "Returns `true` if and only if `self == 2^k` for some `k`."
+#     #                                                  ^ not as it appears in Rust (programmer error, obviously)
+#     #                                                   (eg. allow mathematical notation?)
+#     #
+#     # TODO: Find examples that are not supported by Prusti
+#     #  async fns (eg. eventually) ? (out of scope)
+#     #  for all / for each
+#     #  Greater than
+#     #  https://doc.rust-lang.org/std/primitive.u32.html#method.checked_next_power_of_two
+#     #  If the next power of two is greater than the type’s maximum value
+#     #  No direct support for existential
+#     #  For any index that meets some condition, x is true. (eg. forall)
+#     parser = Parser.from_path()
+#     for sentence in predicates:
+#         print("=" * 80)
+#         print("Sentence:", sentence)
+#         print("=" * 80)
+#         for tree in parser.parse_sentence(sentence):
+#             tree: Tree = tree
+#             try:
+#                 print(Specification(tree).as_spec())
+#             except LookupError as e:
+#                 print(f"No specification found: {e}")
+#             except UnsupportedSpec as s:
+#                 print(f"Specification element not supported ({s})")
+#             print(tree)
+#             print()
+#
+#     for sentence, expected in test_cases:
+#         try:
+#             tree = next(parser.parse_sentence(sentence))
+#             assert Specification(tree).as_spec() == expected
+#         except AssertionError as a:
+#             print(a)
 
 
 def main():
-    test_cases = [
-        ("Returns `true` if `self` is 0u32", "#[ensures(self == 0u32 ==> result)]")
-    ]
-    predicates = [
-        # "I am red",
-        # "It is red",
-        # "The index is less than `self.len()`",
-        # "The index is 0u32",
-        # Well handled.
-        # "Returns `true` if and only if `self` is 0u32",
-        # "Returns `true` if `self` is 0u32",
-        # "Returns true if self is 0u32",
-        # # Need to find a corresponding function or method for this case.
-        # "Returns `true` if and only if `self` is blue",
-        # # Well handled.
-        # "Returns `true` if the index is greater than or equal to `self.len()`",
-        # "Returns `true` if the index is equal to `self.len()`",
-        # "Returns `true` if the index is not equal to `self.len()`",
-        # "Returns `true` if the index isn't equal to `self.len()`.",
-        # "Returns `true` if the index is not less than `self.len()`",
-        # "Returns `true` if the index is smaller than or equal to `self.len()`",
-        # "If the index is smaller than or equal to `self.len()`, returns true.",
-        # "`index` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`",
-        # "for each index `i` up to `self.len()`, `i` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`",
-        # "`i` must be less than `self.len()`",
-        # "for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`",
-        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0",
-        # # differentiate btw will and must wrt result
-        # "for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`",
-        # "For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`",
-        # "For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.",
-        # # "For all indices `i` between 0 and 32, or less than `amt`, `result.lookup(i)` will be false.",
-        # "`self.lookup(index)` will be equal to `val`",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.",
-        # "Returns true if self is not blue",
-        # "`self` must be blue",
-        # "`other.v` must not be equal to 0",
-        # "For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.",
-        # "Returns `true` if and only if `self == 2^k` for all `k`.",
-        # "Returns `true` if and only if `self == 2^k` for any `k`."
-        # "For each index from 0 to 5, `self.lookup(index)` must be true.",
-        # "For each index up to 5, `self.lookup(index)` must be true.",
-        # "`a` must be between 0 and `self.len()`.",
-        # "`a` and `b` must be equal to 0 or `self.len()`.",
-        # "True is returned.",
-        # "Returns `a` if `self.check(b)`, otherwise `b`",
-        # "Returns `a` if `fn(a)`",
-        # "If `fn(a)`, returns `a`",
-        # "If `fn(a)`, returns `a`, otherwise `b`",
-        # "Returns `a` logical and `b`",
-        # "Returns `a` bitwise and `b`",
-        # "Returns `a` xor `b`",
-        # "Returns `a` multiplied by `b`",
-        # "Returns `a` divided by `b`",
-        # "Returns `a` subtracted by `b`",
-        # "Returns `a` subtracted from `b`",
-        # "Returns `a` added to `b`",
-        # "Returns `a` shifted to the right by `b`",
-        # "Returns `a` shifted to the left by `b`",
-        # "Returns `a` left shift `b`",
-        # "Returns `a` right shift `b`",
-        # TODO: Side effects:
-        #  Assignment operation:
-        #  Assign result of fn to val
-        #  Assign result of operation to val
-        #   eg. Increments a by n
-        #       Decrements a by n
-        #       Divides a by n
-        #       Increases a by n
-        #       Decreases a by n
-        #       Negates a
-        #       Multiplies a by n
-        #       Subtracts n from a
-        #       Adds n to a
-        #       Shifts a to the DIR by n
-        #       DIR shifts a by n
-        #       a is shifted to the right by n
-        #       a is divided by n
-        #       a is multiplied by n
-        #       a is increased by n
-        #       a is incremented by n
-        #       a is decremented by a
-        #       a is negated
-        #       a is right shifted by n
-        #       a is ?VB?
-        # "Sets `a` to 1",
-        # "Assigns 1 to `a`.",
-        # "Increments `a` by 1",
-        # "Adds 1 to `a`"
-        "`a` is incremented by 1",
-        "`a` is negated",
-        "`a` is right shifted by `n`",
-    ]
-    #         "Returns `true` if and only if `self == 2^k` for some `k`."
-    #                                                  ^ not as it appears in Rust (programmer error, obviously)
-    #                                                   (eg. allow mathematical notation?)
-    #
-    # TODO: Find examples that are not supported by Prusti
-    #  async fns (eg. eventually) ? (out of scope)
-    #  for all / for each
-    #  Greater than
-    #  https://doc.rust-lang.org/std/primitive.u32.html#method.checked_next_power_of_two
-    #  If the next power of two is greater than the type’s maximum value
-    #  No direct support for existential
-    #  For any index that meets some condition, x is true. (eg. forall)
-    parser = Parser.from_path()
-    for sentence in predicates:
-        print("=" * 80)
-        print("Sentence:", sentence)
-        print("=" * 80)
-        for tree in parser.parse_sentence(sentence):
-            tree: Tree = tree
-            try:
-                print(Specification(tree).as_spec())
-            except LookupError as e:
-                print(f"No specification found: {e}")
-            except UnsupportedSpec as s:
-                print(f"Specification element not supported ({s})")
-            print(tree)
-            print()
-
-    for sentence, expected in test_cases:
-        try:
-            tree = next(parser.parse_sentence(sentence))
-            assert Specification(tree).as_spec() == expected
-        except AssertionError as a:
-            print(a)
-
-
-if __name__ == '__main__':
     invocations = [
         ("print", "Prints {item:OBJ}", "Prints 0u32"),
+        ("print", "Really prints {item:OBJ}", "Really prints \"HELLO WORLD\""),
+        ("print", "Prints {item:OBJ} in {mod:ENUM}", "Really prints \"HELLO WORLD\""),
         ("print", "{item:OBJ} is printed", "`self.x()` is printed"),
-        ("add", "{self:OBJ} is incremented by {rhs:IDENT}", "`self` is incremented by 1")
+        ("add", "{self:OBJ} is incremented by {rhs:IDENT}", "`self` is incremented by 1"),
+        ("contains", "{self:OBJ} {MD} contain {item:OBJ}", "`self` must contain 0u32"),
+        ("contains", "{self:OBJ} contains {item:OBJ}", "`self` contains 0u32"),
+        ("contains", "contain {item:OBJ} {self:OBJ} {MD}", "contain 0u32, `self` will")
     ]
 
-    meta = InvocationFactory()
     parser = Parser.from_path()
-    word_replacements = {}
-    sym_replacements = {}
+
+    meta = InvocationFactory(generate_constructor_from_grammar)
+
     for fn, invocation, sample in invocations:
         meta.add_invocation(fn, invocation)
 
-    grammar = meta.grammar()
-
     sentences = [
-        "Returns `true` if `self` is green."
-    ] + [sample for _, _, sample in invocations]
+                    "Returns `true` if `self` is green.",
+                    "Returns `true` if `self` contains 0u32",
+                    "Returns the reciprocal of `self`"
+                ] + [sample for _, _, sample in invocations]
+
+    word_replacements = {}
+    sym_replacements = {}
 
     for sentence in sentences:
         tokens, words = parser.tokenize_sentence(sentence)
@@ -1485,7 +1371,9 @@ if __name__ == '__main__':
             word_replacements[word].add(sym.value)
             sym_replacements[sym.value].add(word)
 
+    grammar = meta.grammar()
     replacement_grammar = ""
+
     for word, syms in word_replacements.items():
         syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
         grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
@@ -1499,6 +1387,7 @@ if __name__ == '__main__':
         full_grammar = f.read() + "\n" + grammar + "\n" + replacement_grammar
 
     parser = Parser(full_grammar)
+
     for sentence in sentences:
         print("=" * 80)
         print("Sentence:", sentence)
@@ -1514,4 +1403,9 @@ if __name__ == '__main__':
 
             print(tree)
             print()
-    # main()
+
+
+if __name__ == '__main__':
+    main()
+
+# confusing examples: log fns, trig fns, pow fns
