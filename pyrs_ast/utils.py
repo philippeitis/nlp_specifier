@@ -45,3 +45,7 @@ def print_ast(ast: AstFile):
     for item in ast.items:
         print(item)
         print()
+
+
+if __name__ == '__main__':
+    print_ast(read_ast_from_path("test2.rs"))
