@@ -1,0 +1,59 @@
+version: "3.3"
+services:
+  ner:
+    image: ner:latest
+    build:
+      context: ./ner_tool
+      dockerfile: ner.dockerfile
+      args:
+        - PUID=2000
+        - GUID=2000
+        - THREADS=4
+    ports:
+      - "${NER_SERVICE_PORT}:80"
+    depends_on:
+      - lima
+    environment:
+      SERVICE_PORT: ${SERVICE_PORT}
+      PKM_PORT: ${PKM_PORT}
+      PKM_USER: ${PKM_USER}
+      PKM_PASSWORD: ${PKM_PASSWORD}
+    networks:
+      - limanet
+      - pkm-api_pkmnet
+  lima:
+    image: lima:latest
+    build:
+      context: ./ner_tool
+      dockerfile: lima.dockerfile
+      args:
+        - LIMAPUID=2001
+        - LIMAGUID=2001
+    networks:
+      - limanet
+  srl:
+    image: srl:latest
+    build:
+      context: ./srl_tool
+      dockerfile: dev.dockerfile
+      args:
+        - PUID=2020
+        - GUID=2020
+        - THREADS=4
+    ports:
+      - "${SRL_SERVICE_PORT}:80"
+    environment:
+      SERVICE_NAME: "srl"
+      SERVICE_PORT: ${SERVICE_PORT}
+      PKM_PORT: ${PKM_PORT}
+      PKM_USER: ${PKM_USER}
+      PKM_PASSWORD: ${PKM_PASSWORD}
+      PKM_CERT: ${PKM_CERT}
+    networks:
+      - pkm-api_pkmnet
+networks:
+  pkm-api_pkmnet:
+    external: true
+  limanet:
+    driver: bridge
+
