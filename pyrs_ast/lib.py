@@ -101,6 +101,24 @@ class HasAttrs:
         return ""
 
 
+class HasParams:
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if "generics" in kwargs:
+            self.params = [TypeParam(**param) for param in kwargs["generics"].get("params", [])]
+        else:
+            self.params = None
+
+    def fmt_generics(self):
+        if self.params:
+            return f"<{', '.join([str(x) for x in self.params])}>"
+        else:
+            return ""
+
+    def is_generic(self):
+        return self.params is not None
+
+
 class HasItems:
     def __init__(self, scope=None, parent_type=None, **kwargs):
         super().__init__(**kwargs)
@@ -149,7 +167,6 @@ class Token:
         key, val = next(iter(kwargs.items()))
         self.key = TokenType.from_str(key)
         self.val = val
-        # print(f"TOKEN: {kwargs} -> {self}")
 
     def __str__(self):
         if self.key == TokenType.PUNCT:
@@ -180,9 +197,7 @@ class Token:
 
 class TokenStream:
     def __init__(self, tokens):
-        # print("TOKEN STREAM START")
         self.tokens = [Token(**token) for token in tokens]
-        # print("TOKEN STREAM END")
 
     def __str__(self):
         if len(self.tokens) == 0:
@@ -224,13 +239,13 @@ class Receiver:
         return f"{'&' if self.ref else ''}{lifetime}{'mut ' if self.mut else ''}self"
 
 
-class Fn(HasAttrs):
+class Fn(HasParams, HasAttrs):
     # TODO: Provide context as to the type of self.
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.inputs = kwargs["inputs"]
-        self.generics = kwargs.get("generics")
+        self.where_clause = kwargs.get("where_clause")
         if kwargs["output"] is None:
             self.output = scope.define_type()
         else:
@@ -240,9 +255,6 @@ class Fn(HasAttrs):
                 self.inputs[i] = Receiver(**inputx["receiver"])
             else:
                 self.inputs[i] = BoundVariable(scope=scope, **inputx["typed"])
-        # self.vis = kwargs.get("attrs", [])
-        # self.sig = kwargs.get("signature")
-        # self.block = kwargs.get("block")
 
     def type_tuples(self) -> [(str, str)]:
         types = []
@@ -286,10 +298,7 @@ class Fn(HasAttrs):
     def __str__(self):
         self.discover_specifications()
         inputs = ", ".join([str(x) for x in self.inputs])
-        return f"{self.fmt_attrs()}fn {self.ident}({inputs}) -> {self.output};"
-
-    def is_generic(self):
-        return self.generics is not None
+        return f"{self.fmt_attrs()}fn {self.ident}{self.fmt_generics()}({inputs}) -> {self.output};"
 
     def extract_docs(self):
         docs = Docs()
@@ -351,13 +360,9 @@ class Fields:
         return iter(self.fields)
 
 
-class Struct(HasAttrs):
+class Struct(HasParams, HasAttrs):
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
-        if "generics" in kwargs:
-            self.params = [TypeParam(**param) for param in kwargs["generics"]["params"]]
-        else:
-            self.params = None
         self.ident = kwargs["ident"]
         self.fields = Fields(scope, kwargs["fields"])
         scope.add_struct(self.ident, self)
@@ -369,19 +374,11 @@ class Struct(HasAttrs):
             fields = " {\n" + ",\n".join([indent(field) for field in self.fields]) + ",\n}"
         else:
             fields = "(" + ", ".join([indent(field) for field in self.fields]) + ");"
-        return f"{self.fmt_attrs()}struct {self.ident}{self._generics_fmt()}{fields}"
-
-    def _generics_fmt(self):
-        if self.params:
-            return f"<{', '.join([str(x) for x in self.params])}>"
-        else:
-            return ""
-
-    def is_generic(self):
-        return self.params is not None
+        return f"{self.fmt_attrs()}struct {self.ident}{self.fmt_generics()}{fields}"
 
     def name(self):
         return self.ident
+
 
 class Method(Fn):
     def __init__(self, parent_type=None, **kwargs):
@@ -391,16 +388,17 @@ class Method(Fn):
             self.inputs[0].ty = parent_type
 
 
-class Impl(HasItems, HasAttrs):
+class Impl(HasParams, HasItems, HasAttrs):
     def __init__(self, scope=None, parent_type=None, **kwargs):
-        ty = scope.find_type(str(Path(**kwargs["self_ty"]["path"])))
-        print("IMPL: GOT", ty)
+        self_path = Path(**kwargs["self_ty"]["path"])
+        ty = scope.find_type(self_path.ident())
         super().__init__(scope=scope, parent_type=ty, **kwargs)
         self.ty = ty
+        self.concrete_path = self_path
 
     def __str__(self):
         items = "\n\n".join([indent(item) for item in self.items])
-        return f"""{self.fmt_attrs()}impl {self.ty.name()} {{
+        return f"""{self.fmt_attrs()}impl{self.fmt_generics()} {self.concrete_path} {{
 {items}
 }}"""
 
@@ -457,7 +455,7 @@ class EnumVariant:
         return f"{self.ident}{fields}"
 
 
-class Enum(HasAttrs):
+class Enum(HasParams, HasAttrs):
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
@@ -465,7 +463,7 @@ class Enum(HasAttrs):
 
     def __str__(self):
         enum_vals = ",\n    ".join([str(v) for v in self.variants])
-        return f"""{self.fmt_attrs()}enum {self.ident} {{
+        return f"""{self.fmt_attrs()}enum{self.fmt_generics()} {self.ident} {{
     {enum_vals}
 }}"""
 

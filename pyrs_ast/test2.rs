@@ -24,7 +24,8 @@ struct AAAAA<'a, T> {
     b: crate2::Orange
 }
 
-impl AAAAA {
+/// Doc comments!
+impl<'a, T> AAAAA<'a, T> {
     fn new() -> Self {}
 }
 
@@ -35,7 +36,10 @@ fn hawyee(y: crate2::Lime) -> (u32, crate2::Lime) {
     (x, y)
 }
 
-fn howdy() {
+fn howdy<X: Banana + Apricot, Y>(x: X, y: Y) {
+}
+
+fn howdey<X, Y>(x: X, y: Y) where X: Banana + Apricot {
 }
 
 use std::banana::vec;

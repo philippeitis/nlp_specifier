@@ -14,9 +14,11 @@ class Segment:
             args = args["args"]
             res = []
             for arg in args:
-                arg_type, arg = next(iter(arg.items()))
+                arg_type, arg_val = next(iter(arg.items()))
                 if arg_type == "type":
-                    res.append(str(Type(**arg)))
+                    res.append(str(Type(**arg_val)))
+                elif arg_type == "lifetime":
+                    res.append(str(LifetimeParam(**arg)))
                 else:
                     raise ValueError(f"{arg_type}, {arg}")
             return f"{self.ident}<{', '.join(res)}>"
@@ -31,6 +33,9 @@ class Path:
 
     def __str__(self):
         return "::".join([str(segment) for segment in self.segments])
+
+    def ident(self):
+        return self.segments[-1].ident
 
 
 class SingletonType:
@@ -112,8 +117,11 @@ class LifetimeParam:
 class IdentParam:
     def __init__(self, **kwargs):
         self.ident = kwargs.get("ident")
+        self.bounds = [Path(**item["trait"]["path"]) for item in kwargs.get("bounds", [])]
 
     def __str__(self):
+        if self.bounds:
+            return f"{self.ident}: {' + '.join(str(bound) for bound in self.bounds)}"
         return self.ident
 
 
