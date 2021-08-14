@@ -1,5 +1,4 @@
-use syn::{parse_file, Item};
-use syn::File;
+use syn::parse_file;
 use syn_serde::json;
 
 use pyo3::prelude::*;
@@ -16,6 +15,7 @@ fn ast_from_str(s: String) -> PyResult<String> {
 }
 
 #[pymodule]
+#[pyo3(name="astx")]
 fn astx(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ast_from_str, m)?)?;
 
