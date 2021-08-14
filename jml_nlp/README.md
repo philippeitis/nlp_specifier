@@ -1,0 +1,1 @@
+This directory contains `./setup.sh`, which clones the NLP tools from the paper `Combining formal and machine learning techniques for the generation of JML specifications`, available at https://dl.acm.org/doi/pdf/10.1145/3464971.3468425, and performs the steps necessary to set them up.

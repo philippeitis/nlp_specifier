@@ -36,5 +36,9 @@ https://pypi.org/project/flair/
 ## Rust AST Parser
 To set up the Rust AST parser, follow the instructions at [pyrs_ast/README.md](pyrs_ast/README.md)
 
+## Named-entity Recognition and Semantic Role Labelling
+The project is configured to use the NER and SRL tools from the paper `Combining formal and machine learning techniques for the generation of JML specifications`.
+[jml_nlp/setup.sh](jml_nlp/setup.sh) will download the tools and set them up using Docker.
+
 ### NOTE:
 Cite nltk, flair
