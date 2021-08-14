@@ -133,14 +133,12 @@ class TokenType(Enum):
 
     @classmethod
     def from_str(cls, s: str):
-        if s == "punct":
-            return cls.PUNCT
-        if s == "lit":
-            return cls.LIT
-        if s == "group":
-            return cls.GROUP
-        if s == "ident":
-            return cls.IDENT
+        return {
+            "punct": cls.PUNCT,
+            "lit": cls.LIT,
+            "group": cls.GROUP,
+            "ident": cls.IDENT,
+        }[s]
 
 
 class Delimiter(Enum):
@@ -151,14 +149,12 @@ class Delimiter(Enum):
 
     @classmethod
     def from_str(cls, s: str):
-        if s == "parenthesis":
-            return cls.PARENTHESIS
-        if s == "brace":
-            return cls.BRACE
-        if s == "bracket":
-            return cls.BRACKET
-        if s == "none":
-            return cls.NONE
+        return {
+            "parenthesis": cls.PARENTHESIS,
+            "brace": cls.BRACE,
+            "bracket": cls.BRACKET,
+            "none": cls.NONE,
+        }[s]
 
 
 class Token:
@@ -233,6 +229,7 @@ class Receiver:
         self.mut = kwargs.get("mut", False)
         self.ref = kwargs.get("ref", False)
         self.lifetime = kwargs.get("lifetime")
+        self.ty = None
 
     def __str__(self):
         lifetime = "" if self.lifetime is None else f"'{self.lifetime} "

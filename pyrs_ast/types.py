@@ -92,6 +92,10 @@ class Type:
         except StopIteration:
             self.ty = EmptyType()
             self.methods = []
+        self.struct = None
+
+    def register_struct(self, struct):
+        self.struct = struct
 
     def __str__(self):
         return str(self.ty)
