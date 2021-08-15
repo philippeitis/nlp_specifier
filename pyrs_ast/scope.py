@@ -114,7 +114,6 @@ class Phrase:
         self.phrase = phrase
         s = " ".join(word.word for word in phrase)
         self.pos_tags = parser.tokenize_sentence(s)[0]
-        print(self.pos_tags)
         regex_str = ""
         for word, tag in zip(self.phrase, self.pos_tags):
             val = re.escape(tag.value)
