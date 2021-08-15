@@ -3,17 +3,24 @@ from typing import Optional, List, Union
 
 from doc_parser.doc_parser import Parser, Specification
 
-from .docs import Docs
-from .types import Path, Type, TypeParam
-from .scope import Scope
+try:
+    from .docs import Docs
+    from .ast_types import Path, Type, TypeParam
+    from .scope import Scope
+except ImportError:
+    from docs import Docs
+    from ast_types import Path, Type, TypeParam
+    from scope import Scope
 
 PARSER = None
 VERBOSE = False
 
 
-def init_global_parser():
+def get_parser() -> Parser:
     global PARSER
-    PARSER = Parser.from_path()
+    if PARSER is None:
+        PARSER = Parser.from_path()
+    return PARSER
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
@@ -265,9 +272,7 @@ class Fn(HasParams, HasAttrs):
         return types
 
     def discover_specifications(self):
-        if PARSER is None:
-            init_global_parser()
-        assert isinstance(PARSER, Parser)
+        parser = get_parser()
 
         def vprint(*args):
             if VERBOSE:
@@ -283,7 +288,7 @@ class Fn(HasParams, HasAttrs):
             vprint("SECTION:", section.header, section.sentences)
             for sentence in section.sentences:
                 try:
-                    attr = LitAttr(Specification(next(PARSER.parse_sentence(sentence, idents=idents))).as_spec())
+                    attr = LitAttr(Specification(next(parser.parse_sentence(sentence, idents=idents))).as_spec())
 
                     vprint("PRINTING SPEC:", attr)
                     self.attrs.append(attr)
@@ -362,6 +367,7 @@ class Struct(HasParams, HasAttrs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.fields = Fields(scope, kwargs["fields"])
+        self.methods = []
         scope.add_struct(self.ident, self)
 
     def __str__(self):
@@ -390,6 +396,9 @@ class Impl(HasParams, HasItems, HasAttrs):
         self_path = Path(**kwargs["self_ty"]["path"])
         ty = scope.find_type(self_path.ident())
         super().__init__(scope=scope, parent_type=ty, **kwargs)
+        for item in self.items:
+            if isinstance(item, Fn):
+                ty.methods.append(item)
         self.ty = ty
         self.concrete_path = self_path
 
@@ -492,3 +501,4 @@ class AstFile(HasItems, HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
+        self.scope = kwargs["scope"]

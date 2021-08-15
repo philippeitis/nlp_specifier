@@ -95,7 +95,11 @@ class Type:
         self.struct = None
 
     def register_struct(self, struct):
-        self.struct = struct
+        # Don't clobber self.struct with duplicate methods.
+        if not self.struct:
+            self.struct = struct
+            struct.methods += self.methods
+            self.methods = struct.methods
 
     def __str__(self):
         return str(self.ty)

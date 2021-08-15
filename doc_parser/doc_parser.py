@@ -25,7 +25,6 @@ logger = logging.getLogger("flair")
 logger.setLevel(logging.ERROR)
 
 
-
 def is_quote(word: str) -> bool:
     return word[0] in "\"'`"
 

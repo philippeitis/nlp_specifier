@@ -26,7 +26,11 @@ struct AAAAA<'a, T> {
 
 /// Doc comments!
 impl<'a, T> AAAAA<'a, T> {
+    /// Hello world
     fn new() -> Self {}
+
+    fn yeet(&mut self) -> bool {}
+
 }
 
 struct BBBBB(u32, crate2::Avocado);
