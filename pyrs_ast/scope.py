@@ -136,11 +136,8 @@ class Phrase:
         if docs:
             pos_tags, words = parser.tokenize_sentence(docs[0].body, idents=[ty.ident for ty in fn.inputs])
             s = " ".join(tag.value for tag in pos_tags)
-            print("SENTENCE:", s)
-            print("REGEX:", self.regex_str)
 
             for match in self.tag_regex.finditer(s):
-                print(match, s[match.start(0): match.end(0)])
                 prev, curr = split_str(s, match.start(0))
                 curr, after = split_str(curr, match.end(0) - match.start(0))
                 match_len = len(curr.split(" "))
@@ -153,23 +150,24 @@ class Phrase:
                 for word, tag in zip(self.phrase, self.pos_tags):
                     match, word_iter = peek(word_iter)
                     m_word, m_tag = match
-                    if m_tag.value == tag:
+                    if m_tag.value == tag.value:
+                        next(word_iter)
                         if word.word.lower() == m_word.lower():
                             continue
                         elif word.synonyms:
-                            if is_synonym(word.word, m_word):
-                                continue
+                            if not is_synonym(word.word, m_word):
+                                matches = False
+                                break
                         else:
                             matches = False
                             break
                     elif word.optional:
                         continue
-                print(match_words)
+                    else:
+                        matches = False
+                        break
                 if matches:
                     return True
-
-            print(pos_tags)
-            print(docs[0].body)
 
         return False
 

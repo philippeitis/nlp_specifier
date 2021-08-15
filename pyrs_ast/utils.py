@@ -51,8 +51,8 @@ if __name__ == '__main__':
     from scope import Query, QueryField, FnArg, Word, Phrase
     from scope import is_synonym
     ast = read_ast_from_path("test2.rs")
-    words = [Word("Hello", False, False), Word("world", True, False)]
+    words = [Word("Hello", False, False), Word("globe", True, False)]
     items = ast.scope.find_fn_matches(Query([Phrase(words)]))
     for item in items:
         print(item)
-    print(is_synonym("globe", "world"))
+    print(is_synonym("world", "globe"))
