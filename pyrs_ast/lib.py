@@ -1,26 +1,17 @@
 from enum import Enum, auto
 from typing import Optional, List, Union
 
-from doc_parser.doc_parser import Parser, Specification
-
 try:
     from .docs import Docs
     from .ast_types import Path, Type, TypeParam
     from .scope import Scope
-except ImportError:
+except ImportError as e:
     from docs import Docs
     from ast_types import Path, Type, TypeParam
     from scope import Scope
 
-PARSER = None
-VERBOSE = False
-
-
-def get_parser() -> Parser:
-    global PARSER
-    if PARSER is None:
-        PARSER = Parser.from_path()
-    return PARSER
+import astx
+import json
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
@@ -269,34 +260,7 @@ class Fn(HasParams, HasAttrs):
                 raise ValueError("Unexpected type in self.inputs")
         return types
 
-    def discover_specifications(self):
-        parser = get_parser()
-
-        def vprint(*args):
-            if VERBOSE:
-                print(*args)
-
-        idents = [type_tuple[1] for type_tuple in self.type_tuples()]
-
-        sections = self.docs.sections()
-        vprint([(section.header, section.lines, section.body) for section in self.docs.sections()])
-        for section in sections:
-            if section.header is not None:
-                continue
-            vprint("SECTION:", section.header, section.sentences)
-            for sentence in section.sentences:
-                try:
-                    attr = LitAttr(Specification(next(parser.parse_sentence(sentence, idents=idents))).as_spec())
-
-                    vprint("PRINTING SPEC:", attr)
-                    self.attrs.append(attr)
-                except ValueError as v:
-                    vprint(f"Unexpected spec {v}")
-                except StopIteration as s:
-                    vprint(f"Did not find spec for \"{sentence}\"")
-
     def __str__(self):
-        self.discover_specifications()
         return f"{self.fmt_attrs()}{self.sig_str()}"
 
     def sig_str(self):
@@ -490,8 +454,27 @@ KEY_TO_CLASS = {
 }
 
 
+class LexError(ValueError):
+    pass
+
+
 class AstFile(HasItems, HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
         self.scope = kwargs["scope"]
+
+    @classmethod
+    def from_str(cls, s: str, scope=None):
+        result = astx.ast_from_str(s)
+        try:
+            return cls(scope=scope or Scope(), **json.loads(result))
+        except json.decoder.JSONDecodeError:
+            pass
+        raise LexError(result)
+
+    @classmethod
+    def from_path(cls, path, scope=None):
+        with open(path, "r") as file:
+            code = file.read()
+        return cls.from_str(code, scope=scope)

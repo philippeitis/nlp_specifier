@@ -10,7 +10,7 @@ def main(path):
 
 
 if __name__ == '__main__':
-    main("pyrs_ast/test.rs")
+    main("data/test.rs")
 
     # Add examples
     # Motivate problems with what is being accomplished
