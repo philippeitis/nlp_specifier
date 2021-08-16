@@ -48,7 +48,7 @@ def print_ast(ast: AstFile):
 
 
 if __name__ == '__main__':
-    from scope import Query, QueryField, FnArg, Word, Phrase
+    from scope import Query, FnArg, Word, Phrase
     from scope import is_synonym
     ast = read_ast_from_path("test2.rs")
     words = [Word("Hello", False, False), Word("globe", True, False)]
