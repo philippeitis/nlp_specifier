@@ -52,7 +52,11 @@ if __name__ == '__main__':
     from scope import is_synonym
     ast = read_ast_from_path("test2.rs")
     words = [Word("Hello", False, False), Word("globe", True, False)]
+    print("Finding documentation matches.")
     items = ast.scope.find_fn_matches(Query([Phrase(words)]))
     for item in items:
         print(item)
-    print(is_synonym("world", "globe"))
+    print("Finding function argument matches")
+    items = ast.scope.find_fn_matches(Query([FnArg(ast.scope.find_type("crate2::Lime"))]))
+    for item in items:
+        print(item)

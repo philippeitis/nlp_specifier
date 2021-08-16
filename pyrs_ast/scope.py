@@ -37,6 +37,9 @@ class Scope:
         if name in self.named_types:
             self.named_types[name].register_struct(struct)
 
+    def add_fn(self, name: str, fn):
+        self.functions[name] = fn
+
     def find_function(self, fn: str):
         return self.functions.get(fn)
 
@@ -78,22 +81,20 @@ class Scope:
 
 
 class FnArg:
-    def __init__(self, xtype, keyword: str = None, position: int = None):
+    def __init__(self, xtype, position: int = None, is_input: bool = True):
         self.type = xtype
-        self.keyword = keyword
         self.position = position
-        self.is_input = False
+        self.is_input = is_input
 
-    def matches_fn(self, fn):
+    def matches(self, fn):
         # TODO: Handle tuple types.
         items = fn.inputs if self.is_input else fn.output
-
         if self.position is not None:
             if len(items) <= self.position:
                 return False
-            return self.type == items[self.position]
+            return self.type == items[self.position].ty
         else:
-            return self.type in items
+            return any(self.type == item.ty for item in items)
 
 
 class Word:
@@ -169,22 +170,6 @@ class Phrase:
                     return True
 
         return False
-
-
-class QueryField:
-    def __init__(self, item: Union[List[str], FnArg], synonyms: bool, optional: bool):
-        self.item = item
-        self.synonyms = synonyms
-        self.optional = optional
-
-    def matches(self, fn):
-        if isinstance(self.item, FnArg):
-            return self.item.matches_fn(fn)
-        else:
-            docs = fn.extract_docs().sections()
-            if docs:
-                return self.item in docs[0].body
-            return False
 
 
 class Query:

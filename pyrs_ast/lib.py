@@ -259,6 +259,7 @@ class Fn(HasParams, HasAttrs):
                 self.inputs[i] = Receiver(**inputx["receiver"])
             else:
                 self.inputs[i] = BoundVariable(scope=scope, **inputx["typed"])
+        scope.add_fn(self.ident, self)
 
     def type_tuples(self) -> [(str, str)]:
         types = []
@@ -299,8 +300,11 @@ class Fn(HasParams, HasAttrs):
 
     def __str__(self):
         self.discover_specifications()
+        return f"{self.fmt_attrs()}{self.sig_str()}"
+
+    def sig_str(self):
         inputs = ", ".join([str(x) for x in self.inputs])
-        return f"{self.fmt_attrs()}fn {self.ident}{self.fmt_generics()}({inputs}) -> {self.output};"
+        return f"fn {self.ident}{self.fmt_generics()}({inputs}) -> {self.output};"
 
     def extract_docs(self):
         docs = Docs()
