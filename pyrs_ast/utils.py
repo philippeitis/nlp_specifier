@@ -30,8 +30,7 @@ def read_ast_from_path(path):
 def print_ast_docs(ast: HasItems):
     for item in ast.items:
         if isinstance(item, HasAttrs):
-            docs = item.extract_docs()
-            for section in docs.sections():
+            for section in item.docs.sections():
                 print(section.header)
                 print(section.body)
         if isinstance(item, HasItems):

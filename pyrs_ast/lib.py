@@ -93,8 +93,9 @@ class LitAttr:
 class HasAttrs:
     def __init__(self, **kwargs):
         self.attrs: List[Union[Attr, LitAttr]] = [Attr(**attr) for attr in kwargs.get("attrs", [])]
+        self.docs = self._extract_docs()
 
-    def extract_docs(self):
+    def _extract_docs(self) -> Docs:
         docs = Docs()
         for attr in self.attrs:
             doc = attr.doc_string()
@@ -102,7 +103,7 @@ class HasAttrs:
                 docs.push_line(doc)
         return docs
 
-    def fmt_attrs(self):
+    def fmt_attrs(self) -> str:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
@@ -111,19 +112,16 @@ class HasAttrs:
 class HasParams:
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if "generics" in kwargs:
-            self.params = [TypeParam(**param) for param in kwargs["generics"].get("params", [])]
-        else:
-            self.params = None
+        self.params = [TypeParam(**param) for param in kwargs.get("generics", {}).get("params", [])]
+        self.where_clause = kwargs.get("where_clause")
 
-    def fmt_generics(self):
+    def fmt_generics(self) -> str:
         if self.params:
             return f"<{', '.join([str(x) for x in self.params])}>"
-        else:
-            return ""
+        return ""
 
-    def is_generic(self):
-        return self.params is not None
+    def is_generic(self) -> bool:
+        return len(self.params) != 0
 
 
 class HasItems:
@@ -249,7 +247,6 @@ class Fn(HasParams, HasAttrs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.inputs = kwargs["inputs"]
-        self.where_clause = kwargs.get("where_clause")
         if kwargs["output"] is None:
             self.output = scope.define_type()
         else:
@@ -281,8 +278,8 @@ class Fn(HasParams, HasAttrs):
 
         idents = [type_tuple[1] for type_tuple in self.type_tuples()]
 
-        sections = self.extract_docs().sections()
-        vprint([(section.header, section.lines, section.body) for section in self.extract_docs().sections()])
+        sections = self.docs.sections()
+        vprint([(section.header, section.lines, section.body) for section in self.docs.sections()])
         for section in sections:
             if section.header is not None:
                 continue
@@ -305,14 +302,6 @@ class Fn(HasParams, HasAttrs):
     def sig_str(self):
         inputs = ", ".join([str(x) for x in self.inputs])
         return f"fn {self.ident}{self.fmt_generics()}({inputs}) -> {self.output};"
-
-    def extract_docs(self):
-        docs = Docs()
-        for attr in self.attrs:
-            doc = attr.doc_string()
-            if doc:
-                docs.push_line(doc)
-        return docs
 
 
 class BoundVariable:
