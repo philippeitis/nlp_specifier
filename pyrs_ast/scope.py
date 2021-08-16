@@ -1,10 +1,10 @@
-from typing import Dict, List
+from typing import Dict, List, Optional, Union, Collection
 
 from pyrs_ast.ast_types import Type
 
 
 class QueryField:
-    def matches(self, fn) -> bool:
+    def matches(self, fn: "Fn") -> bool:
         pass
 
 
@@ -19,8 +19,8 @@ class Query:
 # Acts like a type factory, ensuring that only one instance of a type exists for a particular declaration.
 class Scope:
     def __init__(self):
-        self.named_types = {}
-        self.structs = {}
+        self.named_types: Dict[str, Type] = {}
+        self.structs: Dict[str, "Struct"] = {}
         self.functions: Dict[str, "Fn"] = {}
 
         self.parent = None
@@ -34,10 +34,10 @@ class Scope:
     def add_fn(self, name: str, fn):
         self.functions[name] = fn
 
-    def find_function(self, fn: str):
+    def find_function(self, fn: str) -> Optional["Fn"]:
         return self.functions.get(fn)
 
-    def find_type(self, ty: str):
+    def find_type(self, ty: str) -> Optional[Union[Type, "Struct"]]:
         return self.named_types.get(ty, self.structs.get(ty))
 
     def define_type(self, **kwargs) -> Type:
@@ -56,7 +56,7 @@ class Scope:
         self.named_types[name] = ty
         return ty
 
-    def find_fn_matches(self, query: Query):
+    def find_fn_matches(self, query: Query) -> Collection["Fn"]:
         """Return all functions and methods which match the particular set of queries, in no particular order."""
         res = set()
         for ty in self.structs.values():
@@ -89,7 +89,3 @@ class FnArg(QueryField):
             return self.type == items[self.position].ty
         else:
             return any(self.type == item.ty for item in items)
-
-
-# Todo: keyword (in doc or in fn name, structural / phrase search, synonyms ok? capitalization ok?
-# TODO: similarity metrics

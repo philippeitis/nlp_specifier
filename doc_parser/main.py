@@ -122,6 +122,9 @@ def apply_specifications(self, parser: Parser, verbose: bool = False):
                 vprint(f"Did not find spec for \"{sentence}\"")
 
 
+# TODO: keyword (in doc or in fn name, structural / phrase search, synonyms ok? capitalization ok?
+# TODO: similarity metrics
+
 if __name__ == '__main__':
     ast = AstFile.from_path("../data/test2.rs")
     words = [Word("Hello", False, False), Word("globe", True, False)]
