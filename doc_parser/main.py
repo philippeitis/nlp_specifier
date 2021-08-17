@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import List
 import re
 import logging
@@ -11,7 +12,6 @@ from pyrs_ast import AstFile, print_ast
 
 from doc_parser import Parser, Specification, GRAMMAR_PATH, generate_constructor_from_grammar, is_quote
 from fn_calls import InvocationFactory
-
 
 
 def peek(it):
@@ -131,19 +131,19 @@ def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
 def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationFactory, word_replacements,
                              sym_replacements):
     sections = fn.docs.sections()
+    fn_idents = set(ty.ident for ty in fn.inputs)
     for section in sections:
         if section.header is not None:
             continue
         logging.info(f"Determining descriptive sentence for {fn.ident}")
         descriptive_sentence = section.sentences[0]
-        tokens, words = parser.tokenize_sentence(descriptive_sentence)
+        tokens, words = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
         for sym, word in zip(tokens, words):
+            logging.info(f"Symbol {sym.value} and word {word}")
+
             if is_quote(word):
                 continue
-            if word not in word_replacements:
-                word_replacements[word] = set()
-            if sym.value not in sym_replacements:
-                sym_replacements[sym.value] = set()
+
             word_replacements[word].add(sym.value)
             sym_replacements[sym.value].add(word)
         invoke_factory.add_invocation(fn.ident, descriptive_sentence)
@@ -158,13 +158,14 @@ def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word
 
 
 def generate_grammar(ast: AstFile):
-    word_replacements = {}
-    sym_replacements = {}
+    word_replacements = defaultdict(set)
+    sym_replacements = defaultdict(set)
     invoke_factory = InvocationFactory(generate_constructor_from_grammar)
     populate_grammar_helper(ast, Parser.default(), invoke_factory, word_replacements, sym_replacements)
 
     grammar = invoke_factory.grammar()
     replacement_grammar = ""
+
     for word, syms in word_replacements.items():
         syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
         grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
@@ -173,16 +174,16 @@ def generate_grammar(ast: AstFile):
         syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
         grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
         replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
+
     with open(GRAMMAR_PATH) as f:
-        full_grammar = f.read() + "\n" + grammar + "\n" + replacement_grammar
+        full_grammar = f.read() + "\n\n# FUNCTION INVOCATIONS\n\n" + grammar + "\n\n# Word Replacements\n\n" + replacement_grammar
 
     return full_grammar, invoke_factory
 
+
 # TODO: keyword (in doc or in fn name, structural / phrase search, synonyms ok? capitalization ok?
 # TODO: similarity metrics
-
-if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
+def main():
     ast = AstFile.from_path("../data/test3.rs")
 
     grammar, invoke_factory = generate_grammar(ast)
@@ -203,3 +204,7 @@ if __name__ == '__main__':
     print_ast(ast)
 
     print(grammar)
+
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    main()
