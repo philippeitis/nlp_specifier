@@ -554,7 +554,7 @@ class Property:
                 raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.vb()})")
 
         if self.labels[-1] == "RANGEMOD":
-            r = RangeMod(self.tree[-1])
+            r = RangeMod(self.tree[-1], self.invoke_factory)
             ident, start, stop = r.as_foreach_pred()
             if ident:
                 raise ValueError(f"PROP: Unexpected ident in RANGE case: {ident}")
@@ -572,7 +572,7 @@ class Assert:
             if tree[1].label() != "CC":
                 raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
 
-            assertx = Assert(tree[-1])
+            assertx = Assert(tree[-1], invoke_factory)
             self.objs = assertx.objs + [(Object(tree[0], invoke_factory), CC(tree[1]))]
             self.prop = assertx.prop
         else:
@@ -580,7 +580,7 @@ class Assert:
                 raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
 
             self.objs = [(Object(tree[0], invoke_factory), None)]
-            self.prop = Property(tree[1])
+            self.prop = Property(tree[1], invoke_factory)
 
     def as_code(self):
         if len(self.objs) == 1:
@@ -795,7 +795,7 @@ class Predicate:
         elif tree[1].label() == "ASSERT":
             self.assertion = Assert(tree[1], invoke_factory)
         else:
-            self.assertion = FUNCTION_INITIALIZER(tree[1])
+            self.assertion = invoke_factory(tree[1])
 
     def as_code(self):
         return self.assertion.as_code()
@@ -937,7 +937,7 @@ class ReturnIf(MReturn):
 
         self.ret_vals = [self.ret_val]
         if pred.label() == "PRED":
-            self.preds = [Predicate(pred)]
+            self.preds = [Predicate(pred, invoke_factory)]
         elif pred.label() == "QPRED":
             self.preds = [QuantPredicate(pred, invoke_factory)]
         else:
