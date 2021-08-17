@@ -15,3 +15,7 @@ if __name__ == '__main__':
     # Add examples
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
+    # design writeup
+    # bert library
+    # begin translating trees
+    # search around
