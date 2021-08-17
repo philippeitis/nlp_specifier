@@ -228,6 +228,9 @@ class TokenStream:
     def __getitem__(self, item):
         return self.tokens[item]
 
+    def __len__(self):
+        return len(self.tokens)
+
 
 class Receiver:
     def __init__(self, **kwargs):

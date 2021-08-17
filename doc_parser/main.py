@@ -182,7 +182,7 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
 
     for attr in fn.attrs:
         if str(attr.ident) == "invoke":
-            invoke = str(attr.tokens)[1:-1]
+            invoke = str(attr.tokens[1].val.strip("\" "))
             logging.info(f"Found invocation [{invoke}] for fn {fn.ident}")
             invoke_factory.add_invocation(fn, Invocation.from_sentence(fn, invoke))
 
@@ -324,4 +324,4 @@ def main3():
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    main2()
+    main()
