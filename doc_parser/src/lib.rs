@@ -52,7 +52,7 @@ fn tokens_from_str(s: String) -> Vec<Token> {
             _ => while let Some(c) = char_iter.next() {
                 end_pos += 1;
 
-                if c == ' ' || c == ',' {
+                if c == ' ' || c == ',' || c == '!' || c == '?' {
                     parts.push(Token {
                         text: std::mem::take(&mut text),
                         index: idx,

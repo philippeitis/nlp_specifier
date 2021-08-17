@@ -1,0 +1,11 @@
+[project]
+dependencies = [
+    "nltk==3.6.2",
+    "unidecode==1.2",
+    "requests==2.26",
+    "flair==0.8"
+]
+
+[build-system]
+requires = ["maturin>=0.11,<0.12"]
+build-backend = "maturin"

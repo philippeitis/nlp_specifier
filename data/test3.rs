@@ -13,9 +13,8 @@ impl PVec {
 }
 
 impl PInt {
-    #[doc = "hello!"]
     #[invoke = "the reciprocal of {OBJ:self}"]
-    /// Returns the reciprocal of `self`
+    /// Returns the reciprocal of `self`. Hello!
     fn reciprocal(&self) -> Self {}
 
     #[specify]
