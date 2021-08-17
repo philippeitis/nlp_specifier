@@ -1113,9 +1113,13 @@ class Parser:
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, pos_model: POSModel = POSModel.POS, grammar_path: str = GRAMMAR_PATH):
+    def from_path(cls, grammar_path: str, pos_model: POSModel = POSModel.POS):
         with open(grammar_path) as f:
             return cls(f.read(), pos_model)
+
+    @classmethod
+    def default(cls):
+        return cls.from_path(grammar_path=GRAMMAR_PATH)
 
     def tokenize_sentence(self, sentence: str, idents=None):
         sentence = sentence \
@@ -1351,7 +1355,7 @@ def main():
         ("contains", "contain {item:OBJ} {self:OBJ} {MD}", "contain 0u32, `self` will")
     ]
 
-    parser = Parser.from_path()
+    parser = Parser.default()
 
     meta = InvocationFactory(generate_constructor_from_grammar)
 
