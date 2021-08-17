@@ -1,3 +1,6 @@
+import logging
+from collections import defaultdict
+
 from nltk import Tree
 
 from pyrs_ast.lib import Fn
@@ -55,23 +58,20 @@ class InvokeToken:
 
 class InvocationFactory:
     def __init__(self, callback):
-        self.invocations = {}
+        self.invocations = defaultdict(list)
         self.productions = {}
         self.initializers = {}
         self.callback = callback
 
     def add_invocation(self, fn: Fn, invocation: "Invocation"):
-        if fn in self.invocations:
-            num = len(self.invocations[fn])
-        else:
-            num = 0
-            self.invocations[fn.ident] = []
+        invocations = self.invocations[fn.ident]
+        num = len(invocations)
         for constructor, grammar in invocation.constructors(self.callback):
             name = f"FN_{fn.ident}_{num}"
-            self.invocations[fn.ident].append(name)
+            invocations.append(name)
             self.productions[name] = f"{name} -> {' '.join(x.symbol() for x in grammar)}"
-            num += 1
             self.initializers[name] = constructor
+            num += 1
 
     def add_fuzzy_invocation(self, fn: Fn, labels, words):
         invoke_tokens = []
@@ -134,13 +134,15 @@ class Invocation:
             is_symbol = False
             is_code = False
             if sentence[a] in ("{", "`"):
-                ind = sentence[a + 1:].find(sentence[a])
+                logging.info(f"Found symbol")
+                opposite = {"{": "}", "`": "`"}[sentence[a]]
+                is_symbol = True
+                ind = sentence[a + 1:].find(opposite)
                 if ind != -1:
                     ind += 2
-                if sentence[a] == "{":
-                    is_symbol = True
-                else:
+                if sentence[a] == "`":
                     is_code = True
+
             else:
                 sind = sentence[a:].find(" ")
                 cind = sentence[a:].find(",")
@@ -162,15 +164,11 @@ class Invocation:
                     t = InvokeToken("{OBJ}", True)
                 else:
                     t = InvokeToken(sentence[a: a + ind], is_symbol)
+
                 parts.append(t)
 
-            a = a + ind
+            a += ind
             while a < len(sentence) and sentence[a] in {",", " "}:
-                # if sentence[a] == ",":
-                #     t = Token(sentence[a], num, whitespace_after=False, start_position=a)
-                #     parts.append(t)
-                #     num += 1
-
                 a += 1
 
         return cls(fn, parts)

@@ -251,10 +251,14 @@ def main2():
     from nltk import Tree
     from doc_parser import UnsupportedSpec
 
+    class FnMock:
+        def __init__(self, ident: str):
+            self.ident = ident
+
     def populate_grammar_helper(sentences, parser, invoke_factory, word_replacements, sym_replacements):
         for sentence in sentences:
             if isinstance(sentence, tuple):
-                invoke_factory.add_invocation(sentence[0], Invocation.from_sentence(sentence[1]))
+                invoke_factory.add_invocation(FnMock(sentence[0]), Invocation.from_sentence(FnMock(sentence[0]), sentence[1]))
                 sentence = sentence[2]
 
             tokens, words = parser.tokenize_sentence(sentence)
@@ -321,4 +325,4 @@ def main3():
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    main()
+    main2()
