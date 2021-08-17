@@ -102,8 +102,35 @@ class Phrase(QueryField):
         return False
 
 
+def self_reference(fn: Fn, tree: Tree) -> bool:
+    fn_name = f"{fn.ident}"
+    if isinstance(tree, str):
+        label = tree
+    else:
+        label: str = tree.label()
+
+    if label.startswith("FN_"):
+        name, _ = label.rsplit("_", 1)
+        _, name = name.split("_", 1)
+
+        if name == fn_name:
+            return True
+
+    if isinstance(tree, str):
+        return False
+
+    for child in tree:
+        if self_reference(fn, child):
+            return True
+    return False
+
+
 def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
-    idents = [type_tuple[1] for type_tuple in fn.type_tuples()]
+    if not fn.should_specify():
+        logging.info(f"fn {fn.ident} is not annotated with #[specify], and will not be specified.")
+        return
+
+    fn_idents = set(ty.ident for ty in fn.inputs)
     sections = fn.docs.sections()
     for section in sections:
         if section.header is not None:
@@ -111,7 +138,21 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
         logging.info(f"Specifying documentation section {section.header} of {fn.ident}")
         for sentence in section.sentences:
             try:
-                spec = Specification(next(parser.parse_sentence(sentence, idents=idents)), invoke_factory).as_spec()
+                skipped = []
+                parse_it = parser.parse_sentence(sentence, idents=fn_idents)
+                spec = None
+                for tree in parse_it:
+                    if self_reference(fn, tree):
+                        logging.info("Skipping tree due to self-reference.")
+                        skipped.append(tree)
+                    else:
+                        logging.info("Found tree without self-reference, applying.")
+                        spec = Specification(tree, invoke_factory).as_spec()
+                        break
+
+                if spec is None:
+                    spec = Specification(next(iter(skipped)), invoke_factory).as_spec()
+
                 attr = LitAttr(spec)
 
                 logging.info(f"[{sentence}] was transformed into the following specification: {attr}")
