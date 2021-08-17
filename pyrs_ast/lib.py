@@ -326,6 +326,9 @@ class Fields:
         self.style = type_key
         self.fields = [fn(**field) for field in fields]
 
+    def empty(self) -> bool:
+        return len(self.fields) == 0
+
     def named(self):
         return self.style == "named"
 
@@ -345,7 +348,10 @@ class Struct(HasParams, HasAttrs):
         if self.fields.is_unit:
             fields = ";"
         elif self.fields.named():
-            fields = " {\n" + ",\n".join([indent(field) for field in self.fields]) + ",\n}"
+            if self.fields.empty():
+                fields = " {}"
+            else:
+                fields = " {\n" + ",\n".join([indent(field) for field in self.fields]) + "\n}"
         else:
             fields = "(" + ", ".join([indent(field) for field in self.fields]) + ");"
         return f"{self.fmt_attrs()}struct {self.ident}{self.fmt_generics()}{fields}"
