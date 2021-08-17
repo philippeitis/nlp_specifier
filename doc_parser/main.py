@@ -159,10 +159,12 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
                 fn.attrs.append(attr)
             except ValueError as v:
                 logging.error(f"While specifying [{sentence}], error occurred: {v}. ")
-                logging.info(f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
+                logging.info(
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
             except StopIteration as s:
                 logging.info(f"No specification could be generated for [{sentence}]")
-                logging.info(f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
+                logging.info(
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
@@ -177,10 +179,12 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
                              sym_replacements):
     sections = fn.docs.sections()
     fn_idents = set(ty.ident for ty in fn.inputs)
+    logging.info(f"Searching for explicit invocations for fn {fn.ident}")
+
     for attr in fn.attrs:
         if str(attr.ident) == "invoke":
             invoke = str(attr.tokens)[1:-1]
-            logging.info(f"Found invocation [{invoke}] for {fn.ident}")
+            logging.info(f"Found invocation [{invoke}] for fn {fn.ident}")
             invoke_factory.add_invocation(fn, Invocation.from_sentence(fn, invoke))
 
     for section in sections:
@@ -196,9 +200,7 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
             word_replacements[word].add(sym.value)
             sym_replacements[sym.value].add(word)
 
-
         invoke_factory.add_fuzzy_invocation(fn, tokens, words)
-        logging.info(f"Done")
 
 
 def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word_replacements, sym_replacements):
@@ -228,7 +230,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
         replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
 
     with open(GRAMMAR_PATH) as f:
-        full_grammar = f.read() + "\n\n# FUNCTION INVOCATIONS\n\n" + grammar + "\n\n# Word Replacements\n\n" + replacement_grammar
+        full_grammar = f.read() + "\n# FUNCTION INVOCATIONS\n\n" + grammar + "\n\n# Word Replacements\n\n" + replacement_grammar
 
     return full_grammar, invoke_factory
 
@@ -241,21 +243,8 @@ def main():
     grammar, invoke_factory = generate_grammar(ast)
     parser = Parser(grammar)
 
-    # Query Demo
-    words = [Word("Hello", False, False), Word("globe", True, False)]
-    print("Finding documentation matches.")
-    items = ast.scope.find_fn_matches(Query([Phrase(words, parser)]))
-    for item in items:
-        print(item.sig_str())
-    print("Finding function argument matches")
-    items = ast.scope.find_fn_matches(Query([FnArg(ast.scope.find_type("crate2::Lime"))]))
-    for item in items:
-        print(item.sig_str())
-
     specify_item(ast, parser, ast.scope, invoke_factory)
     print_ast(ast)
-
-    print(grammar)
 
 
 def main2():
@@ -287,10 +276,10 @@ def main2():
     ]
 
     invocations = [
-                    "Returns `true` if `self` is green.",
-                    "Returns `true` if `self` contains 0u32",
-                    "Returns the reciprocal of `self`"
-                ]
+        "Returns `true` if `self` is green.",
+        "Returns `true` if `self` contains 0u32",
+        "Returns the reciprocal of `self`"
+    ]
 
     grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
 
@@ -312,6 +301,22 @@ def main2():
 
             print(tree)
             print()
+
+
+def main3():
+    ast = AstFile.from_path("../data/test2.rs")
+    parser = Parser.default()
+
+    # Query Demo
+    words = [Word("Hello", False, False), Word("globe", True, False)]
+    print("Finding documentation matches.")
+    items = ast.scope.find_fn_matches(Query([Phrase(words, parser)]))
+    for item in items:
+        print(item.sig_str())
+    print("Finding function argument matches")
+    items = ast.scope.find_fn_matches(Query([FnArg(ast.scope.find_type("crate2::Lime"))]))
+    for item in items:
+        print(item.sig_str())
 
 
 if __name__ == '__main__':
