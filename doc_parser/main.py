@@ -4,6 +4,8 @@ import re
 import logging
 
 import itertools
+
+from nltk import Tree
 from nltk.corpus import wordnet
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems
@@ -11,7 +13,7 @@ from pyrs_ast.scope import Query, FnArg, QueryField, Scope
 from pyrs_ast import AstFile, print_ast
 
 from doc_parser import Parser, Specification, GRAMMAR_PATH, generate_constructor_from_grammar, is_quote
-from fn_calls import InvocationFactory
+from fn_calls import InvocationFactory, Invocation
 
 
 def peek(it):
@@ -115,9 +117,11 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
                 logging.info(f"[{sentence}] was transformed into the following specification: {attr}")
                 fn.attrs.append(attr)
             except ValueError as v:
-                logging.error(f"While specifying [{sentence}], error occurred: {v}")
+                logging.error(f"While specifying [{sentence}], error occurred: {v}. ")
+                logging.info(f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
             except StopIteration as s:
                 logging.info(f"No specification could be generated for [{sentence}]")
+                logging.info(f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
@@ -132,6 +136,12 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
                              sym_replacements):
     sections = fn.docs.sections()
     fn_idents = set(ty.ident for ty in fn.inputs)
+    for attr in fn.attrs:
+        if str(attr.ident) == "invoke":
+            invoke = str(attr.tokens)[1:-1]
+            logging.info(f"Found invocation [{invoke}] for {fn.ident}")
+            invoke_factory.add_invocation(fn, Invocation.from_sentence(fn, invoke))
+
     for section in sections:
         if section.header is not None:
             continue
@@ -139,14 +149,15 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
         descriptive_sentence = section.sentences[0]
         tokens, words = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
         for sym, word in zip(tokens, words):
-            logging.info(f"Symbol {sym.value} and word {word}")
-
             if is_quote(word):
                 continue
 
             word_replacements[word].add(sym.value)
             sym_replacements[sym.value].add(word)
-        invoke_factory.add_invocation(fn.ident, descriptive_sentence)
+
+
+        invoke_factory.add_fuzzy_invocation(fn, tokens, words)
+        logging.info(f"Done")
 
 
 def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word_replacements, sym_replacements):
@@ -157,11 +168,11 @@ def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word
             populate_grammar_helper(sub_item, parser, invoke_factory, word_replacements, sym_replacements)
 
 
-def generate_grammar(ast: AstFile):
+def generate_grammar(ast, helper_fn=populate_grammar_helper):
     word_replacements = defaultdict(set)
     sym_replacements = defaultdict(set)
     invoke_factory = InvocationFactory(generate_constructor_from_grammar)
-    populate_grammar_helper(ast, Parser.default(), invoke_factory, word_replacements, sym_replacements)
+    helper_fn(ast, Parser.default(), invoke_factory, word_replacements, sym_replacements)
 
     grammar = invoke_factory.grammar()
     replacement_grammar = ""
@@ -172,7 +183,7 @@ def generate_grammar(ast: AstFile):
         replacement_grammar += f"WD_{word} -> {syms}\n"
     for sym, words in sym_replacements.items():
         syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
-        grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
+        # grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
         replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
 
     with open(GRAMMAR_PATH) as f:
@@ -204,6 +215,63 @@ def main():
     print_ast(ast)
 
     print(grammar)
+
+
+def main2():
+    from nltk import Tree
+    from doc_parser import UnsupportedSpec
+
+    def populate_grammar_helper(sentences, parser, invoke_factory, word_replacements, sym_replacements):
+        for sentence in sentences:
+            if isinstance(sentence, tuple):
+                invoke_factory.add_invocation(sentence[0], Invocation.from_sentence(sentence[1]))
+                sentence = sentence[2]
+
+            tokens, words = parser.tokenize_sentence(sentence)
+            for sym, word in zip(tokens, words):
+                if is_quote(word):
+                    continue
+                word_replacements[word].add(sym.value)
+                sym_replacements[sym.value].add(word)
+
+    invocation_triples = [
+        ("print", "Prints {item:OBJ}", "Prints 0u32"),
+        ("print", "Really prints {item:OBJ}", "Really prints \"HELLO WORLD\""),
+        ("print", "Prints {item:OBJ} in {mod:ENUM}", "Really prints \"HELLO WORLD\""),
+        ("print", "{item:OBJ} is printed", "`self.x()` is printed"),
+        ("add", "{self:OBJ} is incremented by {rhs:IDENT}", "`self` is incremented by 1"),
+        ("contains", "{self:OBJ} {MD} contain {item:OBJ}", "`self` must contain 0u32"),
+        ("contains", "{self:OBJ} contains {item:OBJ}", "`self` contains 0u32"),
+        ("contains", "contain {item:OBJ} {self:OBJ} {MD}", "contain 0u32, `self` will")
+    ]
+
+    invocations = [
+                    "Returns `true` if `self` is green.",
+                    "Returns `true` if `self` contains 0u32",
+                    "Returns the reciprocal of `self`"
+                ]
+
+    grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
+
+    parser = Parser(grammar)
+
+    sentences = invocations + [sentence for _, _, sentence in invocation_triples]
+    for sentence in sentences:
+        print("=" * 80)
+        print("Sentence:", sentence)
+        print("=" * 80)
+        for tree in parser.parse_sentence(sentence):
+            tree: Tree = tree
+            try:
+                print(Specification(tree, factory).as_spec())
+            except LookupError as e:
+                print(f"No specification found: {e}")
+            except UnsupportedSpec as s:
+                print(f"Specification element not supported ({s})")
+
+            print(tree)
+            print()
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

@@ -68,6 +68,9 @@ class Attr:
     def is_doc(self):
         return str(self.ident) == "doc"
 
+    def should_specify(self):
+        return str(self.ident) == "specify"
+
     def doc_string(self):
         if str(self.ident) == "doc":
             return self.tokens[1].val.strip("\" ")
@@ -79,6 +82,9 @@ class LitAttr:
 
     def __str__(self):
         return self.lit
+
+    def should_specify(self):
+        return False
 
 
 class HasAttrs:
@@ -98,6 +104,9 @@ class HasAttrs:
         if self.attrs:
             return "\n".join([str(attr) for attr in self.attrs]) + "\n"
         return ""
+
+    def should_specify(self) -> bool:
+        return any(attr.should_specify() for attr in self.attrs)
 
 
 class HasParams:

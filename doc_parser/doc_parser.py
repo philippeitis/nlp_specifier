@@ -9,6 +9,8 @@ import nltk
 from nltk.tree import Tree
 from nltk.stem import WordNetLemmatizer
 
+from pyrs_ast.lib import Fn, Method
+
 try:
     from tokenizer import CodeTokenizer
     from fn_calls import Rule, InvokeToken, InvocationFactory
@@ -165,7 +167,9 @@ def correct_tokens(token_dict, key_words=None):
         except ValueError:
             continue
         if word == "return":
-            if i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
+            if get_label(entity).startswith("VB"):
+                set_label(entity, Label("RET"))
+            elif i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
                 set_label(entity, Label("RET"))
             elif i + 2 < len(entities) and is_obj(get_label(entities[i + 2])):
                 set_label(entity, Label("RET"))
@@ -188,7 +192,7 @@ def correct_tokens(token_dict, key_words=None):
 
 
 class Code:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, *args):
         self.code: str = tree[0]
 
     def as_code(self):
@@ -196,7 +200,7 @@ class Code:
 
 
 class Literal:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, *args):
         self.str: str = tree[0]
 
     def as_code(self):
@@ -290,8 +294,8 @@ class Ops(Enum):
 
 
 class Op:
-    def __init__(self, tree):
-        self.lhs = Object(tree[0])
+    def __init__(self, tree, invoke_factory):
+        self.lhs = Object(tree[0], invoke_factory)
         op = tree[1][0]
         if op.label() == "BITOP":
             self.op = Ops.from_str(op[1][0]).apply_jj(op[0][0])
@@ -304,22 +308,23 @@ class Op:
                 self.op = Ops.SHIFT.apply_dir(op[0][0])
         else:
             raise ValueError(f"Unexpected op: {op}")
-        self.rhs = Object(tree[2])
+        self.rhs = Object(tree[2], invoke_factory)
 
     def as_code(self):
         return f"({self.lhs.as_code()} {self.op} {self.rhs.as_code()})"
 
 
 class Object:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
         if labels not in {
             ("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
-            ("DT", "MNN", "IN", "OBJ")
+            ("DT", "MNN", "IN", "OBJ"), ("FNCALL",)
         }:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
         self.tree = tree
+        self.invoke_factory = invoke_factory
 
     def as_code(self) -> str:
         if self.labels == ("CODE",):
@@ -333,10 +338,11 @@ class Object:
             # TODO: This assumes that val in "The val" is a variable.
             return LEMMATIZER.lemmatize(self.tree[0][0][0])
         if self.labels == ("OBJ", "OP", "OBJ"):
-            return Op(self.tree).as_code()
+            return Op(self.tree, self.invoke_factory).as_code()
         if self.labels == ("DT", "MNN", "IN", "OBJ"):
-            return f"{Object(self.tree[-1]).as_code()}.{LEMMATIZER.lemmatize(self.tree[1][0][0])}()"
-
+            return f"{Object(self.tree[-1], self.invoke_factory).as_code()}.{LEMMATIZER.lemmatize(self.tree[1][0][0])}()"
+        if self.labels == ("FNCALL",):
+            return self.invoke_factory(self.tree[0]).as_code()
         raise ValueError(f"{self.labels} not handled.")
 
     def is_output(self):
@@ -405,10 +411,10 @@ class TJJ:
 
 
 class Relation:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "REL":
-            rel = Relation(tree[0])
-            self.objs = rel.objs + [(CC(tree[1]), Object(tree[2]))]
+            rel = Relation(tree[0], invoke_factory)
+            self.objs = rel.objs + [(CC(tree[1]), Object(tree[2], invoke_factory))]
             self.op = rel.op
             self.negate = rel.negate
             return
@@ -420,7 +426,7 @@ class Relation:
         self.op = Comparator.from_str(TJJ(tree[0]).get_word())
         if labels[1] == "EQTO":
             self.op = self.op.apply_eq()
-        self.objs = [(None, Object(tree[-1]))]
+        self.objs = [(None, Object(tree[-1], invoke_factory))]
         self.negate = False
 
     def as_code(self, lhs: Object):
@@ -455,12 +461,12 @@ class Relation:
 
 
 class ModRelation(Relation):
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "RB":
-            super().__init__(tree[1])
+            super().__init__(tree[1], invoke_factory)
             self.apply_adverb(tree[0][0])
         else:
-            super().__init__(tree[0])
+            super().__init__(tree[0], invoke_factory)
 
 
 class MVB:
@@ -502,7 +508,7 @@ class Property:
         ("MVB",)
     }
 
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
         if labels not in self.PRODUCTIONS:
             raise ValueError(f"Bad tree - expected PROP productions, got {labels}")
@@ -510,6 +516,7 @@ class Property:
         self.tree = tree
         self.mvb = MVB(self.tree[0])
         self.negate = self.mvb.is_negation()
+        self.invoke_factory = invoke_factory
 
     # F F -> F no neg
     # F T -> T is not changed
@@ -534,7 +541,7 @@ class Property:
                 raise UnsupportedSpec(f"Unexpected verb in PROPERTY ({self.mvb.vb()})")
 
             cmp = Comparator.EQ.negate(self.negate)
-            return f"{lhs.as_code()} {cmp} {Object(self.tree[1]).as_code()}"
+            return f"{lhs.as_code()} {cmp} {Object(self.tree[1], self.invoke_factory).as_code()}"
 
         if self.labels[-1] == "MVB":
             if self.mvb.vb() in {"changed", "modified", "altered", "change"}:
@@ -559,7 +566,7 @@ class Property:
 
 
 class Assert:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() != "OBJ":
             raise ValueError(f"Bad tree - expected OBJ, got {tree[0].label()}")
 
@@ -568,13 +575,13 @@ class Assert:
                 raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
 
             assertx = Assert(tree[-1])
-            self.objs = assertx.objs + [(Object(tree[0]), CC(tree[1]))]
+            self.objs = assertx.objs + [(Object(tree[0], invoke_factory), CC(tree[1]))]
             self.prop = assertx.prop
         else:
             if tree[1].label() != "PROP":
                 raise ValueError(f"Bad tree - expected PROP, got {tree[1].label()}")
 
-            self.objs = [(Object(tree[0]), None)]
+            self.objs = [(Object(tree[0], invoke_factory), None)]
             self.prop = Property(tree[1])
 
     def as_code(self):
@@ -594,14 +601,14 @@ class Assert:
 
 
 class HardAssert(Assert):
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory: InvocationFactory):
         if tree[-1].label() == "HASSERT":
-            hassert = HardAssert(tree[-1])
+            hassert = HardAssert(tree[-1], invoke_factory)
             self.md = hassert.md
-            self.objs = hassert.objs + [(Object(tree[0]), CC(tree[1]))]
+            self.objs = hassert.objs + [(Object(tree[0], invoke_factory), CC(tree[1]))]
             self.prop = hassert.prop
         else:
-            super().__init__([tree[0], tree[2]])
+            super().__init__([tree[0], tree[2]], invoke_factory)
             self.md = tree[1]
 
     def is_precondition(self):
@@ -622,24 +629,25 @@ class HardAssert(Assert):
 
 
 class Range:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         self.tree = tree
         self.labels = tuple(x.label() for x in tree)
+        self.invoke_factory = invoke_factory
 
     def as_foreach_pred(self):
         if self.labels == ("OBJ", "IN", "OBJ", "RSEP", "OBJ"):
-            ident = Object(self.tree[0])
-            start = Object(self.tree[2])
-            end = Object(self.tree[4])
+            ident = Object(self.tree[0], self.invoke_factory)
+            start = Object(self.tree[2], self.invoke_factory)
+            end = Object(self.tree[4], self.invoke_factory)
 
             return ident, start, end
         if self.labels == ("IN", "OBJ", "RSEP", "OBJ"):
-            start = Object(self.tree[1])
-            end = Object(self.tree[3])
+            start = Object(self.tree[1], self.invoke_factory)
+            end = Object(self.tree[3], self.invoke_factory)
             return None, start, end
         # TODO: What other cases other than "up to" (eg. up to and not including)
         if self.labels == ("IN", "IN", "OBJ"):
-            end = Object(self.tree[2])
+            end = Object(self.tree[2], self.invoke_factory)
             return None, None, end
 
         # if self.labels == ("IN", "IN", "OBJ"):
@@ -671,8 +679,8 @@ class UpperBound(Enum):
 
 
 class RangeMod(Range):
-    def __init__(self, tree: Tree):
-        super().__init__(tree[0])
+    def __init__(self, tree: Tree, invoke_factory):
+        super().__init__(tree[0], invoke_factory)
         if tree[-1].label() == "JJ":
             self.upper_bound = UpperBound.from_str(tree[-1]).as_code_lt()
         else:
@@ -691,7 +699,7 @@ class CC:
 
 
 class ForEach:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "FOREACH":
             # another range condition here
             sub_foreach = ForEach(tree[0])
@@ -700,14 +708,14 @@ class ForEach:
             self.range = sub_foreach.range
             self.labels = sub_foreach.labels
             if tree[1].label() == "CC":
-                self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1]))]
+                self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1], invoke_factory))]
             else:
-                self.range_conditions = sub_foreach.range_conditions + [(ModRelation(tree[-1]))]
+                self.range_conditions = sub_foreach.range_conditions + [(ModRelation(tree[-1], invoke_factory))]
 
         else:
             self.tree = tree
-            self.quant = Quantifier(tree[0])
-            self.range = RangeMod(tree[1]) if len(tree) > 1 else None
+            self.quant = Quantifier(tree[0], invoke_factory)
+            self.range = RangeMod(tree[1], invoke_factory) if len(tree) > 1 else None
             self.labels = tuple(x.label() for x in tree)
             self.range_conditions = []
 
@@ -770,14 +778,14 @@ class ForEach:
 
 
 class Quantifier:
-    def __init__(self, tree: Tree):
-        self.obj = Object(tree[2])
+    def __init__(self, tree: Tree, invoke_factory):
+        self.obj = Object(tree[2], invoke_factory)
         self.coverage = tree[1]
         self.is_universal = tree[1][0].lower() in {"all", "each", "any"}
 
 
 class Predicate:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() not in {"IFF", "IF"}:
             raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
         if tree[1].label() not in {"CODE", "ASSERT", "FNCALL"}:
@@ -787,7 +795,7 @@ class Predicate:
         if tree[1].label() == "CODE":
             self.assertion = Code(tree[1])
         elif tree[1].label() == "ASSERT":
-            self.assertion = Assert(tree[1])
+            self.assertion = Assert(tree[1], invoke_factory)
         else:
             self.assertion = FUNCTION_INITIALIZER(tree[1])
 
@@ -796,19 +804,19 @@ class Predicate:
 
 
 class QuantAssert:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
         if labels == ("FOREACH", "COMMA", "HASSERT"):
-            self.foreach = ForEach(tree[0])
-            self.assertion = HardAssert(tree[2])
+            self.foreach = ForEach(tree[0], invoke_factory)
+            self.assertion = HardAssert(tree[2], invoke_factory)
         elif labels == ("FOREACH", "HASSERT"):
-            self.foreach = ForEach(tree[0])
-            self.assertion = HardAssert(tree[1])
+            self.foreach = ForEach(tree[0], invoke_factory)
+            self.assertion = HardAssert(tree[1], invoke_factory)
         elif labels == ("HASSERT", "FOREACH"):
-            self.foreach = ForEach(tree[1])
-            self.assertion = HardAssert(tree[2])
+            self.foreach = ForEach(tree[1], invoke_factory)
+            self.assertion = HardAssert(tree[2], invoke_factory)
         elif labels == ("CODE", "FOREACH"):
-            self.foreach = ForEach(tree[1])
+            self.foreach = ForEach(tree[1], invoke_factory)
             self.assertion = Code(tree[0])
         else:
             raise ValueError(f"Unexpected productions for QASSERT: {labels}")
@@ -850,14 +858,14 @@ class QuantAssert:
 
 
 class QuantPredicate:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() not in {"IFF", "IF"}:
             raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
         if tree[1].label() != "QASSERT":
             raise ValueError(f"Bad tree - expected ASSERT, got {tree[1].label()}")
 
         self.iff = tree[0].label() == "IFF"
-        self.assertion = QuantAssert(tree[1])
+        self.assertion = QuantAssert(tree[1], invoke_factory)
 
     def bound_vars(self):
         return self.assertion.bound_vars()
@@ -870,19 +878,19 @@ class QuantPredicate:
 
 
 class MReturn:
-    def __init__(self, tree: Tree):
+    def __init__(self, tree: Tree, invoke_factory):
         if tree.label() != "MRET":
             raise ValueError(f"Bad tree - expected MRET, got {tree.label()}")
 
         labels = tuple(x.label() for x in tree)
         if labels == ("RET", "OBJ"):
-            self.ret_val = Object(tree[1])
+            self.ret_val = Object(tree[1], invoke_factory)
         elif labels == ("OBJ", "VBZ", "RET"):
             if tree[1][0].lower() != "is":
                 raise ValueError(f"Expected 'is' for OBJ VBZ RET tree, got {tree[1][0]}")
-            self.ret_val = Object(tree[0])
+            self.ret_val = Object(tree[0], invoke_factory)
         elif labels == ("OBJ", "RET"):
-            self.ret_val = Object(tree[0])
+            self.ret_val = Object(tree[0], invoke_factory)
         else:
             raise ValueError(f"Unexpected tree structure - got {labels}")
 
@@ -905,26 +913,26 @@ class Negate:
 
 
 class ReturnIf(MReturn):
-    def __init__(self, tree: Union[Tree, List[Tree]]):
+    def __init__(self, tree: Union[Tree, List[Tree]], invoke_factory: InvocationFactory):
         if tree[0].label() == "RETIF":
-            lhs = ReturnIf(tree[0])
+            lhs = ReturnIf(tree[0], invoke_factory)
             self.preds = lhs.preds
             self.ret_vals = lhs.ret_vals
             if tree[1][0].lower() != "otherwise":
                 raise ValueError(f"Unexpected RB {tree[1][0]} in ReturnIf")
             if tree[2].label() == "RETIF":
-                rhs = ReturnIf(tree[2])
+                rhs = ReturnIf(tree[2], invoke_factory)
                 self.preds += rhs.preds
                 self.ret_vals += rhs.ret_vals
             else:
-                self.ret_vals.append(Object(tree[2]))
+                self.ret_vals.append(Object(tree[2], invoke_factory))
                 self.preds.append(Negate(self.preds[-1]))
             return
         if tree[0].label() == "MRET":
-            super().__init__(tree[0])
+            super().__init__(tree[0], invoke_factory)
             pred = tree[1]
         elif tree[-1].label() == "MRET":
-            super().__init__(tree[-1])
+            super().__init__(tree[-1], invoke_factory)
             pred = tree[0]
         else:
             raise ValueError("Did not find MRET")
@@ -933,7 +941,7 @@ class ReturnIf(MReturn):
         if pred.label() == "PRED":
             self.preds = [Predicate(pred)]
         elif pred.label() == "QPRED":
-            self.preds = [QuantPredicate(pred)]
+            self.preds = [QuantPredicate(pred, invoke_factory)]
         else:
             raise ValueError(f"Bad tree - expected QPRED or PRED, got {pred.label()}")
 
@@ -969,11 +977,11 @@ class ReturnIf(MReturn):
 
 
 class ReturnIfElse(ReturnIf):
-    def __init__(self, tree: Tree):
-        super().__init__(tree[0])
+    def __init__(self, tree: Tree, invoke_factory):
+        super().__init__(tree[0], invoke_factory)
         if tree[1][0].lower() != "otherwise":
             raise ValueError(f"Unexpected RB {tree[1][0]} in IfElseRet")
-        self.op_ret_val = Object(tree[2])
+        self.op_ret_val = Object(tree[2], invoke_factory)
 
     def as_spec(self):
         if_part = super().as_spec()
@@ -995,8 +1003,8 @@ class ReturnIfElse(ReturnIf):
 
 
 class SideEffect:
-    def __init__(self, tree: Tree):
-        self.target = Object(tree[0])
+    def __init__(self, tree: Tree, invoke_factory):
+        self.target = Object(tree[0], invoke_factory)
         if len(tree) > 3:
             if tree[2].label() == "MJJ":
                 self.fn_mod = MJJ(tree[2])
@@ -1008,11 +1016,11 @@ class SideEffect:
                 target_i = 3
 
             if tree[target_i][0].lower() in {"by", "in"}:
-                self.target = Object(tree[0])
-                self.inputs = [Object(tree[target_i + 1])]
+                self.target = Object(tree[0], invoke_factory)
+                self.inputs = [Object(tree[target_i + 1], invoke_factory)]
             elif tree[target_i][0].lower() in {"to"}:
-                self.target = Object(tree[target_i + 1])
-                self.inputs = [Object(tree[0])]
+                self.target = Object(tree[target_i + 1], invoke_factory)
+                self.inputs = [Object(tree[0], invoke_factory)]
         else:
             self.fn = MVB(tree[2])
             self.fn_mod = None
@@ -1038,7 +1046,7 @@ class SideEffect:
 
 
 class Specification:
-    def __init__(self, tree: Tree, function_initializer: "InvocationFactory"):
+    def __init__(self, tree: Tree, invoke_factory: "InvocationFactory"):
         self.spec = {
             "RETIF": ReturnIf,
             "RETIFELSE": ReturnIfElse,
@@ -1046,11 +1054,11 @@ class Specification:
             "QASSERT": QuantAssert,
             "MRET": MReturn,
             "SIDE": SideEffect,
-            "FNCALL": function_initializer,
-        }[tree[0].label()](tree[0])
+            "FNCALL": invoke_factory,
+        }[tree[0].label()](tree[0], invoke_factory)
 
         global FUNCTION_INITIALIZER
-        FUNCTION_INITIALIZER = function_initializer
+        FUNCTION_INITIALIZER = invoke_factory
 
     def as_spec(self):
         return self.spec.as_spec()
@@ -1131,25 +1139,12 @@ class Parser:
 
         token_dict = sentence.to_dict(tag_type="pos")
         correct_tokens(token_dict, key_words=idents)
-
-        labels = [entity["labels"][0] for entity in token_dict["entities"]]
+        labels: List[Label] = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
         return labels, words
 
     def parse_sentence(self, sentence: str, idents=None, verbose=False) -> Tree:
-        sentence = sentence \
-            .replace("isn't", "is not") \
-            .rstrip(".")
-
-        sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
-        self.root_tagger.predict(sentence)
-
-        token_dict = sentence.to_dict(tag_type="pos")
-        correct_tokens(token_dict, key_words=idents)
-
-        labels = [entity["labels"][0] for entity in token_dict["entities"]]
-        words = [entity["text"] for entity in token_dict["entities"]]
-
+        labels, words = self.tokenize_sentence(sentence, idents)
         nltk_sent = [label.value if is_quote(word) else f"{word}_{label.value}"
                      for label, word in zip(labels, words)]
 
@@ -1166,13 +1161,14 @@ class UnsupportedSpec(ValueError):
     pass
 
 
-def generate_constructor_from_grammar(fn: str, grammar: List[InvokeToken]):
+def generate_constructor_from_grammar(fn: Fn, grammar: List[InvokeToken]):
     class CustomFnCall:
-        def __init__(self, tree: Tree):
+        def __init__(self, tree: Tree, invoke_factory):
             self.det = None
-            self.is_method = False
             self.fn = fn
             self.inputs = []
+            self.is_method = isinstance(fn, Method)
+
             for ind, token in enumerate(grammar):
                 if not isinstance(token.word, Rule):
                     continue
@@ -1184,19 +1180,18 @@ def generate_constructor_from_grammar(fn: str, grammar: List[InvokeToken]):
                         "OBJ": Object,
                         "LIT": Literal,
                         "IDENT": Literal,
-                    }[token.symbol()](tree[ind])
+                    }[token.symbol()](tree[ind], invoke_factory)
                     if token.word.ident == "self":
                         self.inputs.insert(0, obj)
-                        self.is_method = True
                     else:
                         self.inputs.append(obj)
 
         def as_code(self):
             if self.is_method:
                 inputs = ", ".join(x.as_code() for x in self.inputs[1:])
-                return f"{self.inputs[0].as_code()}.{self.fn}({inputs})"
+                return f"{self.inputs[0].as_code()}.{self.fn.ident}({inputs})"
             inputs = ", ".join(x.as_code() for x in self.inputs)
-            return f"{self.fn}({inputs})"
+            return f"{self.fn.ident}({inputs})"
 
         def as_spec(self):
             if self.det:
@@ -1204,11 +1199,9 @@ def generate_constructor_from_grammar(fn: str, grammar: List[InvokeToken]):
                     return f"#[ensures({self.as_code()})]"
                 elif self.det in {"must"}:
                     return f"#[requires({self.as_code()})]"
-
             raise UnsupportedSpec("Can not forward specifications from functions.")
 
     return CustomFnCall
-
 
 # def main():
 #     test_cases = [
@@ -1342,82 +1335,5 @@ def generate_constructor_from_grammar(fn: str, grammar: List[InvokeToken]):
 #         except AssertionError as a:
 #             print(a)
 
-
-def main():
-    invocations = [
-        ("print", "Prints {item:OBJ}", "Prints 0u32"),
-        ("print", "Really prints {item:OBJ}", "Really prints \"HELLO WORLD\""),
-        ("print", "Prints {item:OBJ} in {mod:ENUM}", "Really prints \"HELLO WORLD\""),
-        ("print", "{item:OBJ} is printed", "`self.x()` is printed"),
-        ("add", "{self:OBJ} is incremented by {rhs:IDENT}", "`self` is incremented by 1"),
-        ("contains", "{self:OBJ} {MD} contain {item:OBJ}", "`self` must contain 0u32"),
-        ("contains", "{self:OBJ} contains {item:OBJ}", "`self` contains 0u32"),
-        ("contains", "contain {item:OBJ} {self:OBJ} {MD}", "contain 0u32, `self` will")
-    ]
-
-    parser = Parser.default()
-
-    meta = InvocationFactory(generate_constructor_from_grammar)
-
-    for fn, invocation, sample in invocations:
-        meta.add_invocation(fn, invocation)
-
-    sentences = [
-                    "Returns `true` if `self` is green.",
-                    "Returns `true` if `self` contains 0u32",
-                    "Returns the reciprocal of `self`"
-                ] + [sample for _, _, sample in invocations]
-
-    word_replacements = {}
-    sym_replacements = {}
-
-    for sentence in sentences:
-        tokens, words = parser.tokenize_sentence(sentence)
-        for sym, word in zip(tokens, words):
-            if is_quote(word):
-                continue
-            if word not in word_replacements:
-                word_replacements[word] = set()
-            if sym.value not in sym_replacements:
-                sym_replacements[sym.value] = set()
-            word_replacements[word].add(sym.value)
-            sym_replacements[sym.value].add(word)
-
-    grammar = meta.grammar()
-    replacement_grammar = ""
-
-    for word, syms in word_replacements.items():
-        syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
-        grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
-        replacement_grammar += f"WD_{word} -> {syms}\n"
-    for sym, words in sym_replacements.items():
-        syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
-        grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
-        replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
-
-    with open("doc_parser/codegrammar.cfg") as f:
-        full_grammar = f.read() + "\n" + grammar + "\n" + replacement_grammar
-
-    parser = Parser(full_grammar)
-
-    for sentence in sentences:
-        print("=" * 80)
-        print("Sentence:", sentence)
-        print("=" * 80)
-        for tree in parser.parse_sentence(sentence):
-            tree: Tree = tree
-            try:
-                print(Specification(tree, meta).as_spec())
-            except LookupError as e:
-                print(f"No specification found: {e}")
-            except UnsupportedSpec as s:
-                print(f"Specification element not supported ({s})")
-
-            print(tree)
-            print()
-
-
-if __name__ == '__main__':
-    main()
 
 # confusing examples: log fns, trig fns, pow fns

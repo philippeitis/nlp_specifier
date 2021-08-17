@@ -1,12 +1,14 @@
 from nltk import Tree
 
+from pyrs_ast.lib import Fn
+
 
 class Rule:
-    def __init__(self, word: str):
+    def __init__(self, word: str, is_optional: bool = False):
         body = word[1:-1]
-        self.opt = False
+        self.optional = is_optional
         if ":" not in body:
-            self.opt = body.startswith("?")
+            self.optional = body.startswith("?")
             self._symbol = body.lstrip("?")
             self.ident = None
         else:
@@ -19,27 +21,27 @@ class Rule:
         return self._symbol
 
     def is_optional(self):
-        return self.opt
+        return self.optional
 
 
 class Literal:
-    def __init__(self, s: str):
-       self.word = s
+    def __init__(self, s: str, is_optional: bool = False):
+        self.word = s
+        self.optional = is_optional
 
     def symbol(self):
         return f"\"{self.word}\""
 
     def is_optional(self):
-        return False
+        return self.optional
 
 
 class InvokeToken:
-    def __init__(self, word: str, is_symbol: bool, **kwargs):
+    def __init__(self, word: str, is_symbol: bool, is_optional: bool = False):
         if is_symbol:
             self.word = Rule(word)
         else:
-            self.word = Literal(word)
-        self.kwargs = kwargs
+            self.word = Literal(word, is_optional)
 
     def __str__(self):
         return f"{self.word}"
@@ -52,25 +54,47 @@ class InvokeToken:
 
 
 class InvocationFactory:
-    def __init__(self, call_back):
+    def __init__(self, callback):
         self.invocations = {}
         self.productions = {}
         self.initializers = {}
-        self.call_back = call_back
+        self.callback = callback
 
-    def add_invocation(self, fn: str, invocation: str):
-        invocation = Invocation(fn, invocation)
+    def add_invocation(self, fn: Fn, invocation: "Invocation"):
         if fn in self.invocations:
             num = len(self.invocations[fn])
         else:
             num = 0
-            self.invocations[fn] = []
-        for constructor, grammar in invocation.constructors(self.call_back):
-            name = f"FN_{fn.upper()}_{num}"
-            self.invocations[fn].append(name)
+            self.invocations[fn.ident] = []
+        for constructor, grammar in invocation.constructors(self.callback):
+            name = f"FN_{fn.ident}_{num}"
+            self.invocations[fn.ident].append(name)
             self.productions[name] = f"{name} -> {' '.join(x.symbol() for x in grammar)}"
             num += 1
             self.initializers[name] = constructor
+
+    def add_fuzzy_invocation(self, fn: Fn, labels, words):
+        invoke_tokens = []
+        token_it = enumerate(zip(labels, words))
+        for i, (label, word) in token_it:
+            if label.value in {"RET", "COMMA"}:
+                continue
+            if label.value in {"DT", "IN", "IF", "MD", "FOR", "FOR"}:
+                invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=True))
+                continue
+
+            if label.value in {"CODE"}:
+                invoke_tokens.append(InvokeToken("{OBJ}", is_symbol=True, is_optional=False))
+            else:
+                invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
+            break
+
+        for i, (label, word) in token_it:
+            if label.value in {"CODE"}:
+                invoke_tokens.append(InvokeToken("{OBJ}", is_symbol=True, is_optional=False))
+            else:
+                invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
+        self.add_invocation(fn, Invocation(fn, invoke_tokens))
 
     def grammar(self):
         rules = []
@@ -84,12 +108,23 @@ class InvocationFactory:
         return f"{rule_line}\n{productions}"
 
     def __call__(self, tree: Tree):
-        return self.initializers[tree[0].label()](tree[0])
+        return self.initializers[tree[0].label()](tree[0], self)
 
 
 class Invocation:
-    def __init__(self, fn: str, sentence: str):
+    def __init__(self, fn: Fn, parts):
         self.fn = fn
+        self.parts = parts
+        self.optional_tokens = [x for x in self.parts if x.is_optional()]
+
+        self.inputs = {}
+        # TODO: Need to add tests against actual Fn class
+        for part in parts:
+            if isinstance(part.word, Rule) and not part.is_optional():
+                self.inputs[part.word.ident] = part.symbol()
+
+    @classmethod
+    def from_sentence(cls, fn: Fn, sentence: str):
         parts = []
         a = 0
         while a < len(sentence) and sentence[a].isspace():
@@ -97,11 +132,15 @@ class Invocation:
 
         while a < len(sentence):
             is_symbol = False
-            if sentence[a] == "{":
-                is_symbol = True
-                ind = sentence[a + 1:].find("}")
+            is_code = False
+            if sentence[a] in ("{", "`"):
+                ind = sentence[a + 1:].find(sentence[a])
                 if ind != -1:
                     ind += 2
+                if sentence[a] == "{":
+                    is_symbol = True
+                else:
+                    is_code = True
             else:
                 sind = sentence[a:].find(" ")
                 cind = sentence[a:].find(",")
@@ -112,11 +151,17 @@ class Invocation:
                 else:
                     ind = min(sind, cind)
             if ind == -1:
-                t = InvokeToken(sentence[a:], is_symbol, whitespace_after=False, start_position=a)
+                if is_code:
+                    t = InvokeToken("{OBJ}", True)
+                else:
+                    t = InvokeToken(sentence[a:], is_symbol)
                 parts.append(t)
                 break
             else:
-                t = InvokeToken(sentence[a: a + ind], is_symbol, whitespace_after=True, start_position=a)
+                if is_code:
+                    t = InvokeToken("{OBJ}", True)
+                else:
+                    t = InvokeToken(sentence[a: a + ind], is_symbol)
                 parts.append(t)
 
             a = a + ind
@@ -128,21 +173,14 @@ class Invocation:
 
                 a += 1
 
-        self.parts = parts
-        self.optional_tokens = [x for x in self.parts if x.is_optional()]
-
-        self.inputs = {}
-        # TODO: Need to add tests against actual Fn class
-        for part in parts:
-            if isinstance(part.word, Rule) and not part.is_optional():
-                self.inputs[part.word.ident] = part.symbol()
+        return cls(fn, parts)
 
     def __str__(self):
         return " ".join(str(x) for x in self.parts)
 
     def grammar_variants(self):
         if self.optional_tokens:
-            for i in range(0, 2**len(self.optional_tokens)):
+            for i in range(0, 2 ** len(self.optional_tokens)):
                 variant = []
                 for token in self.parts:
                     if token.is_optional():
@@ -157,6 +195,6 @@ class Invocation:
     def as_grammar(self, name: str):
         return f"{name} -> {' | '.join(' '.join(x.symbol() for x in variant) for variant in self.grammar_variants())}"
 
-    def constructors(self, call_back):
+    def constructors(self, callback):
         for variant in self.grammar_variants():
-            yield call_back(self.fn, variant), variant
+            yield callback(self.fn, variant), variant
