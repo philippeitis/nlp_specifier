@@ -19,8 +19,6 @@ except ModuleNotFoundError:
     from .fn_calls import Rule, InvokeToken, InvocationFactory
 
 LEMMATIZER = WordNetLemmatizer()
-FUNCTION_INITIALIZER = None
-
 GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
 
 logger = logging.getLogger("flair")
@@ -1056,9 +1054,6 @@ class Specification:
             "SIDE": SideEffect,
             "FNCALL": invoke_factory,
         }[tree[0].label()](tree[0], invoke_factory)
-
-        global FUNCTION_INITIALIZER
-        FUNCTION_INITIALIZER = invoke_factory
 
     def as_spec(self):
         return self.spec.as_spec()
