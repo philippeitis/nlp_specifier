@@ -2,7 +2,6 @@ from collections import defaultdict
 from typing import List
 import re
 import logging
-
 import itertools
 
 from nltk import Tree

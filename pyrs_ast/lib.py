@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from typing import Optional, List, Union
+import json
 
 try:
     from .docs import Docs
@@ -11,7 +12,6 @@ except ImportError as e:
     from scope import Scope
 
 import astx
-import json
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
