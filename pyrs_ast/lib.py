@@ -226,6 +226,11 @@ class Receiver:
         self.ref = kwargs.get("ref", False)
         self.lifetime = kwargs.get("lifetime")
         self.ty = None
+        self.ident = None
+
+    def set_ty(self, ty: Type):
+        self.ty = ty
+        self.ident = ty.name()
 
     def __str__(self):
         lifetime = "" if self.lifetime is None else f"'{self.lifetime} "
@@ -345,7 +350,7 @@ class Method(Fn):
         super().__init__(**kwargs)
 
         if len(self.inputs) > 0 and isinstance(self.inputs[0], Receiver):
-            self.inputs[0].ty = parent_type
+            self.inputs[0].set_ty(parent_type)
 
 
 class Impl(HasParams, HasItems, HasAttrs):
