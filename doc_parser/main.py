@@ -216,6 +216,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     invoke_factory = InvocationFactory(generate_constructor_from_grammar)
     helper_fn(ast, Parser.default(), invoke_factory, word_replacements, sym_replacements)
 
+    # TODO: Detect duplicate invocations.
     grammar = invoke_factory.grammar()
     replacement_grammar = ""
 
@@ -241,7 +242,7 @@ def main():
 
     grammar, invoke_factory = generate_grammar(ast)
     parser = Parser(grammar)
-
+    print(grammar)
     specify_item(ast, parser, ast.scope, invoke_factory)
     print_ast(ast)
 
