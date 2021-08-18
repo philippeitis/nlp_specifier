@@ -11,7 +11,7 @@ const CCCC: AAAAA<u32> = AAAAA { a: 5, b: 2 };
 /// ```
 #[wahoo]
 #[yahoo(1)]
-fn yeehaw(y: u32, a: crate2::Lemon) -> u32 {
+fn lemon_magic(y: u32, a: crate2::Lemon) -> u32 {
     let x = 1 + y;
     x
 }
@@ -29,24 +29,25 @@ impl<'a, T> AAAAA<'a, T> {
     /// Hello world
     fn new() -> Self {}
 
-    fn yeet(&mut self) -> bool {}
+    fn aaaaa_fn(&mut self) -> bool {}
 
 }
 
 struct BBBBB(u32, crate2::Avocado);
 
-fn hawyee(y: crate2::Lime) -> (u32, crate2::Lime) {
+fn lime_operations(y: crate2::Lime) -> (u32, crate2::Lime) {
     let x = 1 + y;
     (x, y)
 }
 
-fn howdy<X: Banana + Apricot, Y>(x: X, y: Y) {
+fn smoothify<X: Banana + Apricot, Y>(x: X, y: Y) {
 }
 
-fn howdey<X, Y>(x: X, y: Y) where X: Banana + Apricot {
+fn blend<X, Y>(x: X, y: Y) where X: Banana + Apricot {
 }
 
 use std::banana::vec;
+
 mod test {
     fn do_this() {}
 }

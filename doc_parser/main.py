@@ -328,16 +328,21 @@ def main3():
 def main4():
     import astx
     print(astx.parse_expr("self + rhs"))
-
+    print(astx.parse_expr("self.divide(rhs)"))
+    # Parse expr, plug in types, and find corresponding fn
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
+    main()
+    main3()
     main4()
 
     # TODO: Detect duplicate invocations.
     # TODO: keyword in fn name, capitalization?
     # TODO: similarity metrics (capitalization, synonym distance via wordnet)
-    # TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
+
     # TODO: Mechanism to evaluate code
-    # TODO: all specifying default value in #[invoke]
+    # TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
+
+    # TODO: allow specifying default value in #[invoke]
     #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
