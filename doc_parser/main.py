@@ -325,9 +325,14 @@ def main3():
         print(item.sig_str())
 
 
+def main4():
+    import astx
+    print(astx.parse_expr("self + rhs"))
+
+
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    main()
+    main4()
 
     # TODO: Detect duplicate invocations.
     # TODO: keyword in fn name, capitalization?
