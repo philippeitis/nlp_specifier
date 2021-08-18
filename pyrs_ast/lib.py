@@ -249,7 +249,6 @@ class Receiver:
 
 
 class Fn(HasParams, HasAttrs):
-    # TODO: Provide context as to the type of self.
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]

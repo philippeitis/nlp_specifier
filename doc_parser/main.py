@@ -159,11 +159,13 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
             except ValueError as v:
                 logging.error(f"While specifying [{sentence}], error occurred: {v}. ")
                 logging.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
+                )
             except StopIteration as s:
                 logging.info(f"No specification could be generated for [{sentence}]")
                 logging.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}")
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
+                )
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
@@ -216,7 +218,6 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     invoke_factory = InvocationFactory(generate_constructor_from_grammar)
     helper_fn(ast, Parser.default(), invoke_factory, word_replacements, sym_replacements)
 
-    # TODO: Detect duplicate invocations.
     grammar = invoke_factory.grammar()
     replacement_grammar = ""
 
@@ -235,8 +236,6 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     return full_grammar, invoke_factory
 
 
-# TODO: keyword (in doc or in fn name, structural / phrase search, synonyms ok? capitalization ok?
-# TODO: similarity metrics
 def main():
     ast = AstFile.from_path("../data/test3.rs")
 
@@ -329,3 +328,11 @@ def main3():
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     main()
+
+    # TODO: Detect duplicate invocations.
+    # TODO: keyword in fn name, capitalization?
+    # TODO: similarity metrics (capitalization, synonym distance via wordnet)
+    # TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
+    # TODO: Mechanism to evaluate code
+    # TODO: all specifying default value in #[invoke]
+    #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
