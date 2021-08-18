@@ -18,12 +18,19 @@ class Rule:
             self.ident, self._symbol = body.split(":")
 
     def __str__(self):
-        return f"?{{{self.ident}:{self._symbol}}}"
+        if self.ident:
+            body = f"{{{self.ident}:{self.symbol()}}}"
+        else:
+            body = f"{{{self._symbol}}}"
 
-    def symbol(self):
+        if self.optional:
+            return f"?{body}"
+        return body
+
+    def symbol(self) -> str:
         return self._symbol
 
-    def is_optional(self):
+    def is_optional(self) -> bool:
         return self.optional
 
 
@@ -32,11 +39,14 @@ class Literal:
         self.word = s
         self.optional = is_optional
 
-    def symbol(self):
+    def symbol(self) -> str:
         return f"\"{self.word}\""
 
-    def is_optional(self):
+    def is_optional(self) -> bool:
         return self.optional
+
+    def __str__(self):
+        return self.symbol()
 
 
 class InvokeToken:
@@ -76,6 +86,9 @@ class InvocationFactory:
     def add_fuzzy_invocation(self, fn: Fn, labels, words):
         invoke_tokens = []
         token_it = enumerate(zip(labels, words))
+        idents = {ty.ident for ty in fn.inputs}
+        logging.info(f"Adding fuzzy invocation for fn {fn.ident}")
+
         for i, (label, word) in token_it:
             if label.value in {"RET", "COMMA"}:
                 continue
@@ -84,17 +97,36 @@ class InvocationFactory:
                 continue
 
             if label.value in {"CODE"}:
-                invoke_tokens.append(InvokeToken("{OBJ}", is_symbol=True, is_optional=False))
+                word_strip = word.strip("`")
+
+                if word.strip("`") in idents:
+                    sym = f"{{{word_strip}:OBJ}}"
+                else:
+                    sym = "{OBJ}"
+                invoke_tokens.append(InvokeToken(sym, is_symbol=True, is_optional=False))
+            elif label.value in {"LIT"}:
+                invoke_tokens.append(InvokeToken(f"{{{word}:OBJ}}", is_symbol=True, is_optional=False))
             else:
                 invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
             break
 
         for i, (label, word) in token_it:
             if label.value in {"CODE"}:
-                invoke_tokens.append(InvokeToken("{OBJ}", is_symbol=True, is_optional=False))
+                word_strip = word.strip("`")
+
+                if word.strip("`") in idents:
+                    sym = f"{{{word_strip}:OBJ}}"
+                else:
+                    sym = "{OBJ}"
+                invoke_tokens.append(InvokeToken(sym, is_symbol=True, is_optional=False))
+            elif label.value in {"LIT"}:
+                invoke_tokens.append(InvokeToken(f"{{{word}:OBJ}}", is_symbol=True, is_optional=False))
             else:
                 invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
-        self.add_invocation(fn, Invocation(fn, invoke_tokens))
+
+        invocation = Invocation(fn, invoke_tokens)
+
+        self.add_invocation(fn, invocation)
 
     def grammar(self):
         rules = []
@@ -116,12 +148,6 @@ class Invocation:
         self.fn = fn
         self.parts = parts
         self.optional_tokens = [x for x in self.parts if x.is_optional()]
-
-        self.inputs = {}
-        # TODO: Need to add tests against actual Fn class
-        for part in parts:
-            if isinstance(part.word, Rule) and not part.is_optional():
-                self.inputs[part.word.ident] = part.symbol()
 
     @classmethod
     def from_sentence(cls, fn: Fn, sentence: str):

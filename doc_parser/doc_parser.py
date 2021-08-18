@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import List, Union, Tuple, Optional
+from typing import List, Union, Tuple, Optional, Collection
 import logging
 import os
 
@@ -191,6 +191,9 @@ class Code:
 
     def as_code(self):
         return self.code.strip("`")
+
+    def is_ident(self, idents: Collection[str]):
+        return self.as_code() in idents
 
 
 class Literal:
@@ -702,7 +705,9 @@ class ForEach:
             self.range = sub_foreach.range
             self.labels = sub_foreach.labels
             if tree[1].label() == "CC":
-                self.range_conditions = sub_foreach.range_conditions + [(CC(tree[1]), ModRelation(tree[-1], invoke_factory))]
+                self.range_conditions = sub_foreach.range_conditions + [
+                    (CC(tree[1]), ModRelation(tree[-1], invoke_factory))
+                ]
             else:
                 self.range_conditions = sub_foreach.range_conditions + [(ModRelation(tree[-1], invoke_factory))]
 
@@ -1153,36 +1158,52 @@ class UnsupportedSpec(ValueError):
 
 
 def generate_constructor_from_grammar(fn: Fn, grammar: List[InvokeToken]):
+    grammar_str = " ".join(str(x) for x in grammar)
+    logging.info(f"Creating constructor for fn {fn.ident}: {grammar_str}")
     class CustomFnCall:
         def __init__(self, tree: Tree, invoke_factory):
             self.det = None
             self.fn = fn
-            self.inputs = []
+            self.inputs = {ty.ident: None for ty in self.fn.inputs}
+            mystery_inputs = []
             self.is_method = isinstance(fn, Method)
 
-            for ind, token in enumerate(grammar):
-                if not isinstance(token.word, Rule):
+            for subtree, itoken in zip(tree, grammar):
+                # Connectives
+                if not isinstance(itoken.word, Rule):
                     continue
-                if token.symbol() == "MD":
-                    self.det = tree[ind][0]
+                if itoken.symbol() == "MD":
+                    self.det = subtree[0]
                 else:
                     obj = {
                         "CODE": Code,
                         "OBJ": Object,
                         "LIT": Literal,
                         "IDENT": Literal,
-                    }[token.symbol()](tree[ind], invoke_factory)
-                    if token.word.ident == "self":
-                        self.inputs.insert(0, obj)
+                    }[itoken.symbol()](subtree, invoke_factory)
+
+                    if itoken.word.ident:
+                        self.inputs[itoken.word.ident] = obj
                     else:
-                        self.inputs.append(obj)
+                        mystery_inputs.append(obj)
+
+            input_iter = iter(self.inputs.items())
+            for mystery_input in mystery_inputs:
+                key, val = next(input_iter)
+                while val:
+                    key, val = next(input_iter)
+                self.inputs[key] = mystery_input
 
         def as_code(self):
+            inputs = iter(self.inputs.values())
             if self.is_method:
-                inputs = ", ".join(x.as_code() for x in self.inputs[1:])
-                return f"{self.inputs[0].as_code()}.{self.fn.ident}({inputs})"
-            inputs = ", ".join(x.as_code() for x in self.inputs)
-            return f"{self.fn.ident}({inputs})"
+                xself = next(inputs).as_code()
+                fn_ident = f"{xself}.{self.fn.ident}"
+            else:
+                fn_ident = self.fn.ident
+
+            inputs = ", ".join(x.as_code() for x in inputs)
+            return f"{fn_ident}({inputs})"
 
         def as_spec(self):
             if self.det:

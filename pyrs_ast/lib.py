@@ -238,11 +238,10 @@ class Receiver:
         self.ref = kwargs.get("ref", False)
         self.lifetime = kwargs.get("lifetime")
         self.ty = None
-        self.ident = None
+        self.ident = "self"
 
     def set_ty(self, ty: Type):
         self.ty = ty
-        self.ident = ty.name()
 
     def __str__(self):
         lifetime = "" if self.lifetime is None else f"'{self.lifetime} "
