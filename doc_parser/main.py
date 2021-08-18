@@ -257,7 +257,10 @@ def main2():
     def populate_grammar_helper(sentences, parser, invoke_factory, word_replacements, sym_replacements):
         for sentence in sentences:
             if isinstance(sentence, tuple):
-                invoke_factory.add_invocation(FnMock(sentence[0]), Invocation.from_sentence(FnMock(sentence[0]), sentence[1]))
+                invoke_factory.add_invocation(
+                    FnMock(sentence[0]),
+                    Invocation.from_sentence(FnMock(sentence[0]), sentence[1])
+                )
                 sentence = sentence[2]
 
             tokens, words = parser.tokenize_sentence(sentence)

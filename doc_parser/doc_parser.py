@@ -11,12 +11,8 @@ from nltk.stem import WordNetLemmatizer
 
 from pyrs_ast.lib import Fn, Method
 
-try:
-    from tokenizer import CodeTokenizer
-    from fn_calls import Rule, InvokeToken, InvocationFactory
-except ModuleNotFoundError:
-    from .tokenizer import CodeTokenizer
-    from .fn_calls import Rule, InvokeToken, InvocationFactory
+from tokenizer import CodeTokenizer
+from fn_calls import Rule, InvokeToken, InvocationFactory
 
 LEMMATIZER = WordNetLemmatizer()
 GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
