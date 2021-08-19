@@ -119,8 +119,8 @@ class Phrase(QueryField):
                 prev, curr = split_str(s, match.start(0))
                 curr, after = split_str(curr, match.end(0) - match.start(0))
 
-                match_len = len(curr.split(" "))
-                match_start = len(prev.split(" ")) - 1 if prev else 0
+                match_len = curr.count(" ") + 1
+                match_start = prev.count(" ")
 
                 match_words = words[match_start: match_start + match_len]
                 match_tags = pos_tags[match_start: match_start + match_len]
