@@ -1,23 +1,44 @@
 from collections import defaultdict
-from typing import List
+from typing import List, Collection
 import re
 import logging
 import itertools
 
+import nltk
 from nltk import Tree
-from nltk.corpus import wordnet
+from nltk.corpus import wordnet, stopwords
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems
 from pyrs_ast.scope import Query, FnArg, QueryField, Scope
 from pyrs_ast import AstFile, print_ast
 
-from doc_parser import Parser, Specification, GRAMMAR_PATH, generate_constructor_from_grammar, is_quote
+from doc_parser import Parser, Specification, GRAMMAR_PATH, LEMMATIZER, generate_constructor_from_grammar, is_quote
 from fn_calls import InvocationFactory, Invocation
+
+try:
+    STOPWORDS = set(stopwords.words("english"))
+except LookupError:
+    nltk.download("stopwords")
+    STOPWORDS = set(stopwords.words("english"))
+
+
+def lemma_eq(word1, word2) -> bool:
+    return LEMMATIZER.lemmatize(word1.lower()) == LEMMATIZER.lemmatize(word2.lower())
 
 
 def peek(it):
     first = next(it)
     return first, itertools.chain([first], it)
+
+
+def tags_similar(tag1, tag2):
+    if tag1 == tag2:
+        return True
+    if tag1.startswith("NN") and tag2.startswith("NN"):
+        return True
+    if tag1.startswith("VB") and tag2.startswith("VB"):
+        return True
+    return False
 
 
 def is_synonym(word1: str, word2: str) -> bool:
@@ -30,14 +51,33 @@ def is_synonym(word1: str, word2: str) -> bool:
     return False
 
 
+def is_one_of(tag: str, choices: Collection[str]):
+    return any(choice in tag for choice in choices)
+
+
+def get_regex_for_tag(tag: str):
+    if "VB" in tag:
+        return "VB(D|G|N|P|Z)?"
+    if "NN" in tag:
+        return "NN(P|PS|S)?"
+    if "RB" in tag:
+        return "RB(R|S)?"
+    if "JJ" in tag:
+        return "JJ(R|S)?"
+    return tag
+
+
 class Word(QueryField):
     def __init__(self, word: str, synonyms: bool, optional: bool):
         self.synonyms = synonyms
         self.word = word
         self.optional = optional
 
+    def __str__(self):
+        return self.word
+
     def matches_fn(self, fn):
-        return
+        raise NotImplementedError()
 
 
 class Phrase(QueryField):
@@ -45,19 +85,28 @@ class Phrase(QueryField):
         self.parser = parser
         self.phrase = phrase
         s = " ".join(word.word for word in phrase)
-        self.pos_tags = parser.tokenize_sentence(s)[0]
+        self.pos_tags, _ = parser.tokenize_sentence(s)
         regex_str = ""
         for word, tag in zip(self.phrase, self.pos_tags):
-            val = re.escape(tag.value)
+            val = get_regex_for_tag(re.escape(tag.value))
             if word.optional:
-                regex_str += f"({val})? "
+                regex_str += f"({val} )?"
             else:
                 regex_str += f"{val} "
+
         regex_str = regex_str[:-1]
         self.tag_regex = re.compile(regex_str)
         self.regex_str = regex_str
 
-    def matches(self, fn):
+    def __str__(self):
+        return " ".join(str(x) for x in self.phrase)
+
+    def matches(self, fn: Fn):
+        """Determines whether the phrase matches the provided fn.
+        To match the phrase, the function must contain all non-optional words, in sequence, with no gaps.
+        Words do not need to have matching tenses or forms to be considered equal (using NLTK's lemmatizer).
+        """
+
         def split_str(s: str, index: int):
             return s[:index], s[index:]
 
@@ -69,19 +118,20 @@ class Phrase(QueryField):
             for match in self.tag_regex.finditer(s):
                 prev, curr = split_str(s, match.start(0))
                 curr, after = split_str(curr, match.end(0) - match.start(0))
+
                 match_len = len(curr.split(" "))
-                match_start = len(prev.split(" ")) - 1
+                match_start = len(prev.split(" ")) - 1 if prev else 0
+
                 match_words = words[match_start: match_start + match_len]
                 match_tags = pos_tags[match_start: match_start + match_len]
-
                 word_iter = iter(zip(match_words, match_tags))
                 matches = True
                 for word, tag in zip(self.phrase, self.pos_tags):
                     match, word_iter = peek(word_iter)
                     m_word, m_tag = match
-                    if m_tag.value == tag.value:
+                    if tags_similar(tag.value, m_tag.value):
                         next(word_iter)
-                        if word.word.lower() == m_word.lower():
+                        if lemma_eq(word.word, m_word):
                             continue
                         elif word.synonyms:
                             if not is_synonym(word.word, m_word):
@@ -97,11 +147,11 @@ class Phrase(QueryField):
                         break
                 if matches:
                     return True
-
         return False
 
 
-def self_reference(fn: Fn, tree: Tree) -> bool:
+def tree_references_fn(fn: Fn, tree: Tree) -> bool:
+    """Determines whether the tree references the provided fn."""
     fn_name = f"{fn.ident}"
     if isinstance(tree, str):
         label = tree
@@ -119,12 +169,21 @@ def self_reference(fn: Fn, tree: Tree) -> bool:
         return False
 
     for child in tree:
-        if self_reference(fn, child):
+        if tree_references_fn(fn, child):
             return True
     return False
 
 
 def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
+    """Creates a specification for the function, using all available sentences.
+    Each sentence is cross-referenced with the grammar to form a syntax tree. If a syntax tree can be formed,
+    this is treated as a valid specification, and is compiled into the Prusti annotation format.
+
+    Prefers non-self-referential trees wherever possible.
+
+    If no tree can be found for a particular sentence, no specification is added.
+    """
+
     if not fn.should_specify():
         logging.info(f"fn {fn.ident} is not annotated with #[specify], and will not be specified.")
         return
@@ -141,7 +200,7 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
                 parse_it = parser.parse_sentence(sentence, idents=fn_idents)
                 spec = None
                 for tree in parse_it:
-                    if self_reference(fn, tree):
+                    if tree_references_fn(fn, tree):
                         logging.info("Skipping tree due to self-reference.")
                         skipped.append(tree)
                     else:
@@ -178,6 +237,13 @@ def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
 
 def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationFactory, word_replacements,
                              sym_replacements):
+    """Finds the sentence that specifies the function, and adds it to InvokeFactory.
+    NOTE: Currently, the first sentence is treated as the specifying sentence. This is obviously not a robust
+    metric, and should be updated.
+
+    Factors which might be considered could be the function's name (for instance, Vec::remove), the number of unique
+    idents, incidence of important words.
+    """
     sections = fn.docs.sections()
     fn_idents = set(ty.ident for ty in fn.inputs)
     logging.info(f"Searching for explicit invocations for fn {fn.ident}")
@@ -213,6 +279,11 @@ def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word
 
 
 def generate_grammar(ast, helper_fn=populate_grammar_helper):
+    """Iterates through all items in the ast, adds relevant invocations from functions into the grammar,
+    and returns a grammar with all invocations, as well as an InvocationFactory to dynamically dispatch
+    a particular invocation to the relevant constructor.
+    """
+
     word_replacements = defaultdict(set)
     sym_replacements = defaultdict(set)
     invoke_factory = InvocationFactory(generate_constructor_from_grammar)
@@ -236,17 +307,45 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     return full_grammar, invoke_factory
 
 
-def main():
-    ast = AstFile.from_path("../data/test3.rs")
+def query_from_sentence(sentence, parser: Parser):
+    """Forms a query from a sentence.
 
+    Stopwords (per Wordnet's stopwords), and words which are not verbs, nouns, adverbs, or adjectives, are all removed.
+    Adverbs and adjectives are optional, and can be substituted with synonyms.
+    """
+    phrases = [[]]
+    pos_tags, words = parser.tokenize_sentence(sentence)
+
+    for pos_tag, word in zip(pos_tags, words):
+        print(word, pos_tag)
+        tag = pos_tag.value
+        if word.lower() in STOPWORDS:
+            if phrases[-1]:
+                phrases.append([])
+        elif not is_one_of(tag, {"RB", "VB", "NN", "JJ", "CODE", "LIT"}):
+            if phrases[-1]:
+                phrases.append([])
+        else:
+            is_describer = is_one_of(tag, {"RB", "JJ"})
+            phrases[-1].append(Word(word, synonyms=is_describer, optional=is_describer))
+    return [Phrase(block, parser) for block in phrases if block]
+
+
+def end_to_end_demo():
+    """Demonstrates entire pipeline from end to end."""
+
+    ast = AstFile.from_path("../data/test3.rs")
     grammar, invoke_factory = generate_grammar(ast)
+
     parser = Parser(grammar)
     print(grammar)
     specify_item(ast, parser, ast.scope, invoke_factory)
     print_ast(ast)
 
 
-def main2():
+def invoke_demo():
+    """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
+
     from nltk import Tree
     from doc_parser import UnsupportedSpec
 
@@ -309,7 +408,34 @@ def main2():
             print()
 
 
-def main3():
+def expr_demo():
+    """Demonstrates expression parsing. Incomplete."""
+
+    import astx
+    print(astx.parse_expr("self + rhs"))
+    print(astx.parse_expr("self.divide(rhs)"))
+    # Parse expr, plug in types, and find corresponding fn
+
+
+def search_demo():
+    """Demonstrates searching for functions with multiple keywords."""
+
+    ast = AstFile.from_path("../data/test3.rs")
+    parser = Parser.default()
+    # Query Demo
+    words = [
+        Phrase([Word("Remove", False, False)], parser),
+        Phrase([Word("last", False, True), Word("element", False, False)], parser),
+        Phrase([Word("vector", True, False)], parser)
+    ]
+    print("Finding documentation matches.")
+    items = ast.scope.find_fn_matches(Query(words))
+    for item in items:
+        print(item.sig_str())
+
+
+def search_demo2():
+    """Demonstrates searching for function arguments and phrases with synonyms."""
     ast = AstFile.from_path("../data/test2.rs")
     parser = Parser.default()
 
@@ -325,21 +451,31 @@ def main3():
         print(item.sig_str())
 
 
-def main4():
-    import astx
-    print(astx.parse_expr("self + rhs"))
-    print(astx.parse_expr("self.divide(rhs)"))
-    # Parse expr, plug in types, and find corresponding fn
+def query_formation_demo():
+    """Demonstrates the creation of a query from a sentence, using the most relevant keywords."""
+    print(
+        [str(x) for x in query_from_sentence(
+            """Removes and returns the element at position `index` within the vector""",
+            Parser.default()
+        )]
+    )
+
+    print(
+        [str(x) for x in query_from_sentence(
+            """remove the last element from a vector and return it""",
+            Parser.default()
+        )]
+    )
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    main()
-    main3()
-    main4()
+    search_demo()
 
     # TODO: Detect duplicate invocations.
     # TODO: keyword in fn name, capitalization?
     # TODO: similarity metrics (capitalization, synonym distance via wordnet)
+    # TODO: Decide spurious keywords
 
     # TODO: Mechanism to evaluate code
     # TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
