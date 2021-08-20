@@ -56,10 +56,10 @@ def get_regex_for_tag(tag: str) -> str:
 
 
 class Word(QueryField):
-    def __init__(self, word: str, synonyms: bool, optional: bool):
-        self.synonyms = synonyms
+    def __init__(self, word: str, allow_synonyms: bool, is_optional: bool):
+        self.allow_synonyms = allow_synonyms
         self.word = word
-        self.optional = optional
+        self.is_optional = is_optional
 
     def __str__(self):
         return self.word
@@ -77,7 +77,7 @@ class Phrase(QueryField):
         regex_str = ""
         for word, tag in zip(self.phrase, self.pos_tags):
             val = get_regex_for_tag(re.escape(tag.value))
-            if word.optional:
+            if word.is_optional:
                 regex_str += f"({val} )?"
             else:
                 regex_str += f"{val} "
@@ -121,14 +121,14 @@ class Phrase(QueryField):
                         next(word_iter)
                         if lemma_eq(word.word, m_word, tag.value):
                             continue
-                        elif word.synonyms:
+                        elif word.allow_synonyms:
                             if not is_synonym(word.word, m_word, tag.value):
                                 matches = False
                                 break
                         else:
                             matches = False
                             break
-                    elif word.optional:
+                    elif word.is_optional:
                         continue
                     else:
                         matches = False
@@ -317,7 +317,7 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
                 phrases.append([])
         else:
             is_describer = is_one_of(tag, {"RB", "JJ"})
-            phrases[-1].append(Word(word, synonyms=is_describer, optional=is_describer))
+            phrases[-1].append(Word(word, allow_synonyms=is_describer, is_optional=is_describer))
     return Query([Phrase(block, parser) for block in phrases if block])
 
 
