@@ -27,6 +27,7 @@ if __name__ == '__main__':
         "hello \"string literal\" aaaa !",
         "hello \"string literal\" aaaa \"!",
     ]
+
     for case in test_cases:
         print(case.find("!"))
         print(repr_tokens(tokens_from_rust(case)))

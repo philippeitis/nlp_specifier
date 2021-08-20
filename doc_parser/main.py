@@ -12,33 +12,16 @@ from pyrs_ast.lib import LitAttr, Fn, HasItems
 from pyrs_ast.scope import Query, FnArg, QueryField, Scope
 from pyrs_ast import AstFile, print_ast
 
-from doc_parser import Parser, Specification, GRAMMAR_PATH, LEMMATIZER, generate_constructor_from_grammar, is_quote
+from doc_parser import Parser, GRAMMAR_PATH, is_quote
 from fn_calls import InvocationFactory, Invocation
+from lemmatizer import lemma_eq
+from grammar import Specification, generate_constructor_from_grammar
 
 try:
     STOPWORDS = set(stopwords.words("english"))
 except LookupError:
     nltk.download("stopwords")
     STOPWORDS = set(stopwords.words("english"))
-
-
-def lemma_eq(word1, word2) -> bool:
-    return LEMMATIZER.lemmatize(word1.lower()) == LEMMATIZER.lemmatize(word2.lower())
-
-
-def peek(it):
-    first = next(it)
-    return first, itertools.chain([first], it)
-
-
-def tags_similar(tag1, tag2):
-    if tag1 == tag2:
-        return True
-    if tag1.startswith("NN") and tag2.startswith("NN"):
-        return True
-    if tag1.startswith("VB") and tag2.startswith("VB"):
-        return True
-    return False
 
 
 def is_synonym(word1: str, word2: str) -> bool:
@@ -51,11 +34,26 @@ def is_synonym(word1: str, word2: str) -> bool:
     return False
 
 
-def is_one_of(tag: str, choices: Collection[str]):
+def peek(it):
+    first = next(it)
+    return first, itertools.chain([first], it)
+
+
+def tags_similar(tag1: str, tag2: str) -> bool:
+    if tag1 == tag2:
+        return True
+    if tag1.startswith("NN") and tag2.startswith("NN"):
+        return True
+    if tag1.startswith("VB") and tag2.startswith("VB"):
+        return True
+    return False
+
+
+def is_one_of(tag: str, choices: Collection[str]) -> bool:
     return any(choice in tag for choice in choices)
 
 
-def get_regex_for_tag(tag: str):
+def get_regex_for_tag(tag: str) -> str:
     if "VB" in tag:
         return "VB(D|G|N|P|Z)?"
     if "NN" in tag:
@@ -131,7 +129,7 @@ class Phrase(QueryField):
                     m_word, m_tag = match
                     if tags_similar(tag.value, m_tag.value):
                         next(word_iter)
-                        if lemma_eq(word.word, m_word):
+                        if lemma_eq(word.word, m_word, tag.value):
                             continue
                         elif word.synonyms:
                             if not is_synonym(word.word, m_word):
@@ -225,6 +223,8 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
                 logging.info(
                     f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
                 )
+                query = query_from_sentence(sentence, parser)
+                logging.info("Found phrases: " + ", ".join(str(x) for x in query.fields))
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
@@ -307,7 +307,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     return full_grammar, invoke_factory
 
 
-def query_from_sentence(sentence, parser: Parser):
+def query_from_sentence(sentence, parser: Parser) -> Query:
     """Forms a query from a sentence.
 
     Stopwords (per Wordnet's stopwords), and words which are not verbs, nouns, adverbs, or adjectives, are all removed.
@@ -328,7 +328,7 @@ def query_from_sentence(sentence, parser: Parser):
         else:
             is_describer = is_one_of(tag, {"RB", "JJ"})
             phrases[-1].append(Word(word, synonyms=is_describer, optional=is_describer))
-    return [Phrase(block, parser) for block in phrases if block]
+    return Query([Phrase(block, parser) for block in phrases if block])
 
 
 def end_to_end_demo():
@@ -457,20 +457,20 @@ def query_formation_demo():
         [str(x) for x in query_from_sentence(
             """Removes and returns the element at position `index` within the vector""",
             Parser.default()
-        )]
+        ).fields]
     )
 
     print(
         [str(x) for x in query_from_sentence(
             """remove the last element from a vector and return it""",
             Parser.default()
-        )]
+        ).fields]
     )
 
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    search_demo()
+    end_to_end_demo()
 
     # TODO: Detect duplicate invocations.
     # TODO: keyword in fn name, capitalization?
