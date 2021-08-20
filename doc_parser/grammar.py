@@ -297,32 +297,27 @@ class ModRelation(Relation):
 
 class MVB:
     def __init__(self, tree: Tree):
-        self.tree = tree
+        self.mod = tree[0][0] if tree[0].label() == "RB" else None
+        self.word = tree[-1][0]
 
     def is_negation(self):
-        return self.tree[0].label() == "RB" and self.tree[0][0].lower() == "not"
-
-    def vb(self) -> str:
-        return self.tree[-1][0]
+        return self.mod is not None and self.mod == "not"
 
 
 class MJJ:
     def __init__(self, tree: Tree):
-        self.mod = tree[0] if tree[0].label() == "RB" else None
-        self.vb = tree[-1]
+        self.mod = tree[0][0] if tree[0].label() == "RB" else None
+        self.word = tree[-1][0]
 
     # TODO: Expand tests here.
-    def is_negative(self):
-        return self.mod is not None and self.mod[0] == "not"
+    def is_negation(self):
+        return self.mod is not None and self.mod == "not"
 
     # TODO: Expand tests for checking if a particular value is unchanged.
     def unchanged(self):
-        if self.word() in {"unchanged"}:
+        if self.word in {"unchanged"}:
             return True
         return False
-
-    def word(self):
-        return self.vb[0]
 
 
 class Property:
@@ -351,35 +346,35 @@ class Property:
     def as_code(self, lhs: Object):
         if self.labels[-1] == "MJJ":
             mjj = MJJ(self.tree[-1])
-            neg = mjj.is_negative() != self.negate
+            neg = mjj.is_negation() != self.negate
             if mjj.unchanged():
                 sym = "!" if neg else "="
                 return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
             sym = "!" if neg else ""
-            return f"{sym}{lhs.as_code()}.{mjj.word()}()"
+            return f"{sym}{lhs.as_code()}.{mjj.word}()"
 
         if self.labels[-1] == "MREL":
             return ModRelation(self.tree[-1], self.invoke_factory).apply_negate(self.negate).as_code(lhs)
 
         if self.labels[-1] == "OBJ":
-            if self.mvb.vb().lower() not in {"is"}:
+            if self.mvb.word.lower() not in {"is"}:
                 # TODO: Support generic properties
-                raise UnsupportedSpec(f"Unexpected verb in PROPERTY ({self.mvb.vb()})")
+                raise UnsupportedSpec(f"Unexpected verb in PROPERTY ({self.mvb.word})")
 
             cmp = Comparator.EQ.negate(self.negate)
             return f"{lhs.as_code()} {cmp} {Object(self.tree[1], self.invoke_factory).as_code()}"
 
         if self.labels[-1] == "MVB":
-            if self.mvb.vb() in {"changed", "modified", "altered", "change"}:
+            if self.mvb.word in {"changed", "modified", "altered", "change"}:
                 if self.negate:
                     return f"{lhs.as_code()} == old({lhs.as_code()})"
                 return f"{lhs.as_code()} != old({lhs.as_code()})"
-            elif self.mvb.vb() in {"unchanged", "unmodified", "unaltered"}:
+            elif self.mvb.word in {"unchanged", "unmodified", "unaltered"}:
                 if self.negate:
                     return f"{lhs.as_code()} != old({lhs.as_code()})"
                 return f"{lhs.as_code()} == old({lhs.as_code()})"
             else:
-                raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.vb()})")
+                raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.word})")
 
         if self.labels[-1] == "RANGEMOD":
             r = RangeMod(self.tree[-1], self.invoke_factory)
@@ -859,15 +854,15 @@ class SideEffect:
         # a is affected by b
         # a is stored in b
 
-        vb = lemmatize(self.fn.vb().lower(), "v")
-        op = Ops.from_str(self.fn.vb().lower())
+        vb = lemmatize(self.fn.word.lower(), "v")
+        op = Ops.from_str(self.fn.word.lower())
         if op is not None:
             if op == Ops.NEGATE:
                 return f"#[ensures(*{self.target.as_code()} == !*{self.target.as_code()})]"
             if op == Ops.SHIFT:
                 if self.fn_mod is None:
                     raise ValueError("Side Effect: got shift operation without corresponding direction.")
-                op = op.apply_dir(self.fn_mod.word())
+                op = op.apply_dir(self.fn_mod.word)
             return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
         else:
             raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
