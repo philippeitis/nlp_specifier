@@ -1,5 +1,6 @@
+from collections import defaultdict
 from enum import Enum
-from typing import List, Tuple, Iterator, Iterable, Optional
+from typing import List, Iterator
 import logging
 import os
 
@@ -8,7 +9,7 @@ from flair.models import MultiTagger
 import nltk
 from nltk.tree import Tree
 
-from lemmatizer import lemmatize
+from fix_tokens import fix_tokens
 from tokenizer import CodeTokenizer
 
 GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
@@ -20,184 +21,22 @@ def is_quote(word: str) -> bool:
     return word[0] in "\"'`"
 
 
-def get_literal_tag(word: str, idents=None) -> Tuple[Optional[str], str]:
-    """Determines whether `word` matches the pattern for a code literal - specifically,
-     if the word is a Rust literal or a function argument.
-
-    :param word:
-    :param idents:
-    :return:
-    """
-    # detect bool literals
-    if word.lower() in {"true", "false"}:
-        return "LIT_BOOL", word.lower()
-
-    if idents and word in idents:
-        return "IDENT", word
-
-    # detect numbers
-    if word.endswith(("u8", "u16", "u32", "u64", "usize")):
-        return "LIT_UNUM", word
-
-    if word.endswith(("i8", "i16", "i32", "i64", "isize")):
-        return "LIT_INUM", word
-
-    if word.endswith(("f32", "f64")):
-        return "LIT_FNUM", word
-
-    if word.isnumeric():
-        return "LIT_FNUM" if "." in word else "LIT_INT", word
-
-    if word[0] == "\"":
-        return "LIT_STR", word
-
-    if word[0] == "'":
-        return "LIT_CHAR", word
-
-    return None, word
-
-
-def apply_operation_tokens(token_dict):
-    entities = token_dict["entities"]
-
-    def get_label(t) -> str:
-        return t["labels"][0].value
-
-    def set_label(t, label: str):
-        t["labels"][0] = Label(label)
-
-    def text(t) -> str:
-        return t["text"]
-
-    def is_obj(t: str) -> bool:
-        return get_label(t) in {
-            "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
-        }
-
-    def is_arith(t) -> bool:
-        # short-hand / passive
-        if text(t).lower() in {
-            "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
-            "rem"
-        }:
-            return True
-        # past-tense
-        return text(t).lower() in {"added", "subtracted", "divided", "multiplied"}
-
-    for i, entity in enumerate(entities):
-        if i == 0:
-            continue
-
-        if is_obj(entity):
-            delta = len(entities) - i - 1
-            if delta >= 6 and is_obj(entities[i + 6]):
-                # SHIFT IN DT NN IN
-                if lemmatize(text(entities[i + 1]).lower(), "v") == "shift" \
-                        and get_label(entities[i + 2]) == "IN" \
-                        and get_label(entities[i + 3]) == "DT" \
-                        and get_label(entities[i + 4]).startswith("NN") \
-                        and get_label(entities[i + 5]) == "IN":
-                    set_label(entities[i + 1], "SHIFT")
-            if delta >= 3 and is_obj(entities[i + 3]):
-                # JJ SHIFT
-                if get_label(entities[i + 1]).startswith("JJ") \
-                        and lemmatize(text(entities[i + 2]).lower(), "v") == "shift":
-                    set_label(entities[i + 2], "SHIFT")
-                # ARITH IN
-                elif is_arith(entities[i + 1]) \
-                        and get_label(entities[i + 2]) == "IN":
-                    set_label(entities[i + 1], "ARITH")
-            # ARITH
-            if delta >= 2 and is_obj(entities[i + 2]):
-                if is_arith(entities[i + 1]) or text(entities[i + 1]).lower() == "xor":
-                    set_label(entities[i + 1], "ARITH")
-
-
-def fix_tokens(token_dict, idents=None):
-    def get_label(t) -> str:
-        return t["labels"][0].value
-
-    def set_label(t, label: Label):
-        t["labels"][0] = label
-
-    def text(t) -> str:
-        return t["text"]
-
-    def set_text(t, word: str):
-        t["text"] = word
-
-    def is_obj(t: str) -> bool:
-        return t in {
-            "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
-        }
-
-    entities = token_dict["entities"]
-
-    for entity in entities:
-        if text(entity).startswith("`"):
-            entity["labels"][0] = Label("CODE")
-
-    for i, entity in enumerate(entities):
-        lit_tag, word = get_literal_tag(text(entity), idents)
-        if lit_tag:
-            set_label(entity, Label("LIT"))
-            set_text(entity, word)
-
-    for i, entity in enumerate(entities):
-        try:
-            word = lemmatize(text(entity).lower(), get_label(entity))
-        except ValueError:
-            continue
-        if word == "return":
-            if get_label(entity).startswith("VB"):
-                set_label(entity, Label("RET"))
-            elif i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
-                set_label(entity, Label("RET"))
-            elif i + 2 < len(entities) and is_obj(get_label(entities[i + 2])):
-                set_label(entity, Label("RET"))
-            elif i >= 2 and is_obj(get_label(entities[i - 2])) and get_label(entities[i - 1]) in {"VBZ"}:
-                set_label(entity, Label("RET"))
-            elif i >= 1 and is_obj(get_label(entities[i - 1])):
-                set_label(entity, Label("RET"))
-        elif word == "if":
-            set_label(entity, Label("IF"))
-
-    if len(entities) <= 2:
-        return
-
-    for i, entity in enumerate(entities):
-        if text(entity).lower() == "for":
-            if i + 1 < len(entities) and get_label(entities[i + 1]) in {"DT"}:
-                set_label(entity, Label("FOR"))
-
-    apply_operation_tokens(token_dict)
-
-
 def replace_leaf_nodes(tree: Tree, values: Iterator[str]):
-    """Replaces leaf nodes in `tree` with words from `values`.
+    """Modifies `tree` in place, by assigning each word in `words` to the leaf nodes in `tree``,
+    in sequential order from left to right.
 
-    :param tree:
-    :param values:
-    :return:
+    :param tree: nltk.Tree
+    :param values: An iterator of strings.
+    :return: modified tree
     """
     if isinstance(tree, str):
-        return
+        return tree
 
     if len(tree) == 1 and isinstance(tree[0], str):
         tree[0] = next(values)
     else:
         for sub_tree in tree:
             replace_leaf_nodes(sub_tree, values)
-
-
-def attach_words_to_nodes(tree: Tree, words: Iterable[str]) -> Tree:
-    """Modifies `tree` in place, by assigning each word in words to a leaf node in tree, in sequential order.
-
-    :param tree:
-    :param words:
-    :return: modified tree
-    """
-    replace_leaf_nodes(tree, iter(words))
     return tree
 
 
@@ -211,9 +50,51 @@ class POSModel(str, Enum):
         return self.value
 
 
+class ParseStorage:
+    def __init__(self, parse_iter):
+        self.parse_iter = parse_iter
+        self.items = []
+
+    def add_item(self) -> bool:
+        try:
+            self.items.append(next(self.parse_iter))
+            return True
+        except StopIteration:
+            return False
+
+    def __iter__(self):
+        return ParseIter(self)
+
+
+class ParseIter:
+    def __init__(self, parse_storage):
+        self.index = 0
+        self.parse_storage = parse_storage
+
+    def __next__(self):
+        if self.index < len(self.parse_storage.items):
+            index = self.index
+            self.index += 1
+            return self.parse_storage.items[index]
+        if self.parse_storage.add_item():
+            index = self.index
+            self.index += 1
+            return self.parse_storage.items[index]
+        raise StopIteration()
+
+
 class Parser:
+    TREE_CACHE = defaultdict(dict)
+    TOKEN_CACHE = defaultdict(dict)
+    TAGGER_CACHE = {}
+
     def __init__(self, grammar: str, pos_model: POSModel = POSModel.POS):
-        self.root_tagger = MultiTagger.load([str(pos_model)])
+        self.tree_cache = Parser.TREE_CACHE[pos_model]
+        self.token_cache = Parser.TOKEN_CACHE[pos_model]
+        if pos_model not in Parser.TAGGER_CACHE:
+            Parser.TAGGER_CACHE[pos_model] = MultiTagger.load([str(pos_model)])
+        self.root_tagger = Parser.TAGGER_CACHE[pos_model]
+
         self.tokenizer = CodeTokenizer()
 
         self.grammar = nltk.CFG.fromstring(grammar)
@@ -233,8 +114,12 @@ class Parser:
             .replace("isn't", "is not") \
             .rstrip(".")
 
-        sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
-        self.root_tagger.predict(sentence)
+        if sentence not in self.token_cache:
+            tokenized_sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
+            self.root_tagger.predict(tokenized_sentence)
+            self.token_cache[sentence] = tokenized_sentence
+
+        sentence = self.token_cache[sentence]
 
         token_dict = sentence.to_dict(tag_type="pos")
         fix_tokens(token_dict, idents=idents)
@@ -255,8 +140,12 @@ class Parser:
         else:
             nltk_sent = [label.value for label in labels]
 
-        for tree in self.rd_parser.parse(nltk_sent):
-            yield attach_words_to_nodes(tree, words)
+        nltk_str = " ".join(nltk_sent)
+        if nltk_str not in self.tree_cache:
+            self.tree_cache[nltk_str] = ParseStorage(self.rd_parser.parse(nltk_sent))
+
+        for tree in self.tree_cache[nltk_str]:
+            yield replace_leaf_nodes(tree, iter(words))
 
 
 def main():
