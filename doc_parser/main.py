@@ -6,7 +6,7 @@ import itertools
 
 import nltk
 from nltk import Tree
-from nltk.corpus import wordnet, stopwords
+from nltk.corpus import stopwords
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems
 from pyrs_ast.scope import Query, FnArg, QueryField, Scope
@@ -14,7 +14,7 @@ from pyrs_ast import AstFile, print_ast
 
 from doc_parser import Parser, GRAMMAR_PATH, is_quote
 from fn_calls import InvocationFactory, Invocation
-from lemmatizer import lemma_eq
+from lemmatizer import lemma_eq, is_synonym
 from grammar import Specification, generate_constructor_from_grammar
 
 try:
@@ -22,16 +22,6 @@ try:
 except LookupError:
     nltk.download("stopwords")
     STOPWORDS = set(stopwords.words("english"))
-
-
-def is_synonym(word1: str, word2: str) -> bool:
-    word1 = word1.lower()
-    word2 = word2.lower()
-    for syn in wordnet.synsets(word1):
-        for lemma in syn.lemma_names():
-            if lemma == word2 and lemma != word1:
-                return True
-    return False
 
 
 def peek(it):
@@ -132,7 +122,7 @@ class Phrase(QueryField):
                         if lemma_eq(word.word, m_word, tag.value):
                             continue
                         elif word.synonyms:
-                            if not is_synonym(word.word, m_word):
+                            if not is_synonym(word.word, m_word, tag.value):
                                 matches = False
                                 break
                         else:

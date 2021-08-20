@@ -3,6 +3,7 @@ from enum import auto, Enum
 from typing import Optional, List, Union, Collection
 
 from nltk import Tree
+from nltk.corpus.reader import ADJ, VERB
 
 from pyrs_ast.lib import Method, Fn
 
@@ -303,6 +304,12 @@ class MVB:
     def is_negation(self):
         return self.mod is not None and self.mod == "not"
 
+    def is_change(self):
+        return self.lemma() in {"modify", "alter", "change"}
+
+    def lemma(self):
+        return lemmatize(self.word.lower(), VERB)
+
 
 class MJJ:
     def __init__(self, tree: Tree):
@@ -314,10 +321,14 @@ class MJJ:
         return self.mod is not None and self.mod == "not"
 
     # TODO: Expand tests for checking if a particular value is unchanged.
-    def unchanged(self):
-        if self.word in {"unchanged"}:
-            return True
-        return False
+    def is_change(self):
+        return self.lemma() in {"modified", "altered", "changed"}
+
+    def is_unchanged(self):
+        return self.lemma() in {"unmodified", "unaltered", "unchanged"}
+
+    def lemma(self):
+        return lemmatize(self.word.lower(), ADJ)
 
 
 class Property:
@@ -347,7 +358,7 @@ class Property:
         if self.labels[-1] == "MJJ":
             mjj = MJJ(self.tree[-1])
             neg = mjj.is_negation() != self.negate
-            if mjj.unchanged():
+            if mjj.is_change():
                 sym = "!" if neg else "="
                 return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
             sym = "!" if neg else ""
@@ -365,14 +376,9 @@ class Property:
             return f"{lhs.as_code()} {cmp} {Object(self.tree[1], self.invoke_factory).as_code()}"
 
         if self.labels[-1] == "MVB":
-            if self.mvb.word in {"changed", "modified", "altered", "change"}:
-                if self.negate:
-                    return f"{lhs.as_code()} == old({lhs.as_code()})"
-                return f"{lhs.as_code()} != old({lhs.as_code()})"
-            elif self.mvb.word in {"unchanged", "unmodified", "unaltered"}:
-                if self.negate:
-                    return f"{lhs.as_code()} != old({lhs.as_code()})"
-                return f"{lhs.as_code()} == old({lhs.as_code()})"
+            if self.mvb.is_change():
+                sym = "=" if self.negate else "!"
+                return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
             else:
                 raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.word})")
 
@@ -854,7 +860,7 @@ class SideEffect:
         # a is affected by b
         # a is stored in b
 
-        vb = lemmatize(self.fn.word.lower(), "v")
+        vb = self.fn.lemma()
         op = Ops.from_str(self.fn.word.lower())
         if op is not None:
             if op == Ops.NEGATE:

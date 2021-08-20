@@ -1,7 +1,8 @@
+from nltk.corpus import wordnet
 from nltk.corpus.reader import NOUN, VERB, ADV, ADJ
 from nltk.stem import WordNetLemmatizer
 
-__all__ = ["lemmatize", "lemma_eq"]
+__all__ = ["lemmatize", "lemma_eq", "is_synonym"]
 LEMMATIZER = WordNetLemmatizer()
 
 
@@ -25,3 +26,19 @@ def lemmatize(word: str, pos: str = NOUN) -> str:
 
 def lemma_eq(word1: str, word2: str, pos: str = NOUN) -> bool:
     return lemmatize(word1.lower(), pos) == lemmatize(word2.lower(), pos)
+
+
+def is_synonym(word1: str, word2: str, pos: str = None) -> bool:
+    if pos:
+        pos = nltk_pos(pos)
+    word1 = lemmatize(word1.lower(), pos or NOUN)
+    word2 = lemmatize(word2.lower(), pos or NOUN)
+
+    for syn in wordnet.synsets(word1, pos):
+        print(syn.lemma_names())
+        print(syn.root_hypernyms())
+        for lemma in syn.lemma_names():
+            print(word1, word2, lemma)
+            if lemma == word2 and lemma != word1:
+                return True
+    return False
