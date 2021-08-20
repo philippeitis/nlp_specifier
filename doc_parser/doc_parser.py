@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Tuple, Iterator, Iterable
+from typing import List, Tuple, Iterator, Iterable, Optional
 import logging
 import os
 
@@ -20,32 +20,41 @@ def is_quote(word: str) -> bool:
     return word[0] in "\"'`"
 
 
-def might_be_literal(word: str, key_words=None) -> Tuple[bool, str]:
+def get_literal_tag(word: str, idents=None) -> Tuple[Optional[str], str]:
     """Determines whether `word` matches the pattern for a code literal - specifically,
      if the word is a Rust literal or a function argument.
 
     :param word:
-    :param key_words:
+    :param idents:
     :return:
     """
     # detect bool literals
     if word.lower() in {"true", "false"}:
-        return True, word.lower()
+        return "LIT_BOOL", word.lower()
 
-    if key_words and word in key_words:
-        return True, word
+    if idents and word in idents:
+        return "IDENT", word
 
     # detect numbers
-    if word.endswith(("u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64")):
-        return True, word
+    if word.endswith(("u8", "u16", "u32", "u64", "usize")):
+        return "LIT_UNUM", word
+
+    if word.endswith(("i8", "i16", "i32", "i64", "isize")):
+        return "LIT_INUM", word
+
+    if word.endswith(("f32", "f64")):
+        return "LIT_FNUM", word
 
     if word.isnumeric():
-        return True, word
+        return "LIT_FNUM" if "." in word else "LIT_INT", word
 
-    if word[0] in "\"'":
-        return True, word
+    if word[0] == "\"":
+        return "LIT_STR", word
 
-    return False, word
+    if word[0] == "'":
+        return "LIT_CHAR", word
+
+    return None, word
 
 
 def apply_operation_tokens(token_dict):
@@ -59,9 +68,6 @@ def apply_operation_tokens(token_dict):
 
     def text(t) -> str:
         return t["text"]
-
-    def set_text(t, word: str):
-        t["text"] = word
 
     def is_obj(t: str) -> bool:
         return get_label(t) in {
@@ -107,7 +113,7 @@ def apply_operation_tokens(token_dict):
                     set_label(entities[i + 1], "ARITH")
 
 
-def fix_tokens(token_dict, key_words=None):
+def fix_tokens(token_dict, idents=None):
     def get_label(t) -> str:
         return t["labels"][0].value
 
@@ -132,8 +138,8 @@ def fix_tokens(token_dict, key_words=None):
             entity["labels"][0] = Label("CODE")
 
     for i, entity in enumerate(entities):
-        mbl, word = might_be_literal(text(entity), key_words)
-        if mbl:
+        lit_tag, word = get_literal_tag(text(entity), idents)
+        if lit_tag:
             set_label(entity, Label("LIT"))
             set_text(entity, word)
 
@@ -231,7 +237,7 @@ class Parser:
         self.root_tagger.predict(sentence)
 
         token_dict = sentence.to_dict(tag_type="pos")
-        fix_tokens(token_dict, key_words=idents)
+        fix_tokens(token_dict, idents=idents)
         labels: List[Label] = [entity["labels"][0] for entity in token_dict["entities"]]
         words = [entity["text"] for entity in token_dict["entities"]]
         return labels, words
