@@ -307,7 +307,6 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
     pos_tags, words = parser.tokenize_sentence(sentence)
 
     for pos_tag, word in zip(pos_tags, words):
-        print(word, pos_tag)
         tag = pos_tag.value
         if word.lower() in STOPWORDS:
             if phrases[-1]:

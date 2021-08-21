@@ -35,10 +35,7 @@ def is_synonym(word1: str, word2: str, pos: str = None) -> bool:
     word2 = lemmatize(word2.lower(), pos or NOUN)
 
     for syn in wordnet.synsets(word1, pos):
-        print(syn.lemma_names())
-        print(syn.root_hypernyms())
         for lemma in syn.lemma_names():
-            print(word1, word2, lemma)
             if lemma == word2 and lemma != word1:
                 return True
     return False
