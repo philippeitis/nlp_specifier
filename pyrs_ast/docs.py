@@ -1,17 +1,13 @@
 from typing import Optional, Tuple
-
 import re
 
 CODE_REGEX = re.compile(r"\.(?=(?:[^\`']*[\`'][^\`']*[\`'])*[^\`']*$)")
 
 
 class Section:
-    def __init__(self, header: str, line: str = None):
+    def __init__(self, header: Optional[str] = None):
         self.header = header
-        if line:
-            self.lines = [line]
-        else:
-            self.lines = []
+        self.lines = []
         self.body = None
         self.sentences = None
 
@@ -23,7 +19,6 @@ class Section:
 
     def consolidate(self):
         self.body = " ".join(self.lines)
-
         self.sentences = [s for s in CODE_REGEX.split(self.body) if s]
 
 
