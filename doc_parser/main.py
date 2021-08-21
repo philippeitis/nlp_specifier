@@ -402,6 +402,13 @@ def expr_demo():
     import astx
     print(astx.parse_expr("self + rhs"))
     print(astx.parse_expr("self.divide(rhs)"))
+    print(astx.parse_expr("0u32"))
+    print(astx.parse_expr("0xFFFu32"))
+    print(astx.parse_expr("1.2e3_f32"))
+    print(astx.parse_expr("1."))
+    print(astx.parse_expr("33"))
+    print(astx.parse_expr("hello"))
+
     # Parse expr, plug in types, and find corresponding fn
 
 
@@ -455,6 +462,12 @@ def query_formation_demo():
         ).fields]
     )
 
+
+def profiling(statement: str):
+    import cProfile
+    import pstats
+    cProfile.run(statement, "stats")
+    pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
