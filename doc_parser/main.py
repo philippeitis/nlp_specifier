@@ -31,10 +31,7 @@ def tree_references_fn(fn: Fn, tree: Tree) -> bool:
     if isinstance(tree, str):
         return False
 
-    for child in tree:
-        if tree_references_fn(fn, child):
-            return True
-    return False
+    return any(tree_references_fn(fn, child) for child in tree)
 
 
 def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
@@ -325,6 +322,12 @@ def profiling(statement: str):
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     search_demo()
+
+    # Motivate problems with what is being accomplished
+    # problem and solution and reflection - therefore we do this
+    # design writeup
+    # bert library
+    # search around
 
     # TODO: Detect duplicate invocations.
     # TODO: keyword in fn name, capitalization?
