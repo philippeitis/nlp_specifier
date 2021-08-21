@@ -44,4 +44,9 @@ impl PInt {
     #[specify]
     /// Returns `self` plus `agh` plus `aghh` plus `aghhh`
     fn three_arg_fn(&self, agh: usize, aghh: usize, aghhh: usize) -> Self {}
+
+    #[specify]
+    /// Returns the frobinical of `self`
+    fn frobinical(&self) -> Self {}
+
 }

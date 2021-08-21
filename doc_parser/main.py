@@ -10,7 +10,7 @@ from nltk.corpus import stopwords
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems
 from pyrs_ast.scope import Query, FnArg, QueryField, Scope
-from pyrs_ast import AstFile, print_ast
+from pyrs_ast import AstFile
 
 from doc_parser import Parser, GRAMMAR_PATH, is_quote
 from fn_calls import InvocationFactory, Invocation
@@ -323,14 +323,13 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
 
 def end_to_end_demo():
     """Demonstrates entire pipeline from end to end."""
-
     ast = AstFile.from_path("../data/test3.rs")
     grammar, invoke_factory = generate_grammar(ast)
 
     parser = Parser(grammar)
     print(grammar)
     specify_item(ast, parser, ast.scope, invoke_factory)
-    print_ast(ast)
+    print(ast)
 
 
 def invoke_demo():

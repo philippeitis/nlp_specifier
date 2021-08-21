@@ -499,3 +499,12 @@ class AstFile(HasItems, HasAttrs):
         with open(path, "r") as file:
             code = file.read()
         return cls.from_str(code, scope=scope)
+
+    def __str__(self):
+        ast = ""
+        for attr in self.attrs:
+            ast += f"{attr}\n"
+
+        for item in self.items:
+            ast += f"{item}\n\n"
+        return ast
