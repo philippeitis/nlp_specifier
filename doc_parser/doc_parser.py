@@ -1,5 +1,6 @@
 from collections import defaultdict
 from copy import copy
+from enum import Enum
 from typing import Iterator
 import logging
 import os
@@ -78,24 +79,34 @@ class Sentence:
         self.words = tuple(token.text for token in self.doc)
 
 
+class SpacyModel(str, Enum):
+    EN_SM = "en_core_web_sm"
+    EN_MD = "en_core_web_md"
+    EN_LG = "en_core_web_lg"
+    EN_TRF = "en_core_web_trf"
+
+    def __str__(self):
+        return self.value
+
+
 class Parser:
     TREE_CACHE = defaultdict(dict)
     TOKEN_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
-    def __init__(self, grammar: str, model: str = "en_core_web_sm"):
+    def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_SM):
         self.tree_cache = Parser.TREE_CACHE[model]
         self.token_cache = Parser.TOKEN_CACHE[model]
         if model not in Parser.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
-            Parser.TAGGER_CACHE[model] = spacy.load(model)
+            Parser.TAGGER_CACHE[model] = spacy.load(str(model))
         self.tagger = Parser.TAGGER_CACHE[model]
 
         self.grammar = nltk.CFG.fromstring(grammar)
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, grammar_path: str, model: str = "en_core_web_sm"):
+    def from_path(cls, grammar_path: str, model: SpacyModel = SpacyModel.EN_SM):
         with open(grammar_path) as f:
             return cls(f.read(), model)
 

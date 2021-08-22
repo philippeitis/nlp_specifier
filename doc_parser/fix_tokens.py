@@ -4,7 +4,7 @@ import spacy
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
 
-nlp = spacy.load('en_core_web_sm')
+nlp = spacy.blank('en')
 
 
 def matcher_with_rule(name, rule):
