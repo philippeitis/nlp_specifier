@@ -92,13 +92,10 @@ class InvocationFactory:
         LOGGER.info(f"Adding fuzzy invocation for fn {fn.ident}")
 
         for i, (label, word) in token_it:
-            if label.value in {"RET", "COMMA"}:
-                continue
-            if label.value in {"DT", "IN", "IF", "MD", "FOR", "FOR"}:
-                invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=True))
+            if label in {"RET", "COMMA", "DT"}:
                 continue
 
-            if label.value in {"CODE"}:
+            if label in {"CODE"}:
                 word_strip = word.strip("`")
 
                 if word.strip("`") in idents:
@@ -106,14 +103,17 @@ class InvocationFactory:
                 else:
                     sym = "{OBJ}"
                 invoke_tokens.append(InvokeToken(sym, is_symbol=True, is_optional=False))
-            elif label.value in {"LIT"}:
+            elif label in {"LIT"}:
                 invoke_tokens.append(InvokeToken(f"{{{word}:OBJ}}", is_symbol=True, is_optional=False))
             else:
                 invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
             break
 
         for i, (label, word) in token_it:
-            if label.value in {"CODE"}:
+            if label in {"RET", "COMMA", "DOT"}:
+                continue
+
+            if label in {"CODE"}:
                 word_strip = word.strip("`")
 
                 if word.strip("`") in idents:
@@ -121,13 +121,12 @@ class InvocationFactory:
                 else:
                     sym = "{OBJ}"
                 invoke_tokens.append(InvokeToken(sym, is_symbol=True, is_optional=False))
-            elif label.value in {"LIT"}:
+            elif label in {"LIT"}:
                 invoke_tokens.append(InvokeToken(f"{{{word}:OBJ}}", is_symbol=True, is_optional=False))
             else:
                 invoke_tokens.append(InvokeToken(word, is_symbol=False, is_optional=False))
 
         invocation = Invocation(fn, invoke_tokens)
-
         self.add_invocation(fn, invocation)
 
     def grammar(self):

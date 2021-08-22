@@ -132,8 +132,8 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
             if is_quote(word):
                 continue
 
-            word_replacements[word].add(sym.value)
-            sym_replacements[sym.value].add(word)
+            word_replacements[word].add(sym)
+            sym_replacements[sym].add(word)
 
         invoke_factory.add_fuzzy_invocation(fn, tokens, words)
 
@@ -161,10 +161,14 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     replacement_grammar = ""
 
     for word, syms in word_replacements.items():
+        if word == ",":
+            continue
         syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
         grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
         replacement_grammar += f"WD_{word} -> {syms}\n"
     for sym, words in sym_replacements.items():
+        if sym == "COMMA":
+            continue
         syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
         # grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
         replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
@@ -209,8 +213,8 @@ def invoke_demo():
             for sym, word in zip(tokens, words):
                 if is_quote(word):
                     continue
-                word_replacements[word].add(sym.value)
-                sym_replacements[sym.value].add(word)
+                word_replacements[word].add(sym)
+                sym_replacements[sym].add(word)
 
     invocation_triples = [
         ("print", "Prints {item:OBJ}", "Prints 0u32"),
@@ -332,8 +336,8 @@ if __name__ == '__main__':
     sh.setLevel(logging.INFO)
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
-    end_to_end_demo()
 
+    end_to_end_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup

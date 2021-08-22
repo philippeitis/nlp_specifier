@@ -1,16 +1,14 @@
 from collections import defaultdict
-from enum import Enum
-from typing import List, Iterator
+from copy import copy
+from typing import List, Iterator, Tuple
 import logging
 import os
 
-from flair.data import Sentence, Label
-from flair.models import MultiTagger
 import nltk
 from nltk.tree import Tree
+import spacy
 
 from fix_tokens import fix_tokens
-from tokenizer import CodeTokenizer
 
 GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
 logger = logging.getLogger("flair")
@@ -38,16 +36,6 @@ def replace_leaf_nodes(tree: Tree, values: Iterator[str]):
         for sub_tree in tree:
             replace_leaf_nodes(sub_tree, values)
     return tree
-
-
-class POSModel(str, Enum):
-    POS = "pos"
-    POS_FAST = "pos-fast"
-    UPOS = "upos"
-    UPOS_FAST = "upos-fast"
-
-    def __str__(self):
-        return self.value
 
 
 class ParseStorage:
@@ -88,43 +76,39 @@ class Parser:
     TOKEN_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
-    def __init__(self, grammar: str, pos_model: POSModel = POSModel.POS):
-        self.tree_cache = Parser.TREE_CACHE[pos_model]
-        self.token_cache = Parser.TOKEN_CACHE[pos_model]
-        if pos_model not in Parser.TAGGER_CACHE:
-            Parser.TAGGER_CACHE[pos_model] = MultiTagger.load([str(pos_model)])
-        self.root_tagger = Parser.TAGGER_CACHE[pos_model]
-
-        self.tokenizer = CodeTokenizer()
+    def __init__(self, grammar: str, model: str = "en_core_web_sm"):
+        self.tree_cache = Parser.TREE_CACHE[model]
+        self.token_cache = Parser.TOKEN_CACHE[model]
+        if model not in Parser.TAGGER_CACHE:
+            Parser.TAGGER_CACHE[model] = spacy.load(model)
+        self.tagger = Parser.TAGGER_CACHE[model]
 
         self.grammar = nltk.CFG.fromstring(grammar)
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, grammar_path: str, pos_model: POSModel = POSModel.POS):
+    def from_path(cls, grammar_path: str, model: str = "en_core_web_sm"):
         with open(grammar_path) as f:
-            return cls(f.read(), pos_model)
+            return cls(f.read(), model)
 
     @classmethod
     def default(cls):
         return cls.from_path(grammar_path=GRAMMAR_PATH)
 
-    def tokenize_sentence(self, sentence: str, idents=None):
+    def tokenize_sentence(self, sentence: str, idents=None) -> Tuple[List[str], List[str]]:
         sentence = sentence \
             .replace("isn't", "is not") \
             .rstrip(".")
 
         if sentence not in self.token_cache:
-            tokenized_sentence = Sentence(sentence, use_tokenizer=self.tokenizer)
-            self.root_tagger.predict(tokenized_sentence)
-            self.token_cache[sentence] = tokenized_sentence
+            doc = self.tagger(sentence)
+            self.token_cache[sentence] = doc
 
-        sentence = self.token_cache[sentence]
+        doc = copy(self.token_cache[sentence])
 
-        token_dict = sentence.to_dict(tag_type="pos")
-        fix_tokens(token_dict, idents=idents)
-        labels: List[Label] = [entity["labels"][0] for entity in token_dict["entities"]]
-        words = [entity["text"] for entity in token_dict["entities"]]
+        fix_tokens(doc, idents=idents)
+        labels: List[str] = [token.tag_ for token in doc]
+        words = [token.text for token in doc]
         return labels, words
 
     def parse_sentence(self, sentence: str, idents=None, attach_tags=True) -> Tree:
@@ -135,10 +119,10 @@ class Parser:
         """
         labels, words = self.tokenize_sentence(sentence, idents)
         if attach_tags:
-            nltk_sent = [label.value if is_quote(word) else f"{word}_{label.value}"
+            nltk_sent = [label if is_quote(word) or word in ".,\"'`" else f"{word}_{label}"
                          for label, word in zip(labels, words)]
         else:
-            nltk_sent = [label.value for label in labels]
+            nltk_sent = [label for label in labels]
 
         nltk_str = " ".join(nltk_sent)
         if nltk_str not in self.tree_cache:

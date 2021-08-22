@@ -1,44 +1,84 @@
-from typing import Optional, Tuple
+from typing import Optional
 
-from flair.data import Label
+import spacy
+from spacy.matcher import Matcher
+from spacy.tokens import Doc
 
-from lemmatizer import lemmatize
-
-
-def get_label(t) -> str:
-    return t["labels"][0].value
+nlp = spacy.load('en_core_web_sm')
 
 
-def set_label(t, label: str):
-    t["labels"][0] = Label(label)
+def matcher_with_rule(name, rule):
+    matcher = Matcher(nlp.vocab)
+    matcher.add(name, [rule])
+    return matcher
 
 
-def text(t) -> str:
-    return t["text"]
+def lemma(word: str):
+    return {"LEMMA": word.lower()}
 
 
-def set_text(t, word: str):
-    t["text"] = word
+def tag(tag: str):
+    return {"TAG": tag.upper()}
 
 
-def is_obj(t: str) -> bool:
-    return t in {
-        "NN", "NNP", "NNPS", "NNS", "CODE", "LIT"
-    }
+CODE_MATCHER = matcher_with_rule("CODE", [{'ORTH': "`"}, {'OP': '+'}, {'ORTH': "`"}])
+STR_MATCHER = matcher_with_rule("STR", [{'ORTH': "\""}, {'OP': '*'}, {'ORTH': "\""}])
+CHAR_MATCHER = matcher_with_rule("CHAR", [{'ORTH': "'"}, {"IS_ASCII": True, 'LENGTH': 1}, {'ORTH': "'"}])
 
+MERGE_MATCHERS = [
+    ({"POS": "NOUN", "TAG": "CODE"}, CODE_MATCHER),
+    ({"POS": "NOUN", "TAG": "STR"}, STR_MATCHER),
+    ({"POS": "NOUN", "TAG": "CHAR"}, CHAR_MATCHER)
+]
 
-def is_arith(t) -> bool:
-    # short-hand / passive
-    if text(t).lower() in {
+RET_LEMMA = {'LEMMA': "return"}
+IS_OBJ = {
+    "TAG": {"REGEX": "(^CODE)|(^LIT)|(^NN.*)"}
+}
+ANY_TEXT = {"TEXT": {"REGEX": ".*"}}
+
+RET_RULES = [
+    [{'LEMMA': "return", "POS": "VERB"}],
+    [RET_LEMMA, IS_OBJ],
+    [RET_LEMMA, ANY_TEXT, IS_OBJ],
+    [IS_OBJ, {"TAG": "VBZ"}, RET_LEMMA],
+    [IS_OBJ, RET_LEMMA],
+]
+
+ARITH = {
+    "LOWER": {"IN": [
         "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
-        "rem"
-    }:
-        return True
-    # past-tense
-    return text(t).lower() in {"added", "subtracted", "divided", "multiplied"}
+        "rem", "added", "subtracted", "divided", "multiplied", "xor"
+    ]
+    }
+}
 
 
-def get_literal_tag(word: str, idents=None) -> Tuple[Optional[str], str]:
+def ret_rule_to_matcher(rule):
+    for i, sub_rule in enumerate(rule):
+        if "LEMMA" in sub_rule and sub_rule["LEMMA"] == "return":
+            matcher = Matcher(nlp.vocab)
+            matcher.add("RETURN", [rule])
+            return i, {"tag_": "RET", "pos_": "VERB"}, matcher
+    raise ValueError("NOT A RET RULE")
+
+
+WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
+    (0, {"tag_": "IF"}, [lemma("if")]),
+    (0, {"tag_": "FOR"}, [lemma("for"), tag("DT")]),
+    (1, {"tag_": "SHIFT"}, [IS_OBJ, lemma("shift"), tag("IN"), tag("DT"), tag("NN"), tag("IN"), IS_OBJ]),
+    (1, {"tag_": "SHIFT"}, [IS_OBJ, tag("VBZ"), lemma("shift"), tag("IN"), tag("DT"), tag("NN"), tag("IN"), IS_OBJ]),
+    (2, {"tag_": "SHIFT"}, [IS_OBJ, {"TAG": {"REGEX": "^JJ.*"}}, lemma("shift"), IS_OBJ]),
+    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, IS_OBJ]),
+    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, tag("IN"), IS_OBJ]),
+    (0, {"tag_": "DOT"}, [tag(".")]),
+    (0, {"tag_": "COMMA"}, [tag(",")]),
+    (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
+
+]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
+
+
+def get_literal_tag(word: str, idents=None) -> Optional[str]:
     """Determines whether `word` matches the pattern for a code literal - specifically,
      if the word is a Rust literal or a function argument.
 
@@ -47,100 +87,42 @@ def get_literal_tag(word: str, idents=None) -> Tuple[Optional[str], str]:
     :return:
     """
     # detect bool literals
-    if word.lower() in {"true", "false"}:
-        return "LIT_BOOL", word.lower()
-
     if idents and word in idents:
-        return "IDENT", word
+        return "IDENT"
 
     # detect numbers
     if word.endswith(("u8", "u16", "u32", "u64", "usize")):
-        return "LIT_UNUM", word
+        return "LIT_UNUM"
 
     if word.endswith(("i8", "i16", "i32", "i64", "isize")):
-        return "LIT_INUM", word
+        return "LIT_INUM"
 
     if word.endswith(("f32", "f64")):
-        return "LIT_FNUM", word
+        return "LIT_FNUM"
 
     if word.isnumeric():
-        return "LIT_FNUM" if "." in word else "LIT_INT", word
+        return "LIT_FNUM" if "." in word else "LIT_INT"
 
-    if word[0] == "\"":
-        return "LIT_STR", word
-
-    if word[0] == "'":
-        return "LIT_CHAR", word
-
-    return None, word
+    return None
 
 
-def apply_operation_tokens(token_dict):
-    entities = token_dict["entities"]
+def fix_tokens(doc: Doc, idents=None):
+    for i, token in enumerate(doc):
+        if get_literal_tag(token.text, idents):
+            token.tag_ = "LIT"
 
-    for i, entity in enumerate(entities):
-        if i == 0:
-            continue
+    for attrs, matcher in MERGE_MATCHERS:
+        while True:
+            try:
+                with doc.retokenize() as retokenizer:
+                    _, start, end = next(iter(matcher(doc)))
+                    retokenizer.merge(doc[start:end], attrs=attrs)
+            except StopIteration:
+                break
 
-        if is_obj(get_label(entity)):
-            delta = len(entities) - i - 1
-            if delta >= 6 and is_obj(get_label(entities[i + 6])):
-                # SHIFT IN DT NN IN
-                if lemmatize(text(entities[i + 1]).lower(), "v") == "shift" \
-                        and get_label(entities[i + 2]) == "IN" \
-                        and get_label(entities[i + 3]) == "DT" \
-                        and get_label(entities[i + 4]).startswith("NN") \
-                        and get_label(entities[i + 5]) == "IN":
-                    set_label(entities[i + 1], "SHIFT")
-            if delta >= 3 and is_obj(get_label(entities[i + 3])):
-                # JJ SHIFT
-                if get_label(entities[i + 1]).startswith("JJ") \
-                        and lemmatize(text(entities[i + 2]).lower(), "v") == "shift":
-                    set_label(entities[i + 2], "SHIFT")
-                # ARITH IN
-                elif is_arith(entities[i + 1]) \
-                        and get_label(entities[i + 2]) == "IN":
-                    set_label(entities[i + 1], "ARITH")
-            # ARITH
-            if delta >= 2 and is_obj(get_label(entities[i + 2])):
-                if is_arith(entities[i + 1]) or text(entities[i + 1]).lower() == "xor":
-                    set_label(entities[i + 1], "ARITH")
+    for idx, substitute, matcher in WORD_MATCHERS:
+        for _, start, end in matcher(doc):
+            for attr, val in substitute.items():
+                setattr(doc[start + idx], attr, val)
 
 
-def fix_tokens(token_dict, idents=None):
-    entities = token_dict["entities"]
-
-    for i, entity in enumerate(entities):
-        lit_tag, word = get_literal_tag(text(entity), idents)
-        if lit_tag:
-            set_label(entity, "LIT")
-            set_text(entity, word)
-
-    for i, entity in enumerate(entities):
-        if text(entity).startswith("`"):
-            entity["labels"][0] = Label("CODE")
-            continue
-
-        try:
-            word = lemmatize(text(entity).lower(), get_label(entity))
-        except ValueError:
-            continue
-
-        if word == "return":
-            if get_label(entity).startswith("VB"):
-                set_label(entity, "RET")
-            elif i + 1 < len(entities) and is_obj(get_label(entities[i + 1])):
-                set_label(entity, "RET")
-            elif i + 2 < len(entities) and is_obj(get_label(entities[i + 2])):
-                set_label(entity, "RET")
-            elif i >= 2 and is_obj(get_label(entities[i - 2])) and get_label(entities[i - 1]) in {"VBZ"}:
-                set_label(entity, "RET")
-            elif i >= 1 and is_obj(get_label(entities[i - 1])):
-                set_label(entity, "RET")
-        elif word == "if":
-            set_label(entity, "IF")
-        elif word == "for":
-            if i + 1 < len(entities) and get_label(entities[i + 1]) in {"DT"}:
-                set_label(entity, "FOR")
-
-    apply_operation_tokens(token_dict)

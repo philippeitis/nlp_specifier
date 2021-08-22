@@ -70,7 +70,7 @@ class Phrase(QueryField):
         self.pos_tags, _ = parser.tokenize_sentence(s)
         regex_str = ""
         for word, tag in zip(self.phrase, self.pos_tags):
-            val = get_regex_for_tag(re.escape(tag.value))
+            val = get_regex_for_tag(re.escape(tag))
             if word.is_optional:
                 regex_str += f"({val} )?"
             else:
@@ -95,7 +95,7 @@ class Phrase(QueryField):
         docs = fn.docs.sections()
         if docs:
             pos_tags, words = self.parser.tokenize_sentence(docs[0].body, idents=[ty.ident for ty in fn.inputs])
-            s = " ".join(tag.value for tag in pos_tags)
+            s = " ".join(tag for tag in pos_tags)
 
             for match in self.tag_regex.finditer(s):
                 prev, curr = split_str(s, match.start(0))
@@ -111,12 +111,12 @@ class Phrase(QueryField):
                 for word, tag in zip(self.phrase, self.pos_tags):
                     match, word_iter = peek(word_iter)
                     m_word, m_tag = match
-                    if tags_similar(tag.value, m_tag.value):
+                    if tags_similar(tag, m_tag):
                         next(word_iter)
-                        if lemma_eq(word.word, m_word, tag.value):
+                        if lemma_eq(word.word, m_word, tag):
                             continue
                         elif word.allow_synonyms:
-                            if not is_synonym(word.word, m_word, tag.value):
+                            if not is_synonym(word.word, m_word, tag):
                                 matches = False
                                 break
                         else:
@@ -141,8 +141,7 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
     phrases = [[]]
     pos_tags, words = parser.tokenize_sentence(sentence)
 
-    for pos_tag, word in zip(pos_tags, words):
-        tag = pos_tag.value
+    for tag, word in zip(pos_tags, words):
         if word.lower() in STOPWORDS:
             if phrases[-1]:
                 phrases.append([])
