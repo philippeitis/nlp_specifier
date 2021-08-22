@@ -39,9 +39,10 @@ ANY_TEXT = {"TEXT": {"REGEX": ".*"}}
 
 RET_RULES = [
     [{'LEMMA': "return", "POS": "VERB"}],
+    [RET_LEMMA, tag("DT"), tag("JJ"), tag("IN"), IS_OBJ],
     [RET_LEMMA, IS_OBJ],
     [RET_LEMMA, ANY_TEXT, IS_OBJ],
-    [IS_OBJ, {"TAG": "VBZ"}, RET_LEMMA],
+    [IS_OBJ, tag("VBZ"), RET_LEMMA],
     [IS_OBJ, RET_LEMMA],
 ]
 

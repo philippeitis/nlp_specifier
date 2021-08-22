@@ -148,7 +148,7 @@ class Object:
         labels = tuple(x.label() for x in tree)
         if labels not in {
             ("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
-            ("DT", "MNN", "IN", "OBJ"), ("FNCALL",)
+            ("DT", "MNN", "IN", "OBJ"), ("DT", "MJJ", "IN", "OBJ"), ("FNCALL",)
         }:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
         self.labels = labels
@@ -169,6 +169,8 @@ class Object:
         if self.labels == ("OBJ", "OP", "OBJ"):
             return Op(self.tree, self.invoke_factory).as_code()
         if self.labels == ("DT", "MNN", "IN", "OBJ"):
+            return f"{Object(self.tree[-1], self.invoke_factory).as_code()}.{lemmatize(self.tree[1][0][0])}()"
+        if self.labels == ("DT", "MJJ", "IN", "OBJ"):
             return f"{Object(self.tree[-1], self.invoke_factory).as_code()}.{lemmatize(self.tree[1][0][0])}()"
         if self.labels == ("FNCALL",):
             return self.invoke_factory(self.tree[0]).as_code()

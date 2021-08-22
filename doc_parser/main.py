@@ -334,8 +334,18 @@ def diagram(sentence: str, idents=None):
     from spacy import displacy
     from pathlib import Path
     from ner import ner_and_srl
+    from treevis import render_tree
+    from palette import ENTITY_COLORS
 
     parser = Parser.default()
+
+    ast = AstFile.from_path("../data/test3.rs")
+    tree = next(
+        parser.parse_sentence(ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
+                              idents={"self"}, attach_tags=False)
+    )
+    render_tree(tree, "../images/tree.pdf")
+
     sent = parser.tokenize_sentence(sentence, idents=idents)
 
     Path("../images/").mkdir(exist_ok=True)
@@ -359,12 +369,7 @@ def diagram(sentence: str, idents=None):
             spans.append(span)
         break
     sent.doc.set_ents(spans)
-    colors = {
-        "predicate": "#FF8B3D",
-        "A1": "#ADD8E6",
-        "A2": "#00AA00"
-    }
-    displacy.serve(sent.doc, style="ent", options={"word_spacing": 30, "distance": 120, "colors": colors})
+    displacy.serve(sent.doc, style="ent", options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS})
 
 
 if __name__ == '__main__':
