@@ -1,18 +1,18 @@
 from collections import defaultdict
 from copy import copy
-from typing import List, Iterator, Tuple
+from typing import Iterator
 import logging
 import os
 
 import nltk
 from nltk.tree import Tree
 import spacy
+from spacy.tokens import Doc
 
 from fix_tokens import fix_tokens
 
 GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
-logger = logging.getLogger("flair")
-logger.setLevel(logging.ERROR)
+LOGGER = logging.getLogger(__name__)
 
 
 def is_quote(word: str) -> bool:
@@ -71,6 +71,13 @@ class ParseIter:
         raise StopIteration()
 
 
+class Sentence:
+    def __init__(self, doc: Doc):
+        self.doc = doc
+        self.tags = tuple(token.tag_ for token in self.doc)
+        self.words = tuple(token.text for token in self.doc)
+
+
 class Parser:
     TREE_CACHE = defaultdict(dict)
     TOKEN_CACHE = defaultdict(dict)
@@ -80,6 +87,7 @@ class Parser:
         self.tree_cache = Parser.TREE_CACHE[model]
         self.token_cache = Parser.TOKEN_CACHE[model]
         if model not in Parser.TAGGER_CACHE:
+            LOGGER.info(f"Loading spacy/{model}")
             Parser.TAGGER_CACHE[model] = spacy.load(model)
         self.tagger = Parser.TAGGER_CACHE[model]
 
@@ -95,10 +103,8 @@ class Parser:
     def default(cls):
         return cls.from_path(grammar_path=GRAMMAR_PATH)
 
-    def tokenize_sentence(self, sentence: str, idents=None) -> Tuple[List[str], List[str]]:
-        sentence = sentence \
-            .replace("isn't", "is not") \
-            .rstrip(".")
+    def tokenize_sentence(self, sentence: str, idents=None) -> Sentence:
+        sentence = sentence.rstrip(".")
 
         if sentence not in self.token_cache:
             doc = self.tagger(sentence)
@@ -107,9 +113,7 @@ class Parser:
         doc = copy(self.token_cache[sentence])
 
         fix_tokens(doc, idents=idents)
-        labels: List[str] = [token.tag_ for token in doc]
-        words = [token.text for token in doc]
-        return labels, words
+        return Sentence(doc)
 
     def parse_sentence(self, sentence: str, idents=None, attach_tags=True) -> Tree:
         """Parses the sentence, using `idents` to detect values in the text.
@@ -117,7 +121,9 @@ class Parser:
         If `attach_tags` is set, labels will transformed for usage in an augmented CFG.
         Otherwise, labels will remain unmodified.
         """
-        labels, words = self.tokenize_sentence(sentence, idents)
+        sent = self.tokenize_sentence(sentence, idents)
+        labels = sent.tags
+        words = sent.words
         if attach_tags:
             nltk_sent = [label if is_quote(word) or word in ".,\"'`" else f"{word}_{label}"
                          for label, word in zip(labels, words)]

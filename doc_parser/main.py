@@ -82,12 +82,12 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
             except ValueError as v:
                 LOGGER.error(f"While specifying [{sentence}], error occurred: {v}")
                 LOGGER.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents).tags}"
                 )
             except StopIteration as s:
                 LOGGER.info(f"No specification could be generated for [{sentence}]")
                 LOGGER.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
+                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents).tags}"
                 )
                 query = query_from_sentence(sentence, parser)
                 LOGGER.info("Found phrases: " + ", ".join(str(x) for x in query.fields))
@@ -127,15 +127,15 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
             continue
         LOGGER.info(f"Determining descriptive sentence for {fn.ident}")
         descriptive_sentence = section.sentences[0]
-        tokens, words = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
-        for sym, word in zip(tokens, words):
+        sent = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
+        for sym, word in zip(sent.tags, sent.words):
             if is_quote(word):
                 continue
 
             word_replacements[word].add(sym)
             sym_replacements[sym].add(word)
 
-        invoke_factory.add_fuzzy_invocation(fn, tokens, words)
+        invoke_factory.add_fuzzy_invocation(fn, sent.tags, sent.words)
 
 
 def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word_replacements, sym_replacements):
@@ -200,7 +200,7 @@ def invoke_demo():
         def __init__(self, ident: str):
             self.ident = ident
 
-    def populate_grammar_helper(sentences, parser, invoke_factory, word_replacements, sym_replacements):
+    def populate_grammar_helper(sentences, parser: Parser, invoke_factory, word_replacements, sym_replacements):
         for sentence in sentences:
             if isinstance(sentence, tuple):
                 invoke_factory.add_invocation(
@@ -209,8 +209,8 @@ def invoke_demo():
                 )
                 sentence = sentence[2]
 
-            tokens, words = parser.tokenize_sentence(sentence)
-            for sym, word in zip(tokens, words):
+            sent = parser.tokenize_sentence(sentence)
+            for sym, word in zip(sent.tags, sent.words):
                 if is_quote(word):
                     continue
                 word_replacements[word].add(sym)
@@ -278,9 +278,9 @@ def search_demo():
     parser = Parser.default()
     # Query Demo
     words = [
-        Phrase([Word("Remove", False, False)], parser),
-        Phrase([Word("last", False, True), Word("element", False, False)], parser),
-        Phrase([Word("vector", True, False)], parser)
+        Phrase([Word("Remove", "VB", False, False)], parser),
+        Phrase([Word("last", "JJ", False, True), Word("element", "NN", False, False)], parser),
+        Phrase([Word("vector", "NN", True, False)], parser)
     ]
     print("Finding documentation matches.")
     items = ast.scope.find_fn_matches(Query(words))
@@ -294,7 +294,7 @@ def search_demo2():
     parser = Parser.default()
 
     # Query Demo
-    words = [Word("Hello", False, False), Word("globe", True, False)]
+    words = [Word("Hello", "UH", False, False), Word("globe", "NN", True, False)]
     print("Finding documentation matches.")
     items = ast.scope.find_fn_matches(Query([Phrase(words, parser)]))
     for item in items:
