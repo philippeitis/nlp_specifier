@@ -329,6 +329,44 @@ def profiling(statement: str):
     pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
 
 
+def diagram(sentence: str, idents=None):
+    """Demonstrates entire pipeline from end to end."""
+    from spacy import displacy
+    from pathlib import Path
+    from ner import ner_and_srl
+
+    parser = Parser.default()
+    sent = parser.tokenize_sentence(sentence, idents=idents)
+
+    Path("../images/").mkdir(exist_ok=True)
+    svg = displacy.render(sent.doc, style="dep", options={"word_spacing": 30, "distance": 120})
+    output_path = Path("../images/pos_tags.svg")
+    output_path.open("w", encoding="utf-8").write(svg)
+
+    ents = ner_and_srl(sentence)
+    spans = []
+    print(ents)
+    for predicate in ents["predicates"]:
+        pos = predicate["predicate"]["pos"]
+        end = pos + len(predicate["predicate"]["text"])
+        span = sent.doc.char_span(pos, end, label="predicate")
+        spans.append(span)
+
+        for label, role in predicate["roles"].items():
+            print(label, role)
+            print(sentence[role["pos"]: role["pos"] + len(role["text"])])
+            span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
+            spans.append(span)
+        break
+    sent.doc.set_ents(spans)
+    colors = {
+        "predicate": "#FF8B3D",
+        "A1": "#ADD8E6",
+        "A2": "#00AA00"
+    }
+    displacy.serve(sent.doc, style="ent", options={"word_spacing": 30, "distance": 120, "colors": colors})
+
+
 if __name__ == '__main__':
     formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
@@ -337,7 +375,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    end_to_end_demo()
+    diagram("Removes the last element from a vector and returns it, or None if it is empty.", idents={"self"})
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup
