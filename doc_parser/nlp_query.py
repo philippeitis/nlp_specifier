@@ -8,7 +8,7 @@ from nltk.corpus import stopwords
 from pyrs_ast.lib import Fn
 from pyrs_ast.scope import Query, QueryField
 
-from lemmatizer import lemma_eq, is_synonym
+from lemmatizer import is_synonym, lemmatize
 from doc_parser import Parser
 
 try:
@@ -50,17 +50,24 @@ def get_regex_for_tag(tag: str) -> str:
 
 
 class Word(QueryField):
-    def __init__(self, word: str, tag: str, allow_synonyms: bool, is_optional: bool):
+    def __init__(self, word: str, tag: str, allow_synonyms: bool, is_optional: bool, lemma: str = None):
         self.allow_synonyms = allow_synonyms
         self.word = word
         self.tag = tag
         self.is_optional = is_optional
+        self._lemma = lemma
 
     def __str__(self):
         return self.word
 
     def matches_fn(self, fn):
         raise NotImplementedError()
+
+    @property
+    def lemma(self):
+        if not self._lemma:
+            self._lemma = lemmatize(self.word, self.tag)
+        return self._lemma
 
 
 class Phrase(QueryField):
@@ -100,19 +107,17 @@ class Phrase(QueryField):
                 match_len = curr.count(" ") + 1
                 match_start = prev.count(" ")
 
-                match_words = sent.words[match_start: match_start + match_len]
-                match_tags = sent.tags[match_start: match_start + match_len]
-                word_iter = iter(zip(match_words, match_tags))
+                match_tokens = sent.doc[match_start: match_start + match_len]
+                word_iter = iter(match_tokens)
                 matches = True
                 for word in self.phrase:
                     match, word_iter = peek(word_iter)
-                    m_word, m_tag = match
-                    if tags_similar(word.tag, m_tag):
+                    if tags_similar(word.tag, match.tag_):
                         next(word_iter)
-                        if lemma_eq(word.word, m_word, word.tag):
+                        if word.lemma == match.lemma_:
                             continue
                         elif word.allow_synonyms:
-                            if not is_synonym(word.word, m_word, word.tag):
+                            if not is_synonym(word.word, match.text, word.tag):
                                 matches = False
                                 break
                         else:
@@ -141,14 +146,14 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
 
     sent = parser.tokenize_sentence(sentence)
 
-    for tag, word in zip(sent.tags, sent.words):
-        if word.lower() in STOPWORDS:
+    for token in sent.doc:
+        if token.text.lower() in STOPWORDS:
             if phrases[-1]:
                 phrases.append([])
-        elif not is_one_of(tag, {"RB", "VB", "NN", "JJ", "CODE", "LIT"}):
+        elif not is_one_of(token.tag_, {"RB", "VB", "NN", "JJ", "CODE", "LIT"}):
             if phrases[-1]:
                 phrases.append([])
         else:
-            is_describer = is_one_of(tag, {"RB", "JJ"})
-            phrases[-1].append(Word(word, tag, allow_synonyms=is_describer, is_optional=is_describer))
+            is_describer = is_one_of(token.tag_, {"RB", "JJ"})
+            phrases[-1].append(Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
     return Query([Phrase(block, parser) for block in phrases if block])
