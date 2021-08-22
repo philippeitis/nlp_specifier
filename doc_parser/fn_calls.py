@@ -5,6 +5,8 @@ from nltk import Tree
 
 from pyrs_ast.lib import Fn
 
+LOGGER = logging.getLogger(__name__)
+
 
 class Rule:
     def __init__(self, word: str, is_optional: bool = False):
@@ -87,7 +89,7 @@ class InvocationFactory:
         invoke_tokens = []
         token_it = enumerate(zip(labels, words))
         idents = {ty.ident for ty in fn.inputs}
-        logging.info(f"Adding fuzzy invocation for fn {fn.ident}")
+        LOGGER.info(f"Adding fuzzy invocation for fn {fn.ident}")
 
         for i, (label, word) in token_it:
             if label.value in {"RET", "COMMA"}:
@@ -160,7 +162,7 @@ class Invocation:
             is_symbol = False
             is_code = False
             if sentence[a] in ("{", "`"):
-                logging.info(f"Found symbol")
+                LOGGER.info(f"Found symbol")
                 opposite = {"{": "}", "`": "`"}[sentence[a]]
                 is_symbol = True
                 ind = sentence[a + 1:].find(opposite)

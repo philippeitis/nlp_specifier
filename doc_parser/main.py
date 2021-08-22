@@ -12,6 +12,8 @@ from fn_calls import InvocationFactory, Invocation
 from grammar import Specification, generate_constructor_from_grammar
 from nlp_query import query_from_sentence, Phrase, Word
 
+LOGGER = logging.getLogger(__name__)
+
 
 def tree_references_fn(fn: Fn, tree: Tree) -> bool:
     """Determines whether the tree references the provided fn."""
@@ -45,7 +47,7 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
     """
 
     if not fn.should_specify():
-        logging.info(f"fn {fn.ident} is not annotated with #[specify], and will not be specified.")
+        LOGGER.info(f"fn {fn.ident} is not annotated with #[specify], and will not be specified.")
         return
 
     fn_idents = set(ty.ident for ty in fn.inputs)
@@ -53,7 +55,7 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
     for section in sections:
         if section.header is not None:
             continue
-        logging.info(f"Specifying documentation section {section.header} of {fn.ident}")
+        LOGGER.info(f"Specifying documentation section {section.header} of {fn.ident}")
         for sentence in section.sentences:
             try:
                 skipped = []
@@ -61,32 +63,36 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
                 spec = None
                 for tree in parse_it:
                     if tree_references_fn(fn, tree):
-                        logging.info("Skipping tree due to self-reference.")
+                        LOGGER.info("Skipping tree due to self-reference.")
                         skipped.append(tree)
                     else:
-                        logging.info("Found tree without self-reference, applying.")
+                        LOGGER.info("Found tree without self-reference, applying.")
                         spec = Specification(tree, invoke_factory).as_spec()
                         break
 
                 if spec is None:
-                    spec = Specification(next(iter(skipped)), invoke_factory).as_spec()
+                    LOGGER.info("No non-recursive specification could be found.")
+                    raise StopIteration()
+                    # spec = Specification(next(iter(skipped)), invoke_factory).as_spec()
 
                 attr = LitAttr(spec)
 
-                logging.info(f"[{sentence}] was transformed into the following specification: {attr}")
+                LOGGER.info(f"[{sentence}] was transformed into the following specification: {attr}")
                 fn.attrs.append(attr)
             except ValueError as v:
-                logging.error(f"While specifying [{sentence}], error occurred: {v}. ")
-                logging.info(
+                LOGGER.error(f"While specifying [{sentence}], error occurred: {v}")
+                LOGGER.info(
                     f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
                 )
             except StopIteration as s:
-                logging.info(f"No specification could be generated for [{sentence}]")
-                logging.info(
+                LOGGER.info(f"No specification could be generated for [{sentence}]")
+                LOGGER.info(
                     f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents)[0]}"
                 )
                 query = query_from_sentence(sentence, parser)
-                logging.info("Found phrases: " + ", ".join(str(x) for x in query.fields))
+                LOGGER.info("Found phrases: " + ", ".join(str(x) for x in query.fields))
+                for fn in scope.find_fn_matches(query):
+                    LOGGER.info(f"Found match: {fn.sig_str()}")
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
@@ -108,18 +114,18 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
     """
     sections = fn.docs.sections()
     fn_idents = set(ty.ident for ty in fn.inputs)
-    logging.info(f"Searching for explicit invocations for fn {fn.ident}")
+    LOGGER.info(f"Searching for explicit invocations for fn {fn.ident}")
 
     for attr in fn.attrs:
         if str(attr.ident) == "invoke":
             invoke = str(attr.tokens[1].val.strip("\" "))
-            logging.info(f"Found invocation [{invoke}] for fn {fn.ident}")
+            LOGGER.info(f"Found invocation [{invoke}] for fn {fn.ident}")
             invoke_factory.add_invocation(fn, Invocation.from_sentence(fn, invoke))
 
     for section in sections:
         if section.header is not None:
             continue
-        logging.info(f"Determining descriptive sentence for {fn.ident}")
+        LOGGER.info(f"Determining descriptive sentence for {fn.ident}")
         descriptive_sentence = section.sentences[0]
         tokens, words = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
         for sym, word in zip(tokens, words):
@@ -320,8 +326,13 @@ def profiling(statement: str):
 
 
 if __name__ == '__main__':
+    formatter = logging.Formatter('%(asctime)s [%(name)s/%(funcName)s] %(message)s')
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+    sh.setLevel(logging.INFO)
+    logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
-    search_demo()
+    end_to_end_demo()
 
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this

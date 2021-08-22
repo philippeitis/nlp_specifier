@@ -10,6 +10,8 @@ from pyrs_ast.lib import Method, Fn
 from fn_calls import InvokeToken, Rule, InvocationFactory
 from lemmatizer import lemmatize
 
+LOGGER = logging.getLogger(__name__)
+
 
 class UnsupportedSpec(ValueError):
     pass
@@ -892,7 +894,7 @@ class Specification:
 
 def generate_constructor_from_grammar(fn: Fn, grammar: List[InvokeToken]):
     grammar_str = " ".join(str(x) for x in grammar)
-    logging.info(f"Creating constructor for fn {fn.ident}: {grammar_str}")
+    LOGGER.info(f"Creating constructor for fn {fn.ident}: {grammar_str}")
 
     class CustomFnCall:
         def __init__(self, tree: Tree, invoke_factory):
@@ -945,6 +947,6 @@ def generate_constructor_from_grammar(fn: Fn, grammar: List[InvokeToken]):
                     return f"#[ensures({self.as_code()})]"
                 elif self.det in {"must"}:
                     return f"#[requires({self.as_code()})]"
-            raise UnsupportedSpec("Can not forward specifications from functions.")
+            raise UnsupportedSpec(f"Can not forward specification for {self.fn.sig_str()}.")
 
     return CustomFnCall
