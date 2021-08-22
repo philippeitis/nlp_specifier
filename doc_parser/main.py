@@ -326,7 +326,7 @@ def profiling(statement: str):
 
 
 if __name__ == '__main__':
-    formatter = logging.Formatter('%(asctime)s [%(name)s/%(funcName)s] %(message)s')
+    formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
     sh.setLevel(logging.INFO)
