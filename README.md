@@ -18,9 +18,9 @@ Prusti should also be installed.
 Note that all .sh files are created for Linux.
 
 ## NLP Parser
-To set up the NLP parser, use [doc_parser/setup.sh](doc_parser/setup.sh).
+To set up the NLP parser, use [doc_parser/setup.sh](doc_parser/setup.sh):
 ```bash
-cd ./doc_parser/ && sudo ./setup.sh && cd .
+cd ./doc_parser/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
 
 Further instructions are available at these links:
@@ -29,8 +29,14 @@ https://www.nltk.org/install.html
 https://spacy.io/usage
 
 ## Rust AST Parser
-To set up the Rust AST parser, follow the instructions at [pyrs_ast/README.md](pyrs_ast/README.md)
+To set up the Rust AST parser, follow the instructions at [pyrs_ast/README.md](pyrs_ast/README.md):
+```bash
+cd ./pyrs_ast/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+```
 
 ## Named-entity Recognition and Semantic Role Labelling
 The project is configured to use the NER and SRL tools from the paper `Combining formal and machine learning techniques for the generation of JML specifications`.
 [jml_nlp/setup.sh](jml_nlp/setup.sh) will download the tools and set them up using Docker.
+```bash
+cd ./jml_nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+```
