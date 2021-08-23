@@ -2,6 +2,7 @@ from collections import defaultdict
 import logging
 
 from nltk import Tree
+from spacy.tokens import Doc
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems
 from pyrs_ast.scope import Query, FnArg, Scope
@@ -181,7 +182,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
 
 def end_to_end_demo():
     """Demonstrates entire pipeline from end to end."""
-    ast = AstFile.from_path("../data/test3.rs")
+    ast = AstFile.from_path("../data/test4.rs")
     grammar, invoke_factory = generate_grammar(ast)
 
     parser = Parser(grammar)
@@ -329,22 +330,40 @@ def profiling(statement: str):
     pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
 
 
+def tags_as_ents(doc: Doc):
+    spans = []
+    for i, token in enumerate(doc):
+        span = doc[i: i + 1].char_span(0, len(token.text), label=token.tag_)
+        spans.append(span)
+    doc.set_ents(spans)
+
+
 def diagram(sentence: str, idents=None):
     """Demonstrates entire pipeline from end to end."""
-    from spacy import displacy
     from pathlib import Path
+
+    from spacy import displacy
+
     from ner import ner_and_srl
     from treevis import render_tree
-    from palette import ENTITY_COLORS
+    from palette import ENTITY_COLORS, tag_color
 
     parser = Parser.default()
-
     ast = AstFile.from_path("../data/test3.rs")
-    tree = next(
-        parser.parse_sentence(ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
-                              idents={"self"}, attach_tags=False)
-    )
-    render_tree(tree, "../images/tree.pdf")
+    # tree = next(
+    #     parser.parse_sentence(ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
+    #                           idents={"self"}, attach_tags=False)
+    # )
+    # render_tree(tree, "../images/tree_reciprocal.pdf")
+    # tree = next(
+    #     parser.parse_sentence("Returns `true` if and only if `self == 2^k` for some `k`.",
+    #                           idents={"self"}, attach_tags=False)
+    # )
+    # render_tree(tree, "../images/tree_is_power_of_two.pdf")
+    grammar, invoke_factory = generate_grammar(ast)
+    parser2 = Parser(grammar)
+    print(parser2.tokenize_sentence(sentence).tags)
+    next(parser2.parse_sentence(sentence))
 
     sent = parser.tokenize_sentence(sentence, idents=idents)
 
@@ -352,24 +371,35 @@ def diagram(sentence: str, idents=None):
     svg = displacy.render(sent.doc, style="dep", options={"word_spacing": 30, "distance": 120})
     output_path = Path("../images/pos_tags.svg")
     output_path.open("w", encoding="utf-8").write(svg)
+    # ents = ner_and_srl(sentence)
+    # spans = []
+    # for predicate in ents["predicates"]:
+    #     pos = predicate["predicate"]["pos"]
+    #     end = pos + len(predicate["predicate"]["text"])
+    #     span = sent.doc.char_span(pos, end, label="predicate")
+    #     spans.append(span)
+    #
+    #     for label, role in predicate["roles"].items():
+    #         span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
+    #         spans.append(span)
+    #     break
+    # sent.doc.set_ents(spans)
+    # html = displacy.render(sent.doc, style="ent",
+    #                        options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS}, page=True)
+    # with open("../images/srl_tags.html", "w") as file:
+    #     file.write(html)
+    colors = {tag: tag_color(tag) for tag in parser.tokens()}
+    s_doc = parser.tagger(sentence).doc
+    tags_as_ents(s_doc)
+    html = displacy.render(s_doc, style="ent",
+                           options={"word_spacing": 30, "distance": 120, "colors": colors}, page=True)
+    with open("../images/pos_tags_pre1.html", "w") as file:
+        file.write(html)
 
-    ents = ner_and_srl(sentence)
-    spans = []
-    print(ents)
-    for predicate in ents["predicates"]:
-        pos = predicate["predicate"]["pos"]
-        end = pos + len(predicate["predicate"]["text"])
-        span = sent.doc.char_span(pos, end, label="predicate")
-        spans.append(span)
-
-        for label, role in predicate["roles"].items():
-            print(label, role)
-            print(sentence[role["pos"]: role["pos"] + len(role["text"])])
-            span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
-            spans.append(span)
-        break
-    sent.doc.set_ents(spans)
-    displacy.serve(sent.doc, style="ent", options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS})
+    html = displacy.render(sent.doc, style="ent",
+                           options={"word_spacing": 30, "distance": 120, "colors": colors}, page=True)
+    with open("../images/pos_tags1.html", "w") as file:
+        file.write(html)
 
 
 if __name__ == '__main__':
@@ -380,7 +410,8 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    diagram("Removes the last element from a vector and returns it, or None if it is empty.", idents={"self"})
+    end_to_end_demo()
+    # diagram("Removes the last element from a vector and returns it", idents={"self"})
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup

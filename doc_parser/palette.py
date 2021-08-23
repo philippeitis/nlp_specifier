@@ -10,11 +10,11 @@ ENTITY_COLORS = {
     "A2": A2
 }
 
-NOUN = '#700070'
-VERB = '#ff9a57'
-PREP = '#C35617'
+NOUN = '#00AA00'
+VERB = '#FF8B3D'
+PREP = '#E3242B'
 MODIFIER = '#902010'
-COORD = '#404090'
+COORD = '#5151b2'
 FADE = '#b0b0b0'
 
 
@@ -25,14 +25,16 @@ def tag_color(pos: str) -> str:
 
     if is_one_of(pos, {"VB", "RET", "MD", "VP"}):
         return VERB
+    if is_one_of(pos, {"RB"}):
+        return "#ff9a57"
     if is_one_of(pos, {"PRP", "NN", "NP", "CODE", "OBJ", "LIT"}):
         return NOUN
-    if is_one_of(pos, {"IN", "TO", "PP"}):
+    if is_one_of(pos, {"JJ"}):
+        return "#00dd00"
+    if is_one_of(pos, {"IN", "TO", "PP", "IS", "IF"}):
         return PREP
-    if is_one_of(pos, {"DT"}):
+    if is_one_of(pos, {"DT", "CC"}):
         return FADE
-    if is_one_of(pos, {"RB", "JJ", "ADVP", "ADJP"}):
-        return MODIFIER
     if is_one_of(pos, {"CC"}):
         return COORD
 

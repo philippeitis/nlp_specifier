@@ -555,9 +555,24 @@ class ForEach:
     def as_code(self, cond: str):
         return self.with_conditions(cond)
 
-    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
-        if not self.quant.is_universal:
+    def with_conditions_iff(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
+        if self.quant.is_universal:
             raise UnsupportedSpec("Prusti does not support existential quantifiers.")
+        ## (a && b) || (c && d && e) || (f)
+        # need type hint about second
+        # type hints: start.as_code(), end.as_code()
+        #                                    v do type introspection here
+        # detect multiple identifiers.
+        if isinstance(post_cond, list):
+            post_cond = " && ".join(post_cond)
+        if isinstance(pre_cond, list):
+            pre_cond = " && ".join(pre_cond)
+
+    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
+        quant = "forall"
+        if not self.quant.is_universal:
+            quant = "forsome"
+            # raise UnsupportedSpec("Prusti does not support existential quantifiers.")
         ## (a && b) || (c && d && e) || (f)
         # need type hint about second
         # type hints: start.as_code(), end.as_code()
@@ -599,14 +614,14 @@ class ForEach:
             conds = ") || (".join(" && ".join(conds) for conds in conditions)
             if flip:
                 conds, post_cond = post_cond, conds
-            return f"forall(|{ident.as_code()}: {xtype}| ({conds}) ==> ({post_cond}))"
+            return f"{quant}(|{ident.as_code()}: {xtype}| ({conds}) ==> ({post_cond}))"
         else:
             ident = self.quant.obj.as_code()
             if pre_cond:
                 if flip:
-                    return f"forall(|{ident}: {xtype}| {post_cond} ==> {pre_cond})"
-                return f"forall(|{ident}: {xtype}| {pre_cond} ==> {post_cond})"
-            return f"forall(|{ident}: {xtype}| {post_cond})"
+                    return f"{quant}(|{ident}: {xtype}| {post_cond} ==> {pre_cond})"
+                return f"{quant}(|{ident}: {xtype}| {pre_cond} ==> {post_cond})"
+            return f"{quant}(|{ident}: {xtype}| {post_cond})"
         # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 

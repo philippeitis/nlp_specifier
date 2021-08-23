@@ -1,7 +1,7 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator
+from typing import Iterator, List, Set
 import logging
 import os
 
@@ -113,6 +113,9 @@ class Parser:
     @classmethod
     def default(cls):
         return cls.from_path(grammar_path=GRAMMAR_PATH)
+
+    def tokens(self) -> Set[str]:
+        return {str(p._lhs) for p in self.grammar._productions}
 
     def tokenize_sentence(self, sentence: str, idents=None) -> Sentence:
         sentence = sentence.rstrip(".")
