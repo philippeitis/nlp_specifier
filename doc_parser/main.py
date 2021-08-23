@@ -338,68 +338,77 @@ def tags_as_ents(doc: Doc):
     doc.set_ents(spans)
 
 
-def diagram(sentence: str, idents=None):
-    """Demonstrates entire pipeline from end to end."""
-    from pathlib import Path
-
-    from spacy import displacy
-
+def render_ner(sentence: str, path: str, idents=None):
     from ner import ner_and_srl
-    from treevis import render_tree
-    from palette import ENTITY_COLORS, tag_color
+    from spacy import displacy
+    from palette import ENTITY_COLORS
+
+    sent = Parser.default().tokenize_sent(sentence, idents)
+
+    ents = ner_and_srl(sentence)
+    spans = []
+    for predicate in ents["predicates"]:
+        pos = predicate["predicate"]["pos"]
+        end = pos + len(predicate["predicate"]["text"])
+        span = sent.doc.char_span(pos, end, label="predicate")
+        spans.append(span)
+
+        for label, role in predicate["roles"].items():
+            span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
+            spans.append(span)
+        break
+    sent.doc.set_ents(spans)
+    html = displacy.render(sent.doc, style="ent",
+                           options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS}, page=True)
+    with open(path, "w") as file:
+        file.write(html)
+
+
+def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False):
+    from spacy import displacy
+    from palette import tag_color
 
     parser = Parser.default()
-    ast = AstFile.from_path("../data/test3.rs")
-    # tree = next(
-    #     parser.parse_sentence(ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
-    #                           idents={"self"}, attach_tags=False)
-    # )
-    # render_tree(tree, "../images/tree_reciprocal.pdf")
-    # tree = next(
-    #     parser.parse_sentence("Returns `true` if and only if `self == 2^k` for some `k`.",
-    #                           idents={"self"}, attach_tags=False)
-    # )
-    # render_tree(tree, "../images/tree_is_power_of_two.pdf")
-    grammar, invoke_factory = generate_grammar(ast)
-    parser2 = Parser(grammar)
-    print(parser2.tokenize_sentence(sentence).tags)
-    next(parser2.parse_sentence(sentence))
-
-    sent = parser.tokenize_sentence(sentence, idents=idents)
-
-    Path("../images/").mkdir(exist_ok=True)
-    svg = displacy.render(sent.doc, style="dep", options={"word_spacing": 30, "distance": 120})
-    output_path = Path("../images/pos_tags.svg")
-    output_path.open("w", encoding="utf-8").write(svg)
-    # ents = ner_and_srl(sentence)
-    # spans = []
-    # for predicate in ents["predicates"]:
-    #     pos = predicate["predicate"]["pos"]
-    #     end = pos + len(predicate["predicate"]["text"])
-    #     span = sent.doc.char_span(pos, end, label="predicate")
-    #     spans.append(span)
-    #
-    #     for label, role in predicate["roles"].items():
-    #         span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
-    #         spans.append(span)
-    #     break
-    # sent.doc.set_ents(spans)
-    # html = displacy.render(sent.doc, style="ent",
-    #                        options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS}, page=True)
-    # with open("../images/srl_tags.html", "w") as file:
-    #     file.write(html)
+    if no_fix:
+        sent = parser.tagger(sentence)
+    else:
+        sent = parser.tokenize_sentence(sentence, idents)
+    tags_as_ents(sent.doc)
     colors = {tag: tag_color(tag) for tag in parser.tokens()}
-    s_doc = parser.tagger(sentence).doc
-    tags_as_ents(s_doc)
-    html = displacy.render(s_doc, style="ent",
-                           options={"word_spacing": 30, "distance": 120, "colors": colors}, page=True)
-    with open("../images/pos_tags_pre1.html", "w") as file:
-        file.write(html)
 
     html = displacy.render(sent.doc, style="ent",
                            options={"word_spacing": 30, "distance": 120, "colors": colors}, page=True)
-    with open("../images/pos_tags1.html", "w") as file:
+    with open(path, "w") as file:
         file.write(html)
+
+
+def tree_diagram(sentence: str, path: str, idents=None):
+    from treevis import render_tree
+    parser = Parser.default()
+    tree = next(
+        parser.parse_sentence(sentence, idents=idents, attach_tags=False)
+    )
+    render_tree(tree, path)
+
+
+def vis_demo():
+    """Demonstrates entire pipeline from end to end."""
+    ast = AstFile.from_path("../data/test3.rs")
+    tree_diagram(
+        ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
+        idents={"self"},
+        path="../images/reciprocal.pdf"
+    )
+
+    # sent = parser.tokenize_sentence(sentence, idents=idents)
+    #
+    # Path("../images/").mkdir(exist_ok=True)
+    # svg = displacy.render(sent.doc, style="dep", options={"word_spacing": 30, "distance": 120})
+    # output_path = Path("../images/pos_tags.svg")
+    # output_path.open("w", encoding="utf-8").write(svg)
+
+    render_pos_tokens("Returns `true`", idents=None, path="../images/pos_tags_pre2.html", no_fix=True)
+    render_pos_tokens("Returns `true`", idents=None, path="../images/pos_tags_post2.html")
 
 
 if __name__ == '__main__':
@@ -410,8 +419,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    end_to_end_demo()
-    # diagram("Removes the last element from a vector and returns it", idents={"self"})
+    vis_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup
@@ -425,6 +433,6 @@ if __name__ == '__main__':
 
     # TODO: Mechanism to evaluate code
     # TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
-
+    #  std::any::type_name_of_val
     # TODO: allow specifying default value in #[invoke]
     #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
