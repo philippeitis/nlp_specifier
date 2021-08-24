@@ -46,7 +46,7 @@ class Edge(HasProp):
         self.style = style
 
     def __str__(self):
-        return f" {self.from_id} -> {self.to_id} [{self.prop_str()}]; "
+        return f"{self.from_id} -> {self.to_id} [{self.prop_str()}];"
 
 
 class Node(HasProp):
