@@ -16,6 +16,7 @@ impl PVec {
         self.v.remove(index).unwrap()
     }
 
+    #[specify]
     /// Removes the last element from a vector and returns it, or `None` if it
     /// is empty.
     fn pop(&mut self) -> u32 {

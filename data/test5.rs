@@ -1,9 +1,6 @@
 /// Prints obj.
 fn print(obj: u32) {}
 
-/// Really prints obj.
-fn print2(obj: u32) {}
-
 struct PVec {
     v: Vec<u32>
 }
@@ -23,7 +20,7 @@ impl PVec {
         self.remove(self.len() - 1)
     }
 
-    /// Returns `true` if `self` contains 0u32
+    /// Returns `true` if `self` contains `val`
     fn contains(&self, val: u32) -> bool {
         self.v.contains(val)
     }
