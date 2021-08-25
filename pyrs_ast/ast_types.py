@@ -22,6 +22,7 @@ class Segment:
                 else:
                     raise ValueError(f"{arg_type}, {arg}")
             return f"{self.ident}<{', '.join(res)}>"
+        raise ValueError("segment non-anglebracket")
 
 
 class Path:

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator, List, Set
+from typing import Iterator, Set
 import logging
 import os
 
@@ -125,8 +125,8 @@ class Parser:
             self.token_cache[sentence] = doc
 
         doc = copy(self.token_cache[sentence])
-
         fix_tokens(doc, idents=idents)
+
         return Sentence(doc)
 
     def parse_sentence(self, sentence: str, idents=None, attach_tags=True) -> Tree:

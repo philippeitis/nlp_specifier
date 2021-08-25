@@ -419,7 +419,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    vis_demo()
+    end_to_end_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup
