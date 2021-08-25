@@ -39,10 +39,15 @@ def to_rust_doc(doc) -> str:
             doc_items.append(parse_example(item))
         elif item.name == "h1" and "section-header" in item.attrs["class"]:
             doc_items.append(f"# {item.text}")
-        elif "stab" in item.attrs["class"]:
-            item.decompose()
         else:
-            print(item, item.attrs["class"])
+            try:
+                if "stab" in item.attrs["class"]:
+                    item.decompose()
+                else:
+                    print(item, item.attrs["class"])
+            except KeyError:
+                print("STABBY")
+                print(item)
     return "\n".join(doc_items)
 
 
@@ -58,8 +63,13 @@ def eat_struct_doc(body) -> str:
 
 
 def eat_fn_doc(body) -> str:
-    items = body.find_all("div", {"class": "docblock"}, recursive=False)
-    doc = items[0]
+    doc = body.find("div", {"class": "docblock"}, recursive=False)
+    if not doc:
+        parent = body.find("details", {"class": "rustdoc-toggle"})
+        if not parent:
+            return ""
+        doc = parent.find("div", {"class": "docblock"}, recursive=False)
+
     doc_text = to_rust_doc(doc)
     doc.decompose()
     return doc_text
@@ -91,6 +101,9 @@ def eat_impls(body) -> list:
 
 
 def get_all_doc_files(path: Path) -> list:
+    if path.is_dir() and path.name in ["rust-by-example",  "reference", "embedded-book", "edition-guide"]:
+        return []
+
     choices = ["struct.", "fn.", "enum.", "constant.", "macro.", "trait."]
 
     items = []
@@ -119,24 +132,13 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
     return path_dict
 
 
-if __name__ == '__main__':
-    TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
-    print(os.environ.get("RUSTUP_HOME"))
-    # path = os.path.expanduser(HTML_ROOT + "/rust/html/core/num/struct.NonZeroI8.html")
-    target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
-
-    path = os.path.expanduser(TOOLCHAIN_ROOT + "share/doc/rust/html/core/char/fn.from_u32.html")
-    # webbrowser.open(path)
-
-    counts = {
-        path_type: len(items) for path_type, items in files_into_dict(get_all_doc_files(target_dir)).items()
-    }
-    print(counts)
-    exit()
+def parse_file(path: Path):
     with open(path, "r") as file:
         file_name = os.path.basename(path)
         print(file_name)
         soup = BeautifulSoup(file.read(), 'html.parser')
+        if soup.find("title").text == "Redirection":
+            return
         body = soup.find("section")
         print(eat_h1(body))
         if file_name.split(".", 1)[0] == "struct":
@@ -144,8 +146,29 @@ if __name__ == '__main__':
             print("\n".join(str(x) for x in eat_impls(body)))
         elif file_name.split(".", 1)[0] == "fn":
             print(eat_fn_doc(body))
-        print()
 
+
+def main():
+    TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
+    print(os.environ.get("RUSTUP_HOME"))
+    # path = os.path.expanduser(HTML_ROOT + "/rust/html/core/num/struct.NonZeroI8.html")
+    target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
+
+    # path = os.path.expanduser(TOOLCHAIN_ROOT + "share/doc/rust/html/core/char/fn.from_u32.html")
+    # webbrowser.open(path)
+
+    files = files_into_dict(get_all_doc_files(target_dir))
+    counts = {
+        path_type: len(items) for path_type, items in files.items()
+    }
+    for file in files["fn"]:
+        parse_file(file)
+
+    exit()
+
+
+if __name__ == '__main__':
+    main()
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
