@@ -1,9 +1,9 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator, Set
+from typing import Iterator, Set, Union
 import logging
-import os
+from pathlib import Path
 
 import nltk
 from nltk.tree import Tree
@@ -12,7 +12,7 @@ from spacy.tokens import Doc
 
 from fix_tokens import fix_tokens
 
-GRAMMAR_PATH = os.path.join(os.path.dirname(__file__), "codegrammar.cfg")
+GRAMMAR_PATH = Path(__file__).parent / Path("codegrammar.cfg")
 LOGGER = logging.getLogger(__name__)
 
 
@@ -106,7 +106,7 @@ class Parser:
         self.rd_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, grammar_path: str, model: SpacyModel = SpacyModel.EN_SM):
+    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_SM):
         with open(grammar_path) as f:
             return cls(f.read(), model)
 
@@ -136,20 +136,22 @@ class Parser:
         Otherwise, labels will remain unmodified.
         """
         sent = self.tokenize_sentence(sentence, idents)
-        labels = sent.tags
-        words = sent.words
+
         if attach_tags:
             nltk_sent = [label if is_quote(word) or word in ".,\"'`" else f"{word}_{label}"
-                         for label, word in zip(labels, words)]
+                         for label, word in zip(sent.tags, sent.words)]
         else:
-            nltk_sent = [label for label in labels]
+            nltk_sent = sent.tags
 
         nltk_str = " ".join(nltk_sent)
         if nltk_str not in self.tree_cache:
             self.tree_cache[nltk_str] = ParseStorage(self.rd_parser.parse(nltk_sent))
 
         for tree in self.tree_cache[nltk_str]:
-            yield replace_leaf_nodes(tree, iter(words))
+            yield replace_leaf_nodes(tree, iter(sent.words))
+
+    def entities(self, sentence: str):
+        raise NotImplementedError()
 
 
 def main():
@@ -240,7 +242,7 @@ def main():
         #       a is decremented by a
         #       a is negated
         #       a is right shifted by n
-        #       a is ?VB?
+        #       a is ?VBD?
         # "Sets `a` to 1",
         # "Assigns 1 to `a`.",
         # "Increments `a` by 1",
