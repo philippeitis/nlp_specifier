@@ -161,10 +161,13 @@ DISPATCH = {
 
 
 def get_all_doc_files(path: Path) -> list:
-    if path.is_dir() and path.name in ["rust-by-example", "reference", "embedded-book", "edition-guide"]:
+    if path.is_dir() and path.name in {
+        "rust-by-example", "reference", "embedded-book", "edition-guide", "arch", "core_arch",
+        "book", "nomicon", "unstable-book", "cargo", "rustc", "implementors", "rustdoc"
+    }:
         return []
 
-    choices = ["struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword."]
+    choices = ("struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword.")
 
     items = []
     for child_path in path.iterdir():
@@ -172,7 +175,7 @@ def get_all_doc_files(path: Path) -> list:
             items += get_all_doc_files(child_path)
         else:
             name = child_path.name
-            if any(name.startswith(choice) for choice in choices) and "arch" not in str(path):
+            if any(name.startswith(choice) for choice in choices):
                 items.append(child_path)
             # can also have trait or macro
     return items
@@ -189,7 +192,7 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
         "keyword": [],
     }
     for path in paths:
-        path_dict[str(path.name).split(".")[0]].append(path)
+        path_dict[path.name.split(".")[0]].append(path)
     return path_dict
 
 
