@@ -27,7 +27,7 @@ class Docs:
         self._sections: [Tuple[Optional[str], Section]] = []
         self._consolidated = False
 
-    def _consolidate(self):
+    def consolidate(self):
         if not self._consolidated:
             for section in self._sections:
                 section.consolidate()
@@ -44,5 +44,13 @@ class Docs:
         self._consolidated = False
 
     def sections(self) -> [Section]:
-        self._consolidate()
+        self.consolidate()
         return self._sections
+
+    def __str__(self):
+        lines = []
+        for section in self.sections():
+            if section.header:
+                lines.append(section.header)
+            lines += section.lines
+        return "\n".join(f"/// {line}" for line in lines)
