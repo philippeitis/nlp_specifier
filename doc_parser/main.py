@@ -338,10 +338,11 @@ def tags_as_ents(doc: Doc):
     doc.set_ents(spans)
 
 
-def render_ner(sentence: str, path: str, idents=None):
+def render_ner(sentence: str, path: str, idents=None, open_browser=False):
     from ner import ner_and_srl
     from spacy import displacy
     from palette import ENTITY_COLORS
+    import webbrowser
 
     sent = Parser.default().tokenize_sentence(sentence, idents)
 
@@ -363,10 +364,14 @@ def render_ner(sentence: str, path: str, idents=None):
     with open(path, "w") as file:
         file.write(html)
 
+    if open_browser:
+        webbrowser.open(path)
 
-def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False):
+
+def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_browser=False):
     from spacy import displacy
     from palette import tag_color
+    import webbrowser
 
     parser = Parser.default()
     if no_fix:
@@ -381,14 +386,21 @@ def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False):
     with open(path, "w") as file:
         file.write(html)
 
+    if open_browser:
+        webbrowser.open(path)
 
-def tree_diagram(sentence: str, path: str, idents=None):
+
+def tree_diagram(sentence: str, path: str, idents=None, open_browser=False):
     from treevis import render_tree
+    import webbrowser
+
     parser = Parser.default()
     tree = next(
         parser.parse_sentence(sentence, idents=idents, attach_tags=False)
     )
     render_tree(tree, path)
+    if open_browser:
+        webbrowser.open(path)
 
 
 def vis_demo():
@@ -419,7 +431,12 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    end_to_end_demo()
+    s = "Returns the first argument if the comparison determines them to be equal."
+    render_ner(s, "../images/cmp_ner.html", open_browser=True)
+    render_pos_tokens(s, "../images/cmp_pos.html", open_browser=True)
+    tree_diagram("Returns `true`", "aaa.pdf", open_browser=True)
+
+    # end_to_end_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup
