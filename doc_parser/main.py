@@ -343,7 +343,7 @@ def render_ner(sentence: str, path: str, idents=None):
     from spacy import displacy
     from palette import ENTITY_COLORS
 
-    sent = Parser.default().tokenize_sent(sentence, idents)
+    sent = Parser.default().tokenize_sentence(sentence, idents)
 
     ents = ner_and_srl(sentence)
     spans = []
