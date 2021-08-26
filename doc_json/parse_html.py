@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List, Dict, Optional, Union
+from multiprocessing import Pool
 
 from lxml import etree
 from lxml.html import parse
@@ -216,30 +217,19 @@ def main():
         path_type: len(items) for path_type, items in files.items()
     }
 
-    sucesses = []
-    for path in files["fn"] + files["struct"]:
-        file = parse_file(path)
-        if file:
-            sucesses.append((path, file))
+    with Pool(8) as p:
+        targets = files["fn"] + files["struct"]
+        successes = [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
 
-    for path, file in sucesses:
+    for file, path in successes:
         print(path)
         print(file.decl())
 
-    print(len(sucesses), counts)
-
-
-def profiling(statement: str):
-    import cProfile
-    import pstats
-    cProfile.run(statement, "stats")
-    pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
+    print(len(successes), counts)
 
 
 if __name__ == '__main__':
-    import cProfile
-
-    profiling("main()")
+    main()
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
