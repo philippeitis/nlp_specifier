@@ -1,3 +1,4 @@
+import itertools
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 from multiprocessing import Pool
@@ -13,9 +14,14 @@ SINCE = ("span", {"class": "since"})
 SRCLINK = ("a", {"class": "srclink"})
 
 
+def peek(it):
+    first = next(it)
+    return first, itertools.chain([first], it)
+
+
 def find_all_spans(item):
     for val in item.findall("span"):
-        if "since" in val.classes:
+        if "since" in val.classes or "notable-traits-tooltip" in val.classes:
             item.remove(val)
 
 
@@ -72,13 +78,14 @@ class HasDoc:
         f"h{n}": "#" * n for n in range(1, 7)
     }
 
-    def parse_doc(self, html_doc) -> Docs:
+    @classmethod
+    def parse_doc(cls, html_doc) -> Docs:
         docs = Docs()
         if html_doc is None:
             return docs
 
         for item in html_doc:
-            h = self.HEADER.get(item.tag)
+            h = cls.HEADER.get(item.tag)
             if h and "section-header" in item.classes:
                 docs.push_line(f"{h} {stringify(item)}")
             elif item.tag == "p":
@@ -88,7 +95,7 @@ class HasDoc:
                 else:
                     docs.push_line("")
             elif item.tag == "div" and "example-wrap" in item.classes:
-                docs.push_line(self.parse_example(item))
+                docs.push_line(cls.parse_example(item))
             elif item.tag == "ul":
                 for sub_item in RList(item).items:
                     docs.push_line("* " + sub_item.strip())
@@ -108,7 +115,8 @@ class HasDoc:
         docs.consolidate()
         return docs
 
-    def parse_example(self, doc) -> str:
+    @classmethod
+    def parse_example(cls, doc) -> str:
         return "```CODE```"
 
 
@@ -127,31 +135,74 @@ class Struct(HasHeader, HasDoc):
         super().__init__(body)
         type_decl = find_with_class(body, "div", "docblock")
         body.remove(type_decl)
+        self.methods = []
 
-        parent = find_with_class(body, "details", "rustdoc-toggle")
+        parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
             self.docs = self.parse_doc(doc)
-            self.impls = []
-            for doc in find_with_class_iter(body, "div", "impl-items"):
-                self.eat_impl(doc)
             body.remove(parent)
         else:
             self.docs = Docs()
 
+        impl_block = find_with_class(body, "details", "implementors-toggle")
+        if impl_block is not None:
+            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
+                self.methods += self.eat_impl_dispatch(doc)
+
         self.type_decl = stringify(type_decl)
 
-    def eat_impl(self, doc):
+    def eat_impls_old(self, doc, doc_iter):
         items = []
-        for item in doc:
-            if item.tag == "h4":
+        while True:
+            try:
+                item, doc_iter = peek(doc_iter)
+                if item.tag != "div":
+                    return items + self.eat_impl(doc, doc_iter)
                 find_all_spans(item)
                 find_all_src_link(item)
-                items.append(("METHOD", stringify(item)))
-            if item.tag == "div":
-                items.append(("DOC", self.parse_doc(item)))
-            doc.remove(item)
+                name = stringify(item)
+                next(doc_iter)
+                doc.remove(item)
+            except StopIteration:
+                break
+
+            try:
+                item, doc_iter = peek(doc_iter)
+                if "item-info" in item.classes:
+                    next(doc_iter)
+                else:
+                    raise ValueError(str(set(item.classes)))
+            except StopIteration:
+                pass
+            items.append(Method(name, Docs()))
+
         return items
+
+    def eat_impl(self, doc, doc_iter):
+        items = []
+        while True:
+            try:
+                item, doc_iter = peek(doc_iter)
+                if item.tag != "details":
+                    return items + self.eat_impls_old(doc, doc_iter)
+                items.append(Method.from_block(item))
+                next(doc_iter)
+                doc.remove(item)
+
+            except StopIteration:
+                break
+        return items
+
+    def eat_impl_dispatch(self, doc):
+        try:
+            first = next(iter(doc))
+            if "method" in first.classes:
+                return self.eat_impls_old(doc, iter(doc))
+            return self.eat_impl(doc, iter(doc))
+
+        except StopIteration:
+            return []
 
     def decl(self):
         return f"{self.docs}\n{self.type_decl}"
@@ -174,6 +225,24 @@ class Fn(HasHeader, HasDoc):
 
     def decl(self):
         return f"{self.docs}\n{self.fn_decl} {{}}"
+
+
+class Method(HasDoc):
+    def __init__(self, name: str, docs: Docs):
+        self.name = name
+        self.docs = docs
+
+    @classmethod
+    def from_block(cls, block):
+        name = block.find("summary/div")
+        find_all_src_link(name)
+        find_all_spans(name)
+        name = stringify(name)
+        docs = cls.parse_doc(find_with_class(block, "div", "docblock"))
+        return cls(name, docs)
+
+    def decl(self):
+        return f"{self.docs}\n{self.name}"
 
 
 DISPATCH = {
@@ -244,6 +313,9 @@ def main(toolchain_root: Path):
     for file, path in get_all_files(toolchain_root):
         print(path)
         print(file.decl())
+        if isinstance(file, Struct):
+            for impl in file.methods:
+                print(impl.decl())
 
 
 def choose_random_items(toolchain_root: Path):
@@ -253,13 +325,16 @@ def choose_random_items(toolchain_root: Path):
     target_dir = (Path(toolchain_root) / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(get_all_doc_files(target_dir))
 
-    selected = random.choices(files["fn"] + files["struct"], k=25)
+    selected = random.choices(files["struct"], k=25)
     for item in selected:
+        webbrowser.open(str(item))
         file = parse_file(item)
         if file:
             print(item)
             print(file.decl())
-            webbrowser.open(str(item))
+            if isinstance(file, Struct):
+                for impl in file.methods:
+                    print(impl.decl())
             input()
 
 
@@ -273,7 +348,13 @@ def get_toolchains() -> List[Path]:
 
 
 if __name__ == '__main__':
-    choose_random_items(get_toolchains()[0])
+    import time
+    start = time.time()
+    print(main(get_toolchains()[0]))
+    end = time.time()
+    print(end - start)
+
+    # choose_random_items(get_toolchains()[0])
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
