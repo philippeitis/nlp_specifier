@@ -1,11 +1,13 @@
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 from multiprocessing import Pool
+import subprocess
 
 from lxml import etree
 from lxml.html import parse
 
 from pyrs_ast.docs import Docs
+from py_cargo_utils import rustup_home
 
 SINCE = ("span", {"class": "since"})
 SRCLINK = ("a", {"class": "srclink"})
@@ -164,7 +166,7 @@ DISPATCH = {
 }
 
 
-def get_all_doc_files(path: Path) -> list:
+def get_all_doc_files(path: Path) -> List[Path]:
     if path.is_dir() and path.name in {
         "rust-by-example", "reference", "embedded-book", "edition-guide", "arch", "core_arch",
         "book", "nomicon", "unstable-book", "cargo", "rustc", "implementors", "rustdoc"
@@ -214,9 +216,8 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
         )(body)
 
 
-def main():
-    TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
-    target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
+def main(toolchain_root: Path):
+    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
 
     files = files_into_dict(get_all_doc_files(target_dir))
     counts = {
@@ -234,12 +235,11 @@ def main():
     print(len(successes), counts)
 
 
-def choose_random_items():
+def choose_random_items(toolchain_root: Path):
     import random
     import webbrowser
 
-    TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
-    target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
+    target_dir = (Path(toolchain_root) / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(get_all_doc_files(target_dir))
 
     selected = random.choices(files["fn"] + files["struct"], k=25)
@@ -252,8 +252,17 @@ def choose_random_items():
             input()
 
 
+def get_toolchains() -> List[Path]:
+    root = Path(rustup_home()) / Path("toolchains")
+    paths = subprocess.run(["rustup", "toolchain", "list"], capture_output=True).stdout.splitlines()
+    return [
+        root / Path(p.removesuffix(b" (default)").strip().decode("utf-8"))
+        for p in paths
+    ]
+
+
 if __name__ == '__main__':
-    choose_random_items()
+    choose_random_items(get_toolchains()[0])
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
