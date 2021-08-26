@@ -80,15 +80,10 @@ GENERIC_PATH_MATCHER = matcher_with_rule("GPATH", [
         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*::<$"}},
         {"TAG": "REF", "OP": "?"},
 
-        {"ORTH": ">"}
-    ],
-    [
-        {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*::<(&?)'[a-zA-Z]+$"}},
-        {"ORTH": "mut", "OP": "?"},
-        {"ORTH": ">"}
-    ]
-
-])
+BOOL_OPS = [
+    ({"POS": "NOUN", "TAG": "BOOL_OP"}, matcher_with_rule(op, merge_bool_op(op)))
+    for op in ["!=", "==", "&&", "||"]
+]
 
 FN_CALL = matcher_with_rule("CALL", [
     [{"TAG": "PATH"}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}],
