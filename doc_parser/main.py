@@ -428,14 +428,22 @@ def run_on_rust_docs():
     from doc_json import get_toolchains, get_all_files
     files = get_all_files(get_toolchains()[0])
     count = 0
+    tree_count = 0
     for item, path in files:
         try:
             sent = parser.tokenize_sentence(item.docs.sections()[0].sentences[0])
-            print(sent.tags, sent.words)
+            # print(sent.tags, sent.words)
+            try:
+                item = next(parser.parse_sentence(item.docs.sections()[0].sentences[0], attach_tags=False))
+                print(item)
+                tree_count += 1
+            except StopIteration:
+                pass
             count += 1
         except IndexError:
             pass
     print(count)
+    print(tree_count)
 
 
 if __name__ == '__main__':

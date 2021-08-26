@@ -9,6 +9,7 @@ import nltk
 from nltk.tree import Tree
 import spacy
 from spacy.tokens import Doc
+import unidecode
 
 from fix_tokens import fix_tokens
 
@@ -118,7 +119,7 @@ class Parser:
         return {str(p._lhs) for p in self.grammar._productions}
 
     def tokenize_sentence(self, sentence: str, idents=None) -> Sentence:
-        sentence = sentence.rstrip(".")
+        sentence = unidecode.unidecode(sentence).rstrip(".")
 
         if sentence not in self.token_cache:
             doc = self.tagger(sentence)
