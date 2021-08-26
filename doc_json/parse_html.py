@@ -5,6 +5,8 @@ from multiprocessing import Pool
 from lxml import etree
 from lxml.html import parse
 
+from pyrs_ast.docs import Docs
+
 SINCE = ("span", {"class": "since"})
 SRCLINK = ("a", {"class": "srclink"})
 
@@ -53,29 +55,31 @@ class HasDoc:
         f"h{n}": "#" * n for n in range(1, 7)
     }
 
-    def parse_doc(self, doc):
-        doc_items = []
-        if doc is None:
-            return ""
+    def parse_doc(self, html_doc) -> Docs:
+        docs = Docs()
+        if html_doc is None:
+            return docs
 
-        for item in doc:
+        for item in html_doc:
             h = self.HEADER.get(item.tag)
             if h and "section-header" in item.classes:
-                doc_items.append(f"{h} {text(item)}")
+                docs.push_line(f"{h} {text(item)}")
             elif item.tag == "p":
                 text_ = text(item)
                 if text_:
-                    doc_items.append(text_.replace("\n", " "))
+                    docs.push_line(text_.replace("\n", " "))
                 else:
-                    doc_items.append("")
+                    docs.push_line("")
             elif item.tag == "div" and "example-wrap" in item.classes:
-                doc_items.append(self.parse_example(item))
+                docs.push_line(self.parse_example(item))
             elif item.tag == "ul":
-                doc_items += ["* " + sub_item.strip() for sub_item in RList(item).items]
+                for sub_item in RList(item).items:
+                    docs.push_line("* " + sub_item.strip())
             elif item.tag == "ol":
-                doc_items += ["{n}. " + sub_item.strip() for n, sub_item in enumerate(RList(item).items)]
+                for n, sub_item in enumerate(RList(item).items):
+                    docs.push_line("{n}. " + sub_item.strip())
             elif item.tag == "blockquote":
-                doc_items += f"> {text(item)}"
+                docs.push_line(f"> {text(item)}")
             elif item.tag == "table":
                 # Tables not handled. std::mem::size_of demonstrates usage.
                 pass
@@ -84,8 +88,8 @@ class HasDoc:
                 pass
             else:
                 print("Unknown item", item)
-
-        return "/// " + "\n/// ".join(doc_items)
+        docs.consolidate()
+        return docs
 
     def parse_example(self, doc) -> str:
         return "```CODE```"
@@ -110,15 +114,15 @@ class Struct(HasHeader, HasDoc):
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
-            self.doc_text = self.parse_doc(doc)
+            self.docs = self.parse_doc(doc)
             self.impls = []
             for doc in find_with_class_iter(body, "div", "impl-items"):
                 self.eat_impl(doc)
             body.remove(parent)
         else:
-            self.doc_text = ""
+            self.docs = Docs()
 
-        self.type_decl_text = text(type_decl)
+        self.type_decl = text(type_decl)
 
     def eat_impl(self, doc):
         items = []
@@ -133,7 +137,7 @@ class Struct(HasHeader, HasDoc):
         return items
 
     def decl(self):
-        return self.doc_text + "\n" + self.type_decl_text
+        return f"{self.docs}\n{self.type_decl}"
 
 
 class Fn(HasHeader, HasDoc):
@@ -145,13 +149,13 @@ class Fn(HasHeader, HasDoc):
         self.fn_decl = text(fn_decl_block)
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
-            self.doc_text = ""
+            self.docs = Docs()
             return
         doc = find_with_class(parent, "div", "docblock")
-        self.doc_text = self.parse_doc(doc)
+        self.docs = self.parse_doc(doc)
 
     def decl(self):
-        return self.doc_text + "\n" + self.fn_decl + " {}"
+        return f"{self.docs}\n{self.fn_decl} {{}}"
 
 
 DISPATCH = {
@@ -213,7 +217,6 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
 def main():
     TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
     target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
-    # webbrowser.open(path)
 
     files = files_into_dict(get_all_doc_files(target_dir))
     counts = {
@@ -231,8 +234,26 @@ def main():
     print(len(successes), counts)
 
 
+def choose_random_items():
+    import random
+    import webbrowser
+
+    TOOLCHAIN_ROOT = "~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/"
+    target_dir = (Path(TOOLCHAIN_ROOT) / Path("share/doc/rust/html/")).expanduser()
+    files = files_into_dict(get_all_doc_files(target_dir))
+
+    selected = random.choices(files["fn"] + files["struct"], k=25)
+    for item in selected:
+        file = parse_file(item)
+        if file:
+            print(item)
+            print(file.decl())
+            webbrowser.open(str(item))
+            input()
+
+
 if __name__ == '__main__':
-    main()
+    choose_random_items()
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
