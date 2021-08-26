@@ -65,48 +65,71 @@ def ret_rule_to_matcher(rule):
     raise ValueError("NOT A RET RULE")
 
 
+def merge_bool_op(op):
+    return [{"ORTH": c} for c in op]
+
+
 CODE_MATCHER = matcher_with_rule("CODE", [{'ORTH': "`"}, {'OP': '+'}, {'ORTH': "`"}])
 STR_MATCHER = matcher_with_rule("STR", [{'ORTH': "\""}, {'OP': '*'}, {'ORTH': "\""}])
 CHAR_MATCHER = matcher_with_rule("CHAR", [{'ORTH': "'"}, {"IS_ASCII": True, 'LENGTH': 1}, {'ORTH': "'"}])
-SOME_MATCHER = matcher_with_rule("SOME", [{"TEXT": "Some"}, {'ORTH': "("}, {"OP": "+"}, {'ORTH': ")"}])
-LIFETIME_MATCHER = matcher_with_rule("LIFETIME", [{"ORTH": "'"}, {"IS_ASCII": True}])
-REF_MATCHER = matcher_with_rule("REF", [{"ORTH": "&"}, {"TAG": "LIFETIME", "OP": "?"}, {"ORTH": "mut", "OP": "?"}, IS_OBJ])
-GENERIC_PATH_MATCHER = matcher_with_rule("GPATH", [
-    [
-        {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*::<[a-zA-Z]+$"}},
-        {"ORTH": ">"}
-    ],
-    [
-        {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*::<$"}},
-        {"TAG": "REF", "OP": "?"},
+# SOME_MATCHER = matcher_with_rule("SOME", [{"TEXT": "Some"}, {'ORTH': "("}, {"OP": "+"}, {'ORTH': ")"}])
+# LIFETIME_MATCHER = matcher_with_rule("LIFETIME", [{"ORTH": "'"}, {"IS_ASCII": True}])
+# REF_MATCHER = matcher_with_rule("REF",
+#                                 [{"ORTH": "&"}, {"TAG": "LIFETIME", "OP": "?"}, {"ORTH": "mut", "OP": "?"}, IS_OBJ])
+# GENERIC_PATH_MATCHER = matcher_with_rule("GPATH", [
+#     [
+#         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*(::)?<[a-zA-Z]+$"}},
+#         {"ORTH": ">"}
+#     ],
+#     [
+#         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*(::)?<$"}},
+#         {"TAG": "REF", "OP": "?"},
+#
+#         {"ORTH": ">"}
+#     ],
+#     [
+#         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*(::)?<(&?)'[a-zA-Z]+$"}},
+#         {"ORTH": ">"}
+#     ],
+#     [
+#         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*(::)?<(&?)'[a-zA-Z]+$"}},
+#         {"ORTH": "mut", "OP": "?"},
+#         {"ORTH": ">"}
+#     ],
+#     [
+#         {"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)*(::)?$"}},
+#         {"ORTH": "<"},
+#         {"IS_ASCII": True},
+#         {"ORTH": ">"}
+#     ]
+# ])
+# FN_CALL = matcher_with_rule("CALL", [
+#     [{"TAG": "PATH"}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}],
+#     [{"TAG": "GPATH"}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}],
+#     [{"IS_ASCII": True}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}]
+#
+# ])
 
 BOOL_OPS = [
     ({"POS": "NOUN", "TAG": "BOOL_OP"}, matcher_with_rule(op, merge_bool_op(op)))
     for op in ["!=", "==", "&&", "||"]
 ]
 
-FN_CALL = matcher_with_rule("CALL", [
-    [{"TAG": "PATH"}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}],
-    [{"TAG": "GPATH"}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}],
-    [{"IS_ASCII": True}, {"ORTH": "("}, IS_OBJ | {"OP": "?"}, {"ORTH": ")"}]
-
-])
 
 WORD_MATCHERS_0 = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
     (0, {"tag_": "PATH"}, [{"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$"}}]),
 ]]
 
-MERGE_MATCHERS = [
+MERGE_MATCHERS = BOOL_OPS + [
     ({"POS": "NOUN", "TAG": "CODE"}, CODE_MATCHER),
     ({"POS": "NOUN", "TAG": "STR"}, STR_MATCHER),
     ({"POS": "NOUN", "TAG": "CHAR"}, CHAR_MATCHER),
-    ({"POS": "NOUN", "TAG": "OPTION"}, SOME_MATCHER),
-    ({"POS": "NOUN", "TAG": "LIFETIME"}, LIFETIME_MATCHER),
-    ({"POS": "NOUN", "TAG": "REF"}, REF_MATCHER),
-    ({"POS": "NOUN", "TAG": "GPATH"}, GENERIC_PATH_MATCHER),
-    ({"POS": "NOUN", "TAG": "CALL"}, FN_CALL)
+    # ({"POS": "NOUN", "TAG": "OPTION"}, SOME_MATCHER),
+    # ({"POS": "NOUN", "TAG": "LIFETIME"}, LIFETIME_MATCHER),
+    # ({"POS": "NOUN", "TAG": "REF"}, REF_MATCHER),
+    # ({"POS": "NOUN", "TAG": "GPATH"}, GENERIC_PATH_MATCHER),
+    # ({"POS": "NOUN", "TAG": "CALL"}, FN_CALL)
 ]
-
 
 WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
     (0, {"tag_": "IF"}, [lemma("if")]),
