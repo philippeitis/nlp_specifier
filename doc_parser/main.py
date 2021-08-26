@@ -161,16 +161,24 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     grammar = invoke_factory.grammar()
     replacement_grammar = ""
 
+    if "PRP$" in sym_replacements:
+        sym_replacements["PRPS"] = sym_replacements.pop("PRP$")
+
+    word_filter = lambda word: not set(",!.();:*<>=+-?&%'\"\\[]{}#").isdisjoint(word)
     for word, syms in word_replacements.items():
-        if word == ",":
+        if word_filter(word):
             continue
+        if "PRP$" in syms:
+            syms.remove("PRP$")
+            syms.add("PRP")
+
         syms = " | ".join(f"\"{word}_{sym}\"" for sym in syms)
         grammar = grammar.replace(f"\"{word}\"", f"WD_{word}")
         replacement_grammar += f"WD_{word} -> {syms}\n"
     for sym, words in sym_replacements.items():
-        if sym == "COMMA":
+        if sym in {"COMMA", "DOT", "EXCL", "-LRB-", "-RRB-", ":", ".", ",", "$", "(", ")"}:
             continue
-        syms = " | ".join(f"\"{word}_{sym}\"" for word in words)
+        syms = " | ".join(f"\"{word}_{sym}\"" for word in words if not word_filter(word))
         # grammar = grammar.replace(f"{sym} -> \"{sym}\"", "")
         replacement_grammar += f"{sym} -> {syms} | \"{sym}\"\n"
 
@@ -191,11 +199,11 @@ def end_to_end_demo():
     print(ast)
 
 
-def invoke_demo():
+def invoke_helper(invocations, invocation_triples=None):
     """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
 
     from nltk import Tree
-    from doc_parser import UnsupportedSpec
+    from grammar import UnsupportedSpec
 
     class FnMock:
         def __init__(self, ident: str):
@@ -217,6 +225,34 @@ def invoke_demo():
                 word_replacements[word].add(sym)
                 sym_replacements[sym].add(word)
 
+    invocation_triples = invocation_triples or []
+    grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
+
+    parser = Parser(grammar)
+
+    sentences = invocations + [sentence for _, _, sentence in invocation_triples]
+    for sentence in sentences:
+        print("=" * 80)
+        print("Sentence:", sentence)
+        print("=" * 80)
+        try:
+            for tree in parser.parse_sentence(sentence):
+                tree: Tree = tree
+                try:
+                    print(Specification(tree, factory).as_spec())
+                except LookupError as e:
+                    print(f"No specification found: {e}")
+                except UnsupportedSpec as s:
+                    print(f"Specification element not supported ({s})")
+                print(tree)
+                print()
+        except ValueError as e:
+            print(f"Grammar: ({e})")
+
+
+def invoke_demo(triples=None, invocations=None):
+    """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
+
     invocation_triples = [
         ("print", "Prints {item:OBJ}", "Prints 0u32"),
         ("print", "Really prints {item:OBJ}", "Really prints \"HELLO WORLD\""),
@@ -234,26 +270,7 @@ def invoke_demo():
         "Returns the reciprocal of `self`"
     ]
 
-    grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
-
-    parser = Parser(grammar)
-
-    sentences = invocations + [sentence for _, _, sentence in invocation_triples]
-    for sentence in sentences:
-        print("=" * 80)
-        print("Sentence:", sentence)
-        print("=" * 80)
-        for tree in parser.parse_sentence(sentence):
-            tree: Tree = tree
-            try:
-                print(Specification(tree, factory).as_spec())
-            except LookupError as e:
-                print(f"No specification found: {e}")
-            except UnsupportedSpec as s:
-                print(f"Specification element not supported ({s})")
-
-            print(tree)
-            print()
+    invoke_helper(invocations, invocation_triples)
 
 
 def expr_demo():
@@ -424,26 +441,17 @@ def vis_demo():
 
 
 def run_on_rust_docs():
-    parser = Parser.default()
     from doc_json import get_toolchains, get_all_files
     files = get_all_files(get_toolchains()[0])
-    count = 0
-    tree_count = 0
+
+    sentences = []
     for item, path in files:
         try:
-            sent = parser.tokenize_sentence(item.docs.sections()[0].sentences[0])
-            # print(sent.tags, sent.words)
-            try:
-                item = next(parser.parse_sentence(item.docs.sections()[0].sentences[0], attach_tags=False))
-                print(item)
-                tree_count += 1
-            except StopIteration:
-                pass
-            count += 1
+            sentences.append(item.docs.sections()[0].sentences[0])
         except IndexError:
             pass
-    print(count)
-    print(tree_count)
+
+    invoke_helper(sentences)
 
 
 if __name__ == '__main__':
@@ -458,8 +466,10 @@ if __name__ == '__main__':
     # s = "Returns the first argument if the comparison determines them to be equal."
     # render_ner(s, "../images/cmp_ner.html", open_browser=True)
     # render_pos_tokens(s, "../images/cmp_pos.html", open_browser=True)
-    # tree_diagram("Returns `true`", "aaa.pdf", open_browser=True)
+    # tree_diagram("Returns a + b", "aaa.pdf", idents={"a", "b"}, open_browser=True)
 
+    # p = Parser.default()
+    # print(p.tokenize_sentence("AAAA::<'a>").tags)
     # end_to_end_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
