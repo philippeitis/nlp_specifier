@@ -423,6 +423,21 @@ def vis_demo():
     render_pos_tokens("Returns `true`", idents=None, path="../images/pos_tags_post2.html")
 
 
+def run_on_rust_docs():
+    parser = Parser.default()
+    from doc_json import get_toolchains, get_all_files
+    files = get_all_files(get_toolchains()[0])
+    count = 0
+    for item, path in files:
+        try:
+            sent = parser.tokenize_sentence(item.docs.sections()[0].sentences[0])
+            print(sent.tags, sent.words)
+            count += 1
+        except IndexError:
+            pass
+    print(count)
+
+
 if __name__ == '__main__':
     formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
@@ -431,10 +446,11 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    s = "Returns the first argument if the comparison determines them to be equal."
-    render_ner(s, "../images/cmp_ner.html", open_browser=True)
-    render_pos_tokens(s, "../images/cmp_pos.html", open_browser=True)
-    tree_diagram("Returns `true`", "aaa.pdf", open_browser=True)
+    run_on_rust_docs()
+    # s = "Returns the first argument if the comparison determines them to be equal."
+    # render_ner(s, "../images/cmp_ner.html", open_browser=True)
+    # render_pos_tokens(s, "../images/cmp_pos.html", open_browser=True)
+    # tree_diagram("Returns `true`", "aaa.pdf", open_browser=True)
 
     # end_to_end_demo()
     # Motivate problems with what is being accomplished

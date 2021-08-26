@@ -147,8 +147,9 @@ class Fn(HasHeader, HasDoc):
         super().__init__(body)
         fn_decl_block = find_with_class(body, "pre", "fn")
         for span in fn_decl_block.findall("span"):
-            span.decompose()
+            fn_decl_block.remove(span)
         self.fn_decl = text(fn_decl_block)
+        body.remove(fn_decl_block)
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
             self.docs = Docs()
@@ -216,23 +217,18 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
         )(body)
 
 
-def main(toolchain_root: Path):
+def get_all_files(toolchain_root: Path):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
-
     files = files_into_dict(get_all_doc_files(target_dir))
-    counts = {
-        path_type: len(items) for path_type, items in files.items()
-    }
-
     with Pool(8) as p:
         targets = files["fn"] + files["struct"]
-        successes = [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
+        return [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
 
-    for file, path in successes:
+
+def main(toolchain_root: Path):
+    for file, path in get_all_files(toolchain_root):
         print(path)
         print(file.decl())
-
-    print(len(successes), counts)
 
 
 def choose_random_items(toolchain_root: Path):
