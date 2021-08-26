@@ -44,12 +44,27 @@ def text(item):
     return etree.tostring(item, method="text", encoding="unicode")
 
 
+def stringify(item):
+    s = ""
+    itext = item.text or ""
+    if item.tag == "code":
+        s += f"`{itext}`"
+    else:
+        s += itext
+
+    for sub in item.getchildren():
+        s += stringify(sub)
+        s += sub.tail or ""
+
+    return s
+
+
 class RList:
     def __init__(self, doc):
         self.items = []
         for item in doc:
             assert item.tag == "li"
-            self.items.append(text(item))
+            self.items.append(stringify(item))
 
 
 class HasDoc:
@@ -65,9 +80,9 @@ class HasDoc:
         for item in html_doc:
             h = self.HEADER.get(item.tag)
             if h and "section-header" in item.classes:
-                docs.push_line(f"{h} {text(item)}")
+                docs.push_line(f"{h} {stringify(item)}")
             elif item.tag == "p":
-                text_ = text(item)
+                text_ = stringify(item)
                 if text_:
                     docs.push_line(text_.replace("\n", " "))
                 else:
@@ -81,7 +96,7 @@ class HasDoc:
                 for n, sub_item in enumerate(RList(item).items):
                     docs.push_line("{n}. " + sub_item.strip())
             elif item.tag == "blockquote":
-                docs.push_line(f"> {text(item)}")
+                docs.push_line(f"> {stringify(item)}")
             elif item.tag == "table":
                 # Tables not handled. std::mem::size_of demonstrates usage.
                 pass
@@ -102,7 +117,7 @@ class HasHeader:
         header = find_with_class(body, "h1", "fqn")
         find_all_spans(header)
         find_all_src_link(header)
-        text_ = text(header)
+        text_ = stringify(header)
         body.remove(header)
         self.header = text_
 
@@ -124,7 +139,7 @@ class Struct(HasHeader, HasDoc):
         else:
             self.docs = Docs()
 
-        self.type_decl = text(type_decl)
+        self.type_decl = stringify(type_decl)
 
     def eat_impl(self, doc):
         items = []
@@ -132,7 +147,7 @@ class Struct(HasHeader, HasDoc):
             if item.tag == "h4":
                 find_all_spans(item)
                 find_all_src_link(item)
-                items.append(("METHOD", text(item)))
+                items.append(("METHOD", stringify(item)))
             if item.tag == "div":
                 items.append(("DOC", self.parse_doc(item)))
             doc.remove(item)
@@ -148,7 +163,7 @@ class Fn(HasHeader, HasDoc):
         fn_decl_block = find_with_class(body, "pre", "fn")
         for span in fn_decl_block.findall("span"):
             fn_decl_block.remove(span)
-        self.fn_decl = text(fn_decl_block)
+        self.fn_decl = stringify(fn_decl_block)
         body.remove(fn_decl_block)
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
