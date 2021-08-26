@@ -1,109 +1,134 @@
-import re
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 
-import bs4
-from bs4 import BeautifulSoup
+from lxml import etree
+from lxml.html import parse
 
 SINCE = ("span", {"class": "since"})
 SRCLINK = ("a", {"class": "srclink"})
+
+
+def find_all_spans(item):
+    for val in item.findall("span"):
+        if "since" in val.classes:
+            item.remove(val)
+
+
+def find_all_src_link(item):
+    for val in item.findall("a"):
+        if "srclink" in val.classes:
+            item.remove(val)
+        if val.attrib["href"] == "javascript:void(0)":
+            item.remove(val)
+
+
+def find_with_class(item, tag: str, class_: str):
+    try:
+        return next(find_with_class_iter(item, tag, class_))
+    except StopIteration:
+        return None
+
+
+def find_with_class_iter(item, tag: str, class_: str):
+    for result in item.findall(tag):
+        if class_ in result.classes:
+            yield result
+
+
+def text(item):
+    return etree.tostring(item, method="text", encoding="unicode")
 
 
 class RList:
     def __init__(self, doc):
         self.items = []
         for item in doc:
-            if isinstance(item, bs4.NavigableString):
-                continue
-            assert item.name == "li"
-            self.items.append(item.text)
+            assert item.tag == "li"
+            self.items.append(text(item))
 
 
 class HasDoc:
-    HEADER_RE = re.compile('^h([1-6])$')
+    HEADER = {
+        f"h{n}": "#" * n for n in range(1, 7)
+    }
 
     def parse_doc(self, doc):
         doc_items = []
-        if not doc:
+        if doc is None:
             return ""
 
         for item in doc:
-            if isinstance(item, bs4.NavigableString):
-                continue
-            match = self.HEADER_RE.match(item.name)
-            if match and "section-header" in item.attrs["class"]:
-                h = "#" * int(match.group(1))
-                doc_items.append(f"{h} {item.text}")
-            elif item.name == "p":
-                doc_items.append(item.text.replace("\n", " "))
-            elif item.name == "div" and "example-wrap" in item.attrs["class"]:
+            h = self.HEADER.get(item.tag)
+            if h and "section-header" in item.classes:
+                doc_items.append(f"{h} {text(item)}")
+            elif item.tag == "p":
+                text_ = text(item)
+                if text_:
+                    doc_items.append(text_.replace("\n", " "))
+                else:
+                    doc_items.append("")
+            elif item.tag == "div" and "example-wrap" in item.classes:
                 doc_items.append(self.parse_example(item))
-            elif item.name == "ul":
+            elif item.tag == "ul":
                 doc_items += ["* " + sub_item.strip() for sub_item in RList(item).items]
-            elif item.name == "ol":
+            elif item.tag == "ol":
                 doc_items += ["{n}. " + sub_item.strip() for n, sub_item in enumerate(RList(item).items)]
-            elif item.name == "blockquote":
-                doc_items += f"> {item.text}"
-            elif item.name == "table":
+            elif item.tag == "blockquote":
+                doc_items += f"> {text(item)}"
+            elif item.tag == "table":
                 # Tables not handled. std::mem::size_of demonstrates usage.
                 pass
-            elif item.name == "div" and "information" in item.attrs["class"]:
+            elif item.tag == "div" and "information" in item.classes:
                 # Tooltips are not handled.
                 pass
             else:
                 print("Unknown item", item)
 
-        doc.decompose()
         return "/// " + "\n/// ".join(doc_items)
 
     def parse_example(self, doc) -> str:
-        for item in doc:
-            if isinstance(item, bs4.NavigableString):
-                continue
         return "```CODE```"
 
 
 class HasHeader:
     def __init__(self, body):
-        header = body.find("h1", {"class": "fqn"})
-        to_remove = [SINCE, SRCLINK, ("a", {"href": "javascript:void(0)"})]
-        for item, data in to_remove:
-            for div in header.find_all(item, data):
-                div.decompose()
-        text = str(header.text)
-        header.decompose()
-        self.header = text
+        header = find_with_class(body, "h1", "fqn")
+        find_all_spans(header)
+        find_all_src_link(header)
+        text_ = text(header)
+        body.remove(header)
+        self.header = text_
 
 
 class Struct(HasHeader, HasDoc):
     def __init__(self, body):
         super().__init__(body)
-        type_decl = body.find("div", {"class": "docblock"})
-        parent = body.find("details", {"class": "rustdoc-toggle"})
-        items = parent.find("div", {"class": "docblock"})
-        doc = items
-        self.doc_text = self.parse_doc(doc)
-        self.type_decl_text = type_decl.text
-        type_decl.decompose()
+        type_decl = find_with_class(body, "div", "docblock")
+        body.remove(type_decl)
 
-        self.impls = []
-        for doc in body.find_all("div", {"class": "impl-items"}, recursive=False):
-            self.eat_impl(doc)
+        parent = find_with_class(body, "details", "rustdoc-toggle")
+        if parent is not None:
+            doc = find_with_class(parent, "div", "docblock")
+            self.doc_text = self.parse_doc(doc)
+            self.impls = []
+            for doc in find_with_class_iter(body, "div", "impl-items"):
+                self.eat_impl(doc)
+            body.remove(parent)
+        else:
+            self.doc_text = ""
+
+        self.type_decl_text = text(type_decl)
 
     def eat_impl(self, doc):
         items = []
         for item in doc:
-            if item.name == "h4":
-                for target_type in [
-                    SINCE, SRCLINK,
-                    ("a", {"href": "javascript:void(0)"}),
-                ]:
-                    for target in item.find_all(*target_type):
-                        target.decompose()
-                items.append(("METHOD", item.text))
-                item.decompose()
-            if item.name == "div":
+            if item.tag == "h4":
+                find_all_spans(item)
+                find_all_src_link(item)
+                items.append(("METHOD", text(item)))
+            if item.tag == "div":
                 items.append(("DOC", self.parse_doc(item)))
+            doc.remove(item)
         return items
 
     def decl(self):
@@ -113,15 +138,15 @@ class Struct(HasHeader, HasDoc):
 class Fn(HasHeader, HasDoc):
     def __init__(self, body):
         super().__init__(body)
-        fn_decl_block = body.find("pre", {"class": "fn"})
-        for span in fn_decl_block.find_all("span"):
+        fn_decl_block = find_with_class(body, "pre", "fn")
+        for span in fn_decl_block.findall("span"):
             span.decompose()
-        self.fn_decl = fn_decl_block.text
-        parent = body.find("details", {"class": "rustdoc-toggle"})
-        if not parent:
+        self.fn_decl = text(fn_decl_block)
+        parent = find_with_class(body, "details", "rustdoc-toggle")
+        if parent is None:
             self.doc_text = ""
             return
-        doc = parent.find("div", {"class": "docblock"}, recursive=False)
+        doc = find_with_class(parent, "div", "docblock")
         self.doc_text = self.parse_doc(doc)
 
     def decl(self):
@@ -138,7 +163,7 @@ def get_all_doc_files(path: Path) -> list:
     if path.is_dir() and path.name in ["rust-by-example", "reference", "embedded-book", "edition-guide"]:
         return []
 
-    choices = ["struct.", "fn.", "enum.", "constant.", "macro.", "trait."]
+    choices = ["struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword."]
 
     items = []
     for child_path in path.iterdir():
@@ -160,6 +185,7 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
         "constant": [],
         "macro": [],
         "trait": [],
+        "keyword": [],
     }
     for path in paths:
         path_dict[str(path.name).split(".")[0]].append(path)
@@ -168,12 +194,12 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
 
 def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
     with open(path, "r") as file:
-        soup = BeautifulSoup(file.read(), 'html.parser')
-        if soup.find("title").text == "Redirection":
+        soup = parse(file)
+        title = soup.find("head/title")
+        if title.text == "Redirection":
             return
-        body = soup.find("section")
+        body = soup.find("body/section")
         return DISPATCH.get(
-            #
             path.stem.split(".", 1)[0],
             # Default case: return None
             lambda *args, **kwargs: None
@@ -193,20 +219,27 @@ def main():
     sucesses = []
     for path in files["fn"] + files["struct"]:
         file = parse_file(path)
-        print(path)
         if file:
             sucesses.append((path, file))
 
     for path, file in sucesses:
-        file_name = path.name
-        # print(file_name)
-        # print(file.decl())
+        print(path)
+        print(file.decl())
 
     print(len(sucesses), counts)
 
 
+def profiling(statement: str):
+    import cProfile
+    import pstats
+    cProfile.run(statement, "stats")
+    pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
+
+
 if __name__ == '__main__':
-    main()
+    import cProfile
+
+    profiling("main()")
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
