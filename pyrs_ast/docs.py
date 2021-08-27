@@ -1,7 +1,28 @@
 from typing import Optional, Tuple
-import re
 
-CODE_REGEX = re.compile(r"\.(?=(?:[^\`']*[\`'][^\`']*[\`'])*[^\`']*$)")
+
+def split_str_on(s: str, c: str):
+    special = "\"`'"
+
+    assert len(c) == 1
+    assert c not in special
+
+    looking_for = ""
+    splits = []
+    prev_ind = 0
+    for ind, cx in enumerate(s):
+        if looking_for:
+            if looking_for == cx:
+                looking_for = ""
+            else:
+                continue
+        elif cx in special:
+            looking_for = cx
+        elif cx == c:
+            splits.append(s[prev_ind:ind])
+            prev_ind = ind + 1
+    splits.append(s[prev_ind:])
+    return splits
 
 
 class Section:
@@ -19,7 +40,7 @@ class Section:
 
     def consolidate(self):
         self.body = " ".join(self.lines)
-        self.sentences = [s for s in CODE_REGEX.split(self.body) if s]
+        self.sentences = [s for s in split_str_on(self.body, ".") if s]
 
 
 class Docs:
@@ -54,3 +75,10 @@ class Docs:
                 lines.append(section.header)
             lines += section.lines
         return "\n".join(f"/// {line}" for line in lines)
+
+
+if __name__ == '__main__':
+    print(split_str_on("hello `there`. general `kenobi`. Hello. ...", "."))
+    print("hello `there`. general `kenobi`. Hello. ...".split("."))
+    print("hello `the.re`. general `kenobi`. Hello. ...".split("."))
+    print(split_str_on("hello `the.r\"e\"`. general `kenobi`. Hello. ...", "."))
