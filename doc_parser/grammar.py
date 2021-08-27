@@ -29,7 +29,7 @@ class Code:
 
 
 class Literal:
-    def __init__(self, tree: Tree, *_args):
+    def __init__(self, tree: Union[Tree, List[str]], *_args):
         self.str: str = tree[0]
 
     def as_code(self):
@@ -237,6 +237,8 @@ class TJJ:
 
 
 class Relation:
+    __slots__ = ["objs", "op", "negate"]
+
     def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "REL":
             rel = Relation(tree[0], invoke_factory)
@@ -395,7 +397,7 @@ class Property:
 
 
 class Assert:
-    def __init__(self, tree: Tree, invoke_factory):
+    def __init__(self, tree: Union[list, Tree], invoke_factory):
         if tree[0].label() != "OBJ":
             raise ValueError(f"Bad tree - expected OBJ, got {tree[0].label()}")
 
@@ -506,13 +508,13 @@ class RangeMod(Range):
 
 class CC:
     def __init__(self, tree: Tree):
-        self.tree = tree
+        self.cc = tree[0].lower()
 
     def bool_op(self):
         return {
             "or": "||",
             "and": "&&",
-        }[self.tree[0].lower()]
+        }[self.cc]
 
 
 class ForEach:
@@ -520,46 +522,43 @@ class ForEach:
         if tree[0].label() == "FOREACH":
             # another range condition here
             sub_foreach = ForEach(tree[0], invoke_factory)
-            self.tree = sub_foreach.tree
             self.quant = sub_foreach.quant
             self.range = sub_foreach.range
-            self.labels = sub_foreach.labels
             if tree[1].label() == "CC":
                 self.range_conditions = sub_foreach.range_conditions + [
                     (CC(tree[1]), ModRelation(tree[-1], invoke_factory))
                 ]
             else:
-                self.range_conditions = sub_foreach.range_conditions + [(ModRelation(tree[-1], invoke_factory))]
+                self.range_conditions = sub_foreach.range_conditions + [(None, ModRelation(tree[-1], invoke_factory))]
 
         else:
-            self.tree = tree
             self.quant = Quantifier(tree[0], invoke_factory)
             self.range = RangeMod(tree[1], invoke_factory) if len(tree) > 1 else None
-            self.labels = tuple(x.label() for x in tree)
             self.range_conditions = []
 
     def as_code(self, cond: str):
         return self.with_conditions(cond)
 
     def with_conditions_iff(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
-        if self.quant.is_universal:
-            raise UnsupportedSpec("Prusti does not support existential quantifiers.")
-        ## (a && b) || (c && d && e) || (f)
-        # need type hint about second
-        # type hints: start.as_code(), end.as_code()
-        #                                    v do type introspection here
-        # detect multiple identifiers.
-        if isinstance(post_cond, list):
-            post_cond = " && ".join(post_cond)
-        if isinstance(pre_cond, list):
-            pre_cond = " && ".join(pre_cond)
+        raise NotImplementedError()
+        # if self.quant.is_universal:
+        #     raise UnsupportedSpec("Prusti does not support existential quantifiers.")
+        # # (a && b) || (c && d && e) || (f)
+        # # need type hint about second
+        # # type hints: start.as_code(), end.as_code()
+        # #                                    v do type introspection here
+        # # detect multiple identifiers.
+        # if isinstance(post_cond, list):
+        #     post_cond = " && ".join(post_cond)
+        # if isinstance(pre_cond, list):
+        #     pre_cond = " && ".join(pre_cond)
 
     def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
         quant = "forall"
         if not self.quant.is_universal:
             quant = "forsome"
             # raise UnsupportedSpec("Prusti does not support existential quantifiers.")
-        ## (a && b) || (c && d && e) || (f)
+        # (a && b) || (c && d && e) || (f)
         # need type hint about second
         # type hints: start.as_code(), end.as_code()
         #                                    v do type introspection here
@@ -590,10 +589,10 @@ class ForEach:
                     conditions[-1].extend(pre_cond)
                 else:
                     conditions[-1].append(pre_cond)
-            for range_condition in self.range_conditions:
+            for cc, range_condition in self.range_conditions:
                 # Has nothing attached
-                if isinstance(range_condition, tuple) and range_condition[0].bool_op() == "||":
-                    conditions.append([range_condition[1].as_code(ident)])
+                if cc is not None and cc.bool_op() == "||":
+                    conditions.append([range_condition.as_code(ident)])
                 else:
                     conditions[-1].append(range_condition.as_code(ident))
 
@@ -608,7 +607,6 @@ class ForEach:
                     return f"{quant}(|{ident}: {xtype}| {post_cond} ==> {pre_cond})"
                 return f"{quant}(|{ident}: {xtype}| {pre_cond} ==> {post_cond})"
             return f"{quant}(|{ident}: {xtype}| {post_cond})"
-        # raise ValueError(f"ForEach case not handled: {self.labels}")
 
 
 class Quantifier:
@@ -729,6 +727,8 @@ class Negated:
 
 
 class ReturnIf(MReturn):
+    __slots__ = ["preds", "ret_vals"]
+
     def __init__(self, tree: Union[Tree, List[Tree]], invoke_factory: InvocationFactory):
         if tree[0].label() == "RETIF":
             lhs = ReturnIf(tree[0], invoke_factory)
