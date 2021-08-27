@@ -18,7 +18,7 @@ class UnsupportedSpec(ValueError):
 
 
 class Code:
-    def __init__(self, tree: Tree, *args):
+    def __init__(self, tree: Tree, *_args):
         self.code: str = tree[0]
 
     def as_code(self):
@@ -29,7 +29,7 @@ class Code:
 
 
 class Literal:
-    def __init__(self, tree: Tree, *args):
+    def __init__(self, tree: Tree, *_args):
         self.str: str = tree[0]
 
     def as_code(self):
@@ -147,7 +147,7 @@ class Object:
     def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
         if labels not in {
-            ("PRP",), ("DT", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
+            ("PRP",), ("DT", "MNN"), ("DT", "VBG", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
             ("DT", "MNN", "IN", "OBJ"), ("DT", "MJJ", "IN", "OBJ"), ("FNCALL",)
         }:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
@@ -163,6 +163,10 @@ class Object:
         if self.labels == ("DT", "MNN"):
             # TODO: This assumes that val in "The val" is a variable.
             return lemmatize(self.tree[1][0][0])
+        if self.labels == ("DT", "VBG", "MNN"):
+            # TODO: This assumes that val in "The val" is a variable.
+            return f"{lemmatize(self.tree[2][0][0])}.{lemmatize(self.tree[1][0], VERB)}()"
+
         if self.labels == ("MNN",):
             # TODO: This assumes that val in "The val" is a variable.
             return lemmatize(self.tree[0][0][0])
@@ -254,7 +258,11 @@ class Relation:
         if labels not in {("TJJ", "IN", "OBJ"), ("TJJ", "EQTO", "OBJ"), ("IN", "OBJ")}:
             raise ValueError(f"Bad tree - expected REL productions, got {labels}")
 
-        self.op = Comparator.from_str(TJJ(tree[0]).get_word())
+        if labels == ("IN", "OBJ"):
+            # TODO: This is very much incorrect.
+            self.op = Comparator.from_str("less")
+        else:
+            self.op = Comparator.from_str(TJJ(tree[0]).get_word())
         if labels[1] == "EQTO":
             self.op = self.op.apply_eq()
         self.objs = [(None, Object(tree[-1], invoke_factory))]
@@ -513,7 +521,7 @@ class RangeMod(Range):
     def __init__(self, tree: Tree, invoke_factory):
         super().__init__(tree[0], invoke_factory)
         if tree[-1].label() == "JJ":
-            self.upper_bound = UpperBound.from_str(tree[-1]).as_code_lt()
+            self.upper_bound = UpperBound.from_str(tree[-1][0]).as_code_lt()
         else:
             self.upper_bound = UpperBound.EXCLUSIVE.as_code_lt()
 
@@ -533,7 +541,7 @@ class ForEach:
     def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "FOREACH":
             # another range condition here
-            sub_foreach = ForEach(tree[0])
+            sub_foreach = ForEach(tree[0], invoke_factory)
             self.tree = sub_foreach.tree
             self.quant = sub_foreach.quant
             self.range = sub_foreach.range
