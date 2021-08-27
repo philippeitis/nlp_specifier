@@ -147,7 +147,8 @@ class Object:
     def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
         if labels not in {
-            ("PRP",), ("DT", "MNN"), ("DT", "VBG", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",), ("OBJ", "OP", "OBJ"),
+            ("PRP",), ("DT", "MNN"), ("DT", "VBG", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",),
+            ("OBJ", "OP", "OBJ"),
             ("DT", "MNN", "IN", "OBJ"), ("DT", "MJJ", "IN", "OBJ"), ("FNCALL",)
         }:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
@@ -640,25 +641,6 @@ class Quantifier:
         self.is_universal = tree[1][0].lower() in {"all", "each", "any"}
 
 
-class Predicate:
-    def __init__(self, tree: Tree, invoke_factory):
-        if tree[0].label() not in {"IFF", "IF"}:
-            raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
-        if tree[1].label() not in {"CODE", "ASSERT", "FNCALL"}:
-            raise ValueError(f"Bad tree - expected ASSERT or CODE or FNCALL, got {tree[1].label()}")
-
-        self.iff = tree[0].label() == "IFF"
-        if tree[1].label() == "CODE":
-            self.assertion = Code(tree[1])
-        elif tree[1].label() == "ASSERT":
-            self.assertion = Assert(tree[1], invoke_factory)
-        else:
-            self.assertion = invoke_factory(tree[1])
-
-    def as_code(self):
-        return self.assertion.as_code()
-
-
 class QuantAssert:
     def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
@@ -713,24 +695,25 @@ class QuantAssert:
         return f"#[{cond}({self.as_code()})]"
 
 
-class QuantPredicate:
+class BoolCond:
     def __init__(self, tree: Tree, invoke_factory):
-        if tree[0].label() not in {"IFF", "IF"}:
-            raise ValueError(f"Bad tree - expected IFF or IF, got {tree[0].label()}")
-        if tree[1].label() != "QASSERT":
-            raise ValueError(f"Bad tree - expected ASSERT, got {tree[1].label()}")
-
         self.iff = tree[0].label() == "IFF"
-        self.assertion = QuantAssert(tree[1], invoke_factory)
-
-    def bound_vars(self):
-        return self.assertion.bound_vars()
+        dispatch = {
+            "ASSERT": Assert,
+            "QASSERT": QuantAssert,
+            "CODE": Code,
+        }
+        expr = tree[1][0]
+        if expr.label() in dispatch:
+            self.expr = dispatch[expr.label()](expr, invoke_factory)
+        else:
+            raise ValueError(f"Bad tree - expected PRED, QPRED or CODE, got {expr.label()}")
 
     def as_code(self):
-        return self.assertion.as_code()
+        return self.expr.as_code()
 
-    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
-        return self.assertion.with_conditions(post_cond, pre_cond, flip)
+    def negated(self):
+        return Negated(self.expr, self.iff)
 
 
 class MReturn:
@@ -754,18 +737,18 @@ class MReturn:
         return f"#[ensures(result == {self.ret_val.as_code()})]"
 
 
-class Negate:
-    def __init__(self, pred):
-        if isinstance(pred, Predicate):
-            self.pred = pred
-            self.iff = self.pred.iff
-        elif isinstance(pred, QuantPredicate):
+class Negated:
+    def __init__(self, expr, iff):
+        if isinstance(expr, (Assert, Code)):
+            self.iff = iff
+            self.expr = expr
+        elif isinstance(expr, QuantAssert):
             raise ValueError("Quantifiers can not be negated")
         else:
-            raise ValueError(f"Can't negate {type(pred)}")
+            raise ValueError(f"Unexpected type {type(expr)} can not be negated")
 
     def as_code(self):
-        return f"!{self.pred.as_code()}"
+        return f"!{self.expr.as_code()}"
 
 
 class ReturnIf(MReturn):
@@ -774,15 +757,15 @@ class ReturnIf(MReturn):
             lhs = ReturnIf(tree[0], invoke_factory)
             self.preds = lhs.preds
             self.ret_vals = lhs.ret_vals
-            if tree[1][0].lower() != "otherwise":
+            if tree[2][0].lower() != "otherwise":
                 raise ValueError(f"Unexpected RB {tree[1][0]} in ReturnIf")
-            if tree[2].label() == "RETIF":
-                rhs = ReturnIf(tree[2], invoke_factory)
+            if tree[3].label() == "RETIF":
+                rhs = ReturnIf(tree[3], invoke_factory)
                 self.preds += rhs.preds
                 self.ret_vals += rhs.ret_vals
             else:
-                self.ret_vals.append(Object(tree[2], invoke_factory))
-                self.preds.append(Negate(self.preds[-1]))
+                self.ret_vals.append(Object(tree[3], invoke_factory))
+                self.preds.append(self.preds[-1].negated())
             return
         if tree[0].label() == "MRET":
             super().__init__(tree[0], invoke_factory)
@@ -794,18 +777,13 @@ class ReturnIf(MReturn):
             raise ValueError("Did not find MRET")
 
         self.ret_vals = [self.ret_val]
-        if pred.label() == "PRED":
-            self.preds = [Predicate(pred, invoke_factory)]
-        elif pred.label() == "QPRED":
-            self.preds = [QuantPredicate(pred, invoke_factory)]
-        else:
-            raise ValueError(f"Bad tree - expected QPRED or PRED, got {pred.label()}")
+        self.preds = [BoolCond(pred, invoke_factory)]
 
     def __str__(self):
         return f"return {self.ret_val.as_code()};"
 
     @classmethod
-    def spec(cls, pred: Union[Negate, Predicate, QuantPredicate], ret_val: Object) -> str:
+    def spec(cls, pred: Union[BoolCond, Negated], ret_val: Object) -> str:
         ret_val = ret_val.as_code()
         if ret_val == "true":
             ret_assert = "result"
@@ -814,14 +792,15 @@ class ReturnIf(MReturn):
         else:
             ret_assert = f"(result == {ret_val})"
 
-        if isinstance(pred, QuantPredicate):
+        if isinstance(pred.expr, QuantAssert):
+            expr = pred.expr
             if pred.iff:
                 # need to be able to put cond inside quant pred
                 # Need to handle ret val inside QASSERT.
-                return f"""#[ensures({pred.with_conditions(ret_assert)})]
-#[ensures({pred.with_conditions(ret_assert, flip=True)})]"""
+                return f"""#[ensures({expr.with_conditions(ret_assert)})]
+#[ensures({expr.with_conditions(ret_assert, flip=True)})]"""
 
-            return f"""#[ensures({pred.with_conditions(ret_assert)})]"""
+            return f"""#[ensures({expr.with_conditions(ret_assert)})]"""
 
         if pred.iff:
             return f"""#[ensures({pred.as_code()} ==> {ret_assert})]
@@ -830,32 +809,6 @@ class ReturnIf(MReturn):
 
     def as_spec(self):
         return "\n".join(self.spec(p, rv) for p, rv in zip(self.preds, self.ret_vals))
-
-
-class ReturnIfElse(ReturnIf):
-    def __init__(self, tree: Tree, invoke_factory):
-        super().__init__(tree[0], invoke_factory)
-        if tree[1][0].lower() != "otherwise":
-            raise ValueError(f"Unexpected RB {tree[1][0]} in IfElseRet")
-        self.op_ret_val = Object(tree[2], invoke_factory)
-
-    def as_spec(self):
-        if_part = super().as_spec()
-        ret_val = self.op_ret_val.as_code()
-        if ret_val == "true":
-            ret_assert = "result"
-        elif ret_val == "false":
-            ret_assert = "!result"
-        else:
-            ret_assert = f"(result == {ret_val})"
-
-        if isinstance(self.pred, QuantPredicate):
-            raise ValueError("Can not negate quantifier in IfRetElse.")
-
-        if self.pred.iff:
-            return f"""{if_part}\n#[ensures(!{self.pred.as_code()} ==> {ret_assert})]
-        #[ensures(({ret_assert}) ==> {self.pred.as_code()})]"""
-        return f"""{if_part}\n#[ensures(!{self.pred.as_code()} ==> {ret_assert})]"""
 
 
 class SideEffect:
@@ -905,7 +858,6 @@ class Specification:
     def __init__(self, tree: Tree, invoke_factory: "InvocationFactory"):
         self.spec = {
             "RETIF": ReturnIf,
-            "RETIFELSE": ReturnIfElse,
             "HASSERT": HardAssert,
             "QASSERT": QuantAssert,
             "MRET": MReturn,
