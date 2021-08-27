@@ -144,42 +144,32 @@ class Op:
 
 
 class Object:
+    DISPATCH = {
+        ("CODE",): lambda t, inv: Code(t[0]).as_code(),
+        ("LIT",): lambda t, inv: Literal(t[-1]).as_code(),
+        ("DT", "LIT"): lambda t, inv: Literal(t[-1]).as_code(),
+        ("DT", "MNN"): lambda t, inv: lemmatize(t[1][0][0]),
+        ("DT", "VBG", "MNN"): lambda t, inv: f"{lemmatize(t[2][0][0])}.{lemmatize(t[1][0], VERB)}()",
+        ("MNN",): lambda t, inv: lemmatize(t[0][0][0]),
+        ("OBJ", "OP", "OBJ"): lambda t, inv: Op(t, inv).as_code(),
+        ("DT", "MNN", "IN", "OBJ"): lambda t, inv: f"{Object(t[-1], inv).as_code()}.{lemmatize(t[1][0][0])}()",
+        ("DT", "MJJ", "IN", "OBJ"): lambda t, inv: f"{Object(t[-1], inv).as_code()}.{lemmatize(t[1][0][0])}()",
+        ("FNCALL",): lambda t, inv: inv(t).as_code(),
+    }
+
     def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
-        if labels not in {
-            ("PRP",), ("DT", "MNN"), ("DT", "VBG", "MNN"), ("CODE",), ("LIT",), ("DT", "LIT"), ("MNN",),
-            ("OBJ", "OP", "OBJ"),
-            ("DT", "MNN", "IN", "OBJ"), ("DT", "MJJ", "IN", "OBJ"), ("FNCALL",)
-        }:
+        fn = self.DISPATCH.get(labels)
+
+        if fn:
+            self.obj = fn(tree, invoke_factory)
+        elif labels == ("PRP",):
+            raise ValueError("Object: PRP case not handled.")
+        else:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
-        self.labels = labels
-        self.tree = tree
-        self.invoke_factory = invoke_factory
 
     def as_code(self) -> str:
-        if self.labels == ("CODE",):
-            return Code(self.tree[0]).as_code()
-        if self.labels[-1] == "LIT":
-            return Literal(self.tree[-1]).as_code()
-        if self.labels == ("DT", "MNN"):
-            # TODO: This assumes that val in "The val" is a variable.
-            return lemmatize(self.tree[1][0][0])
-        if self.labels == ("DT", "VBG", "MNN"):
-            # TODO: This assumes that val in "The val" is a variable.
-            return f"{lemmatize(self.tree[2][0][0])}.{lemmatize(self.tree[1][0], VERB)}()"
-
-        if self.labels == ("MNN",):
-            # TODO: This assumes that val in "The val" is a variable.
-            return lemmatize(self.tree[0][0][0])
-        if self.labels == ("OBJ", "OP", "OBJ"):
-            return Op(self.tree, self.invoke_factory).as_code()
-        if self.labels == ("DT", "MNN", "IN", "OBJ"):
-            return f"{Object(self.tree[-1], self.invoke_factory).as_code()}.{lemmatize(self.tree[1][0][0])}()"
-        if self.labels == ("DT", "MJJ", "IN", "OBJ"):
-            return f"{Object(self.tree[-1], self.invoke_factory).as_code()}.{lemmatize(self.tree[1][0][0])}()"
-        if self.labels == ("FNCALL",):
-            return self.invoke_factory(self.tree[0]).as_code()
-        raise ValueError(f"{self.labels} not handled.")
+        return self.obj
 
     def is_output(self):
         raise NotImplementedError()
@@ -474,12 +464,12 @@ class Range:
             self.ident = Object(tree[0], invoke_factory)
             self.start = Object(tree[2], invoke_factory)
             self.end = Object(tree[4], invoke_factory)
-        if labels == ("IN", "OBJ", "RSEP", "OBJ"):
+        elif labels == ("IN", "OBJ", "RSEP", "OBJ"):
             self.ident = None
             self.start = Object(tree[1], invoke_factory)
             self.end = Object(tree[3], invoke_factory)
         # TODO: What other cases other than "up to" (eg. up to and not including)
-        if labels == ("IN", "IN", "OBJ"):
+        elif labels == ("IN", "IN", "OBJ"):
             self.ident = None
             self.start = None
             self.end = Object(tree[2], invoke_factory)
