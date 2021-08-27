@@ -1,3 +1,9 @@
+# Modifies tags produced by spaCy to take advantage of domain knowledge with respect to
+# Rust documentation, and to make the grammar more precise.
+#
+# Refer to https://spacy.io/usage/rule-based-matching for information on pattern-matching
+# in spaCy.
+
 from typing import Optional
 
 import spacy
@@ -20,8 +26,8 @@ def lemma(word: str):
     return {"LEMMA": word.lower()}
 
 
-def tag(tag: str):
-    return {"TAG": tag.upper()}
+def tag(text: str):
+    return {"TAG": text.upper()}
 
 
 def lower(text: str):
