@@ -19,13 +19,13 @@ def peek(it):
     return first, itertools.chain([first], it)
 
 
-def find_all_spans(item):
+def remove_all_spans(item: etree.ElementBase):
     for val in item.findall("span"):
         if "since" in val.classes or "notable-traits-tooltip" in val.classes:
             item.remove(val)
 
 
-def find_all_src_link(item):
+def remove_all_src_links(item: etree.ElementBase):
     for val in item.findall("a"):
         if "srclink" in val.classes:
             item.remove(val)
@@ -33,24 +33,24 @@ def find_all_src_link(item):
             item.remove(val)
 
 
-def find_with_class(item, tag: str, class_: str):
+def find_with_class(item: etree.ElementBase, tag: str, class_: str):
     try:
         return next(find_with_class_iter(item, tag, class_))
     except StopIteration:
         return None
 
 
-def find_with_class_iter(item, tag: str, class_: str):
+def find_with_class_iter(item: etree.ElementBase, tag: str, class_: str):
     for result in item.findall(tag):
         if class_ in result.classes:
             yield result
 
 
-def text(item):
+def text(item: etree.ElementBase) -> str:
     return etree.tostring(item, method="text", encoding="unicode")
 
 
-def stringify(item):
+def stringify(item: etree.ElementBase) -> str:
     s = ""
     itext = item.text or ""
     if item.tag == "code":
@@ -79,7 +79,7 @@ class HasDoc:
     }
 
     @classmethod
-    def parse_doc(cls, html_doc) -> Docs:
+    def parse_doc(cls, html_doc: etree.ElementBase) -> Docs:
         docs = Docs()
         if html_doc is None:
             return docs
@@ -116,22 +116,22 @@ class HasDoc:
         return docs
 
     @classmethod
-    def parse_example(cls, doc) -> str:
+    def parse_example(cls, doc: etree.ElementBase) -> str:
         return "```CODE```"
 
 
 class HasHeader:
-    def __init__(self, body):
+    def __init__(self, body: etree.ElementBase):
         header = find_with_class(body, "h1", "fqn")
-        find_all_spans(header)
-        find_all_src_link(header)
+        remove_all_spans(header)
+        remove_all_src_links(header)
         text_ = stringify(header)
         body.remove(header)
         self.header = text_
 
 
 class Struct(HasHeader, HasDoc):
-    def __init__(self, body):
+    def __init__(self, body: etree.ElementBase):
         super().__init__(body)
         type_decl = find_with_class(body, "div", "docblock")
         body.remove(type_decl)
@@ -152,15 +152,15 @@ class Struct(HasHeader, HasDoc):
 
         self.type_decl = stringify(type_decl)
 
-    def eat_impls_old(self, doc, doc_iter):
+    def eat_impls_old(self, doc: etree.ElementBase, doc_iter) -> List["Method"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "div":
                     return items + self.eat_impl(doc, doc_iter)
-                find_all_spans(item)
-                find_all_src_link(item)
+                remove_all_spans(item)
+                remove_all_src_links(item)
                 name = stringify(item)
                 next(doc_iter)
                 doc.remove(item)
@@ -179,7 +179,7 @@ class Struct(HasHeader, HasDoc):
 
         return items
 
-    def eat_impl(self, doc, doc_iter):
+    def eat_impl(self, doc: etree.ElementBase, doc_iter) -> List["Method"]:
         items = []
         while True:
             try:
@@ -194,7 +194,7 @@ class Struct(HasHeader, HasDoc):
                 break
         return items
 
-    def eat_impl_dispatch(self, doc):
+    def eat_impl_dispatch(self, doc: etree.ElementBase) -> List["Method"]:
         try:
             first = next(iter(doc))
             if "method" in first.classes:
@@ -204,12 +204,12 @@ class Struct(HasHeader, HasDoc):
         except StopIteration:
             return []
 
-    def decl(self):
+    def decl(self) -> str:
         return f"{self.docs}\n{self.type_decl}"
 
 
 class Fn(HasHeader, HasDoc):
-    def __init__(self, body):
+    def __init__(self, body: etree.ElementBase):
         super().__init__(body)
         fn_decl_block = find_with_class(body, "pre", "fn")
         for span in fn_decl_block.findall("span"):
@@ -223,7 +223,7 @@ class Fn(HasHeader, HasDoc):
         doc = find_with_class(parent, "div", "docblock")
         self.docs = self.parse_doc(doc)
 
-    def decl(self):
+    def decl(self) -> str:
         return f"{self.docs}\n{self.fn_decl} {{}}"
 
 
@@ -233,15 +233,15 @@ class Method(HasDoc):
         self.docs = docs
 
     @classmethod
-    def from_block(cls, block):
+    def from_block(cls, block) -> "Method":
         name = block.find("summary/div")
-        find_all_src_link(name)
-        find_all_spans(name)
+        remove_all_src_links(name)
+        remove_all_spans(name)
         name = stringify(name)
         docs = cls.parse_doc(find_with_class(block, "div", "docblock"))
         return cls(name, docs)
 
-    def decl(self):
+    def decl(self) -> str:
         return f"{self.docs}\n{self.name}"
 
 
@@ -348,11 +348,7 @@ def get_toolchains() -> List[Path]:
 
 
 if __name__ == '__main__':
-    import time
-    start = time.time()
-    print(main(get_toolchains()[0]))
-    end = time.time()
-    print(end - start)
+    main(get_toolchains()[0])
 
     # choose_random_items(get_toolchains()[0])
     # make section 1 intro / problem statement / high level approach
