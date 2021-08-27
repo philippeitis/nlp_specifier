@@ -164,7 +164,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     if "PRP$" in sym_replacements:
         sym_replacements["PRPS"] = sym_replacements.pop("PRP$")
 
-    word_filter = lambda word: not set(",!.();:*<>=+-?&%'\"\\[]{}#").isdisjoint(word)
+    word_filter = lambda word: not set(",`!.();:*<>=+-?&%'\"\\[]{}#").isdisjoint(word)
     for word, syms in word_replacements.items():
         if word_filter(word):
             continue
@@ -493,9 +493,6 @@ if __name__ == '__main__':
 
     invoke_testcases()
 
-    # p = Parser.default()
-    # print(p.tokenize_sentence("AAAA::<'a>").tags)
-    # end_to_end_demo()
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup
