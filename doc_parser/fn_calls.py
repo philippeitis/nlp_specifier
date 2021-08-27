@@ -209,8 +209,9 @@ class Invocation:
                 variant = []
                 for token in self.parts:
                     if token.is_optional():
-                        if i & 1 == 0:
-                            i >>= 1
+                        skip = i & 1 == 0
+                        i >>= 1
+                        if skip:
                             continue
                     variant.append(token)
                 yield variant

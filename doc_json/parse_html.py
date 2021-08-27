@@ -301,10 +301,10 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
         )(body)
 
 
-def get_all_files(toolchain_root: Path):
+def get_all_files(toolchain_root: Path, num_processes: int = 8):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(get_all_doc_files(target_dir))
-    with Pool(8) as p:
+    with Pool(num_processes) as p:
         targets = files["fn"] + files["struct"]
         return [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
 
