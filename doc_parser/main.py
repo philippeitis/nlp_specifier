@@ -230,13 +230,17 @@ def invoke_helper(invocations, invocation_triples=None):
 
     parser = Parser(grammar)
 
+    successes = 0
     sentences = invocations + [sentence for _, _, sentence in invocation_triples]
     for sentence in sentences:
         print("=" * 80)
         print("Sentence:", sentence)
+        print("    Tags:", parser.tokenize_sentence(sentence).tags)
         print("=" * 80)
+        success = False
         try:
             for tree in parser.parse_sentence(sentence):
+                success = True
                 tree: Tree = tree
                 try:
                     print(Specification(tree, factory).as_spec())
@@ -248,9 +252,12 @@ def invoke_helper(invocations, invocation_triples=None):
                 print()
         except ValueError as e:
             print(f"Grammar: ({e})")
+        if success:
+            successes += 1
+    return successes
 
 
-def invoke_demo(triples=None, invocations=None):
+def invoke_demo():
     """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
 
     invocation_triples = [
@@ -376,8 +383,13 @@ def render_ner(sentence: str, path: str, idents=None, open_browser=False):
             spans.append(span)
         break
     sent.doc.set_ents(spans)
-    html = displacy.render(sent.doc, style="ent",
-                           options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS}, page=True)
+
+    html = displacy.render(
+        sent.doc,
+        style="ent",
+        options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
+        page=True
+    )
     with open(path, "w") as file:
         file.write(html)
 
@@ -398,8 +410,12 @@ def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_
     tags_as_ents(sent.doc)
     colors = {tag: tag_color(tag) for tag in parser.tokens()}
 
-    html = displacy.render(sent.doc, style="ent",
-                           options={"word_spacing": 30, "distance": 120, "colors": colors}, page=True)
+    html = displacy.render(
+        sent.doc,
+        style="ent",
+        options={"word_spacing": 30, "distance": 120, "colors": colors},
+        page=True
+    )
     with open(path, "w") as file:
         file.write(html)
 
@@ -407,7 +423,7 @@ def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_
         webbrowser.open(path)
 
 
-def tree_diagram(sentence: str, path: str, idents=None, open_browser=False):
+def render_parse_tree(sentence: str, path: str, idents=None, open_browser=False):
     from treevis import render_tree
     import webbrowser
 
@@ -420,10 +436,18 @@ def tree_diagram(sentence: str, path: str, idents=None, open_browser=False):
         webbrowser.open(path)
 
 
+def spec_from_sentence(sentence: str, idents=None):
+    parser = Parser.default()
+    tree = next(
+        parser.parse_sentence(sentence, idents=idents, attach_tags=False)
+    )
+    print(Specification(tree, None).as_spec())
+
+
 def vis_demo():
     """Demonstrates entire pipeline from end to end."""
     ast = AstFile.from_path("../data/test3.rs")
-    tree_diagram(
+    render_parse_tree(
         ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
         idents={"self"},
         path="../images/reciprocal.pdf"
@@ -451,7 +475,12 @@ def run_on_rust_docs():
         except IndexError:
             pass
 
-    invoke_helper(sentences)
+    print(invoke_helper(sentences))
+
+
+def invoke_testcases(path="base_grammar_test_cases.txt"):
+    with open(path, "r") as file:
+        invoke_helper([line.strip() for line in file.readlines()])
 
 
 if __name__ == '__main__':
@@ -462,11 +491,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    run_on_rust_docs()
-    # s = "Returns the first argument if the comparison determines them to be equal."
-    # render_ner(s, "../images/cmp_ner.html", open_browser=True)
-    # render_pos_tokens(s, "../images/cmp_pos.html", open_browser=True)
-    # tree_diagram("Returns a + b", "aaa.pdf", idents={"a", "b"}, open_browser=True)
+    invoke_testcases()
 
     # p = Parser.default()
     # print(p.tokenize_sentence("AAAA::<'a>").tags)
