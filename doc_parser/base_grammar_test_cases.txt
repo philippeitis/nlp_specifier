@@ -56,7 +56,7 @@ Returns `a` right shift `b`
 Sets `a` to 1
 Assigns 1 to `a`.
 Increments `a` by 1
-Adds 1 to `a
+Adds 1 to `a`
 `a` is incremented by 1
 `a` is negated
 `a` is right shifted by `n`

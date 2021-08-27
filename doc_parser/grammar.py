@@ -381,7 +381,7 @@ class Property:
             return ModRelation(self.tree[-1], self.invoke_factory).apply_negate(self.negate).as_code(lhs)
 
         if self.labels[-1] == "OBJ":
-            if self.mvb.word.lower() not in {"is"}:
+            if self.mvb.word.lower() not in {"is", "be"}:
                 # TODO: Support generic properties
                 raise UnsupportedSpec(f"Unexpected verb in PROPERTY ({self.mvb.word})")
 
@@ -397,10 +397,9 @@ class Property:
 
         if self.labels[-1] == "RANGEMOD":
             r = RangeMod(self.tree[-1], self.invoke_factory)
-            ident, start, stop = r.as_foreach_pred()
-            if ident:
-                raise ValueError(f"PROP: Unexpected ident in RANGE case: {ident}")
-            return f"{start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {stop.as_code()}"
+            if r.ident:
+                raise ValueError(f"PROP: Unexpected ident in RANGE case: {r.ident}")
+            return f"{r.start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {r.end.as_code()}"
 
         raise ValueError(f"Case {self.labels} not handled.")
 
@@ -470,34 +469,22 @@ class HardAssert(Assert):
 
 class Range:
     def __init__(self, tree: Tree, invoke_factory):
-        self.tree = tree
-        self.labels = tuple(x.label() for x in tree)
-        self.invoke_factory = invoke_factory
-
-    def as_foreach_pred(self):
-        if self.labels == ("OBJ", "IN", "OBJ", "RSEP", "OBJ"):
-            ident = Object(self.tree[0], self.invoke_factory)
-            start = Object(self.tree[2], self.invoke_factory)
-            end = Object(self.tree[4], self.invoke_factory)
-
-            return ident, start, end
-        if self.labels == ("IN", "OBJ", "RSEP", "OBJ"):
-            start = Object(self.tree[1], self.invoke_factory)
-            end = Object(self.tree[3], self.invoke_factory)
-            return None, start, end
+        labels = tuple(x.label() for x in tree)
+        if labels == ("OBJ", "IN", "OBJ", "RSEP", "OBJ"):
+            self.ident = Object(tree[0], invoke_factory)
+            self.start = Object(tree[2], invoke_factory)
+            self.end = Object(tree[4], invoke_factory)
+        if labels == ("IN", "OBJ", "RSEP", "OBJ"):
+            self.ident = None
+            self.start = Object(tree[1], invoke_factory)
+            self.end = Object(tree[3], invoke_factory)
         # TODO: What other cases other than "up to" (eg. up to and not including)
-        if self.labels == ("IN", "IN", "OBJ"):
-            end = Object(self.tree[2], self.invoke_factory)
-            return None, None, end
-
-        # if self.labels == ("IN", "IN", "OBJ"):
-        #     ident = Object(self.tree[0])
-        #     start = Object(self.tree[2])
-        #     end = Object(self.tree[4])
-        #
-        #     return ident, start, end
-
-        raise ValueError(f"Range case not handled: {self.labels}")
+        if labels == ("IN", "IN", "OBJ"):
+            self.ident = None
+            self.start = None
+            self.end = Object(tree[2], invoke_factory)
+        else:
+            raise ValueError(f"Range case not handled: {labels}")
 
 
 class UpperBound(Enum):
@@ -595,17 +582,17 @@ class ForEach:
         # TODO: Implement code for type detection.
         xtype = "int"
         xtype_min = {
-            "int": Literal(["-1"])
+            "int": Literal(["0"])
         }
         if self.range is not None:
-            ident, start, end = self.range.as_foreach_pred()
-            ident = ident or self.quant.obj
+            ident = self.range.ident or self.quant.obj
+            start = self.range.start or xtype_min[xtype]
             if start is None:
                 start = xtype_min[xtype]
             conditions = [
                 [
                     f"{start.as_code()} <= {ident.as_code()}",
-                    f"{ident.as_code()} {self.range.upper_bound} {end.as_code()}"
+                    f"{ident.as_code()} {self.range.upper_bound} {self.range.end.as_code()}"
                 ]
             ]
             if pre_cond:
@@ -844,11 +831,14 @@ class SideEffect:
         op = Ops.from_str(self.fn.word.lower())
         if op is not None:
             if op == Ops.NEGATE:
-                return f"#[ensures(*{self.target.as_code()} == !*{self.target.as_code()})]"
+                return f"#[ensures(*{self.target.as_code()} == !*old({self.target.as_code()}))]"
             if op == Ops.SHIFT:
-                if self.fn_mod is None:
+                if self.fn_mod:
+                    op = op.apply_dir(self.fn_mod.word)
+                elif self.fn.mod:
+                    op = op.apply_dir(self.fn.mod)
+                else:
                     raise ValueError("Side Effect: got shift operation without corresponding direction.")
-                op = op.apply_dir(self.fn_mod.word)
             return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
         else:
             raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
