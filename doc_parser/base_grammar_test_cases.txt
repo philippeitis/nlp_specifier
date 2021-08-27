@@ -1,0 +1,63 @@
+I am red
+It is red
+The index is less than `self.len()`
+The index is 0u32
+Returns `true` if and only if `self` is 0u32
+Returns `true` if `self` is 0u32
+Returns true if self is 0u32
+Returns `true` if and only if `self` is blue
+Returns `true` if the index is greater than or equal to `self.len()`
+Returns `true` if the index is equal to `self.len()`
+Returns `true` if the index is not equal to `self.len()`
+Returns `true` if the index isn't equal to `self.len()`.
+Returns `true` if the index is not less than `self.len()`
+Returns `true` if the index is smaller than or equal to `self.len()`
+If the index is smaller than or equal to `self.len()`, returns true.
+`index` must be less than `self.len()`
+for each index `i` from `0` to `self.len()`, `i` must be less than `self.len()`
+for each index `i` up to `self.len()`, `i` must be less than `self.len()`
+for each index `i` from `0` to `self.len()` inclusive, `i` must be less than `self.len()`
+`i` must be less than `self.len()`
+for each index `i` from `0` to `self.len()` inclusive, `i` must be less than or equal to `self.len()`
+for each index `i` from `0` to `self.len()`, `self.lookup(i)` must not be equal to 0
+for each index `i` from `0` to `self.len()`, `self.lookup(i)` will not be the same as `result.lookup(i)`
+For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`
+For all indices `i` between 0 and 32, and less than `amt`, `result.lookup(i)` will be false.
+`self.lookup(index)` will be equal to `val`
+For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will be unchanged.
+For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will not change.
+Returns true if self is not blue
+`self` must be blue
+`other.v` must not be equal to 0
+For all `i` between 0 and 32, and not equal to `index`, `self.lookup(i)` will remain static.
+Returns `true` if and only if `self == 2^k` for all `k`.
+Returns `true` if and only if `self == 2^k` for any `k`
+For each index from 0 to 5, `self.lookup(index)` must be true.
+For each index up to 5, `self.lookup(index)` must be true.
+`a` must be between 0 and `self.len()`.
+`a` and `b` must be equal to 0 or `self.len()`.
+True is returned.
+Returns `a` if `self.check(b)`, otherwise `b`
+Returns `a` if `fn(a)`
+If `fn(a)`, returns `a`
+If `fn(a)`, returns `a`, otherwise `b`
+Returns `a` logical and `b`
+Returns `a` bitwise and `b`
+Returns `a` xor `b`
+Returns `a` multiplied by `b`
+Returns `a` divided by `b`
+Returns `a` subtracted by `b`
+Returns `a` subtracted from `b`
+Returns `a` added to `b`
+Returns `a` shifted to the right by `b`
+Returns `a` shifted to the left by `b`
+Returns `a` left shift `b`
+Returns `a` right shift `b`
+Sets `a` to 1
+Assigns 1 to `a`.
+Increments `a` by 1
+Adds 1 to `a
+`a` is incremented by 1
+`a` is negated
+`a` is right shifted by `n`
+Returns the cosine of an `f32`
