@@ -138,7 +138,7 @@ class Parser:
         """
         sent = self.tokenize_sentence(sentence, idents)
         if attach_tags:
-            nltk_sent = [label if is_quote(word) or word in ".,\"'`!" else f"{word}_{label}"
+            nltk_sent = [label if is_quote(word) or word in ".,\"'`!()[]{}-" else f"{word}_{label}"
                          for label, word in zip(sent.tags, sent.words)]
         else:
             nltk_sent = sent.tags
