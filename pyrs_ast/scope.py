@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Union, Collection
 
-from pyrs_ast.ast_types import Type
+from .ast_types import Type
 
 
 class QueryField:

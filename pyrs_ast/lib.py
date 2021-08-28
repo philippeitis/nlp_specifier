@@ -2,16 +2,11 @@ from enum import Enum, auto
 from typing import Optional, List, Union
 import json
 
-try:
-    from .docs import Docs
-    from .ast_types import Path, Type, TypeParam
-    from .scope import Scope
-except ImportError as e:
-    from docs import Docs
-    from ast_types import Path, Type, TypeParam
-    from scope import Scope
-
 import astx
+
+from .docs import Docs
+from .ast_types import Path, Type, TypeParam
+from .scope import Scope
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
