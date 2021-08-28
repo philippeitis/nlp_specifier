@@ -97,7 +97,7 @@ class Phrase(QueryField):
 
         docs = fn.docs.sections()
         if docs:
-            sent = self.parser.tokenize_sentence(docs[0].body, idents=[ty.ident for ty in fn.inputs])
+            sent = self.parser.tokenize(docs[0].body, idents=[ty.ident for ty in fn.inputs])
             s = " ".join(tag for tag in sent.tags)
 
             for match in self.tag_regex.finditer(s):
@@ -144,7 +144,7 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
     """
     phrases = [[]]
 
-    sent = parser.tokenize_sentence(sentence)
+    sent = parser.tokenize(sentence)
 
     for token in sent.doc:
         if token.text.lower() in STOPWORDS:
