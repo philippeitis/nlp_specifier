@@ -284,14 +284,16 @@ def expr_demo():
     """Demonstrates expression parsing. Incomplete."""
 
     import astx
-    print(astx.parse_expr("self + rhs"))
+    from pyrs_ast.expr import Expr
+
+    print(Expr.from_str("u32::MIN + 1"))
     print(astx.parse_expr("self.divide(rhs)"))
-    print(astx.parse_expr("0u32"))
-    print(astx.parse_expr("0xFFFu32"))
-    print(astx.parse_expr("1.2e3_f32"))
-    print(astx.parse_expr("1."))
-    print(astx.parse_expr("33"))
-    print(astx.parse_expr("hello"))
+    print(Expr.from_str("0u32"))
+    print(Expr.from_str("0xFFFu32"))
+    print(Expr.from_str("1.2e3_f32"))
+    print(Expr.from_str("1."))
+    print(Expr.from_str("33"))
+    print(Expr.from_str("hello"))
 
     # Parse expr, plug in types, and find corresponding fn
 

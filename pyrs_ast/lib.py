@@ -7,6 +7,7 @@ import astx
 from .docs import Docs
 from .ast_types import Path, Type, TypeParam
 from .scope import Scope
+from .expr import Expr
 
 
 def ast_items_from_json(scope, items: [], parent_type=None) -> []:
@@ -20,34 +21,6 @@ def ast_items_from_json(scope, items: [], parent_type=None) -> []:
 
 def indent(block):
     return "\n".join(["    " + s for s in str(block).splitlines()])
-
-
-class LitExpr:
-    def __init__(self, **kwargs):
-        pass
-
-
-class StructExpr:
-    def __init__(self, **kwargs):
-        pass
-
-
-class Expr:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
-    def __str__(self):
-        expr_type, val = next(iter(self.kwargs.items()))
-        if expr_type == "lit":
-            lit_type, val = next(iter(val.items()))
-            if lit_type == "int":
-                return val
-            if lit_type == "str":
-                return val
-            raise ValueError(f"{expr_type}, {lit_type}: {val}")
-        if expr_type == "struct":
-            return "STRUCT"
-        raise ValueError(f"{expr_type}: {val}")
 
 
 class Attr:
