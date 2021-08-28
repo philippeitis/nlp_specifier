@@ -61,3 +61,4 @@ Adds 1 to `a`
 `a` is negated
 `a` is right shifted by `n`
 Returns the cosine of an `f32`
+Returns the remainder of `a` divided by `2`
