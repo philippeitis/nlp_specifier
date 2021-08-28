@@ -60,7 +60,7 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
         for sentence in section.sentences:
             try:
                 skipped = []
-                parse_it = parser.parse_sentence(sentence, idents=fn_idents)
+                parse_it = parser.parse_tree(sentence, idents=fn_idents)
                 spec = None
                 for tree in parse_it:
                     if tree_references_fn(fn, tree):
@@ -83,12 +83,12 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
             except ValueError as v:
                 LOGGER.error(f"While specifying [{sentence}], error occurred: {v}")
                 LOGGER.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents).tags}"
+                    f"[{sentence}] has the following tags: {parser.tokenize(sentence, idents=fn_idents).tags}"
                 )
             except StopIteration as s:
                 LOGGER.info(f"No specification could be generated for [{sentence}]")
                 LOGGER.info(
-                    f"[{sentence}] has the following tags: {parser.tokenize_sentence(sentence, idents=fn_idents).tags}"
+                    f"[{sentence}] has the following tags: {parser.tokenize(sentence, idents=fn_idents).tags}"
                 )
                 query = query_from_sentence(sentence, parser)
                 LOGGER.info("Found phrases: " + ", ".join(str(x) for x in query.fields))
@@ -128,7 +128,7 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
             continue
         LOGGER.info(f"Determining descriptive sentence for {fn.ident}")
         descriptive_sentence = section.sentences[0]
-        sent = parser.tokenize_sentence(descriptive_sentence, idents=fn_idents)
+        sent = parser.tokenize(descriptive_sentence, idents=fn_idents)
         for sym, word in zip(sent.tags, sent.words):
             if is_quote(word):
                 continue
@@ -218,7 +218,7 @@ def invoke_helper(invocations, invocation_triples=None):
                 )
                 sentence = sentence[2]
 
-            sent = parser.tokenize_sentence(sentence)
+            sent = parser.tokenize(sentence)
             for sym, word in zip(sent.tags, sent.words):
                 if is_quote(word):
                     continue
@@ -235,11 +235,11 @@ def invoke_helper(invocations, invocation_triples=None):
     for sentence in sentences:
         print("=" * 80)
         print("Sentence:", sentence)
-        print("    Tags:", parser.tokenize_sentence(sentence).tags)
+        print("    Tags:", parser.tokenize(sentence).tags)
         print("=" * 80)
         success = False
         try:
-            for tree in parser.parse_sentence(sentence):
+            for tree in parser.parse_tree(sentence):
                 success = True
                 tree: Tree = tree
                 try:
@@ -362,34 +362,21 @@ def tags_as_ents(doc: Doc):
     doc.set_ents(spans)
 
 
-def render_ner(sentence: str, path: str, idents=None, open_browser=False):
-    from ner import ner_and_srl
+def render_ner(sentence: str, path: str, open_browser=False):
     from spacy import displacy
     from palette import ENTITY_COLORS
     import webbrowser
 
-    sent = Parser.default().tokenize_sentence(sentence, idents)
-
-    ents = ner_and_srl(sentence)
-    spans = []
-    for predicate in ents["predicates"]:
-        pos = predicate["predicate"]["pos"]
-        end = pos + len(predicate["predicate"]["text"])
-        span = sent.doc.char_span(pos, end, label="predicate")
-        spans.append(span)
-
-        for label, role in predicate["roles"].items():
-            span = sent.doc.char_span(role["pos"], role["pos"] + len(role["text"]), label=label)
-            spans.append(span)
-        break
-    sent.doc.set_ents(spans)
+    sent = Parser.default().entities(sentence)
 
     html = displacy.render(
-        sent.doc,
+        sent["srl"][0],
         style="ent",
         options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
-        page=True
+        page=True,
+        manual=True,
     )
+
     with open(path, "w") as file:
         file.write(html)
 
@@ -406,7 +393,7 @@ def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_
     if no_fix:
         sent = parser.tagger(sentence)
     else:
-        sent = parser.tokenize_sentence(sentence, idents)
+        sent = parser.tokenize(sentence, idents)
     tags_as_ents(sent.doc)
     colors = {tag: tag_color(tag) for tag in parser.tokens()}
 
@@ -429,7 +416,7 @@ def render_parse_tree(sentence: str, path: str, idents=None, open_browser=False)
 
     parser = Parser.default()
     tree = next(
-        parser.parse_sentence(sentence, idents=idents, attach_tags=False)
+        parser.parse_tree(sentence, idents=idents, attach_tags=False)
     )
     render_tree(tree, path)
     if open_browser:
@@ -439,7 +426,7 @@ def render_parse_tree(sentence: str, path: str, idents=None, open_browser=False)
 def spec_from_sentence(sentence: str, idents=None):
     parser = Parser.default()
     tree = next(
-        parser.parse_sentence(sentence, idents=idents, attach_tags=False)
+        parser.parse_tree(sentence, idents=idents, attach_tags=False)
     )
     print(Specification(tree, None).as_spec())
 
@@ -493,6 +480,9 @@ if __name__ == '__main__':
 
     invoke_testcases()
 
+    # p = Parser.default()
+    # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
+    # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
     # Motivate problems with what is being accomplished
     # problem and solution and reflection - therefore we do this
     # design writeup

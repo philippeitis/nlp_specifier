@@ -11,6 +11,7 @@ import spacy
 from spacy.tokens import Doc
 import unidecode
 
+from ner import ner_and_srl
 from fix_tokens import fix_tokens
 
 GRAMMAR_PATH = Path(__file__).parent / Path("codegrammar.cfg")
@@ -93,18 +94,20 @@ class SpacyModel(str, Enum):
 class Parser:
     TREE_CACHE = defaultdict(dict)
     TOKEN_CACHE = defaultdict(dict)
+    ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
     def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_SM):
-        self.tree_cache = Parser.TREE_CACHE[model]
-        self.token_cache = Parser.TOKEN_CACHE[model]
         if model not in Parser.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
             Parser.TAGGER_CACHE[model] = spacy.load(str(model))
-        self.tagger = Parser.TAGGER_CACHE[model]
 
+        self.token_cache = Parser.TOKEN_CACHE[model]
+        self.entity_cache = Parser.ENTITY_CACHE[model]
+        self.tree_cache = Parser.TREE_CACHE[model]
+        self.tagger = Parser.TAGGER_CACHE[model]
         self.grammar = nltk.CFG.fromstring(grammar)
-        self.rd_parser = nltk.ChartParser(self.grammar)
+        self.tree_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
     def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_SM):
@@ -116,9 +119,11 @@ class Parser:
         return cls.from_path(grammar_path=GRAMMAR_PATH)
 
     def tokens(self) -> Set[str]:
+        """Returns the tokens that might appear in the output of parse_tree"""
         return {str(p._lhs) for p in self.grammar._productions}
 
-    def tokenize_sentence(self, sentence: str, idents=None) -> Sentence:
+    def tokenize(self, sentence: str, idents=None) -> Sentence:
+        """Tokenizes and tags the given sentence."""
         sentence = unidecode.unidecode(sentence).rstrip(".")
 
         if sentence not in self.token_cache:
@@ -130,13 +135,13 @@ class Parser:
 
         return Sentence(doc)
 
-    def parse_sentence(self, sentence: str, idents=None, attach_tags=True) -> Tree:
+    def parse_tree(self, sentence: str, idents=None, attach_tags=True) -> Tree:
         """Parses the sentence, using `idents` to detect values in the text.
         If `idents` is not provided, no IDENT literals will appear in the tree.
         If `attach_tags` is set, labels will transformed for usage in an augmented CFG.
         Otherwise, labels will remain unmodified.
         """
-        sent = self.tokenize_sentence(sentence, idents)
+        sent = self.tokenize(sentence, idents)
         if attach_tags:
             nltk_sent = [label if is_quote(word) or word in ".,\"'`!()[]{}-" else f"{word}_{label}"
                          for label, word in zip(sent.tags, sent.words)]
@@ -145,14 +150,59 @@ class Parser:
 
         nltk_str = " ".join(nltk_sent)
         if nltk_str not in self.tree_cache:
-            self.tree_cache[nltk_str] = ParseStorage(self.rd_parser.parse(nltk_sent))
+            self.tree_cache[nltk_str] = ParseStorage(self.tree_parser.parse(nltk_sent))
 
         for tree in self.tree_cache[nltk_str]:
             yield replace_leaf_nodes(tree, iter(sent.words))
 
-    def entities(self, sentence: str):
-        raise NotImplementedError()
+    def entities(self, sentence: str) -> dict:
+        """Performs NER and SRL analysis of the given sentence, using the models from
+        `Combining Formal and Machine Learning Techniques for the Generation of JML Specifications`.
+        Output is a dictionary, containing keys "ner" and "srl", corresponding to the NER and SRL entities,
+        respectively. The items are formatted as either a dictionary or list of dictionaries, formatted in the"""
+        sentence = unidecode.unidecode(sentence).rstrip(".")
 
+        if sentence not in self.entity_cache:
+            res = ner_and_srl(sentence)
+            ents = []
+            for item in res["entities"]:
+                ent = {
+                    "start": item["pos"],
+                    "end": item["pos"] + len(item["text"]),
+                    "label": item["type"]
+                }
+                ents.append(ent)
+
+            spacy_ner = {
+                "text": sentence,
+                "ents": ents
+            }
+
+            spacy_srls = []
+            for item in res["predicates"]:
+                ents = []
+                predicate = item["predicate"]
+                predicate.pop("len")
+                predicate["start"] = predicate.pop("pos")
+                predicate["end"] = len(predicate.pop("text")) + predicate["start"]
+                predicate["label"] = "PRED"
+                ents.append(predicate)
+                for label, metadata in item["roles"].items():
+                    ent = {
+                        "start": metadata["pos"],
+                        "end": metadata["pos"] + len(metadata["text"]),
+                        "label": label
+                    }
+                    ents.append(ent)
+                spacy_srl = {
+                    "text": sentence,
+                    "ents": ents
+                }
+                spacy_srls.append(spacy_srl)
+
+            self.entity_cache[sentence] = {"ner": spacy_ner, "srl": spacy_srls}
+
+        return self.entity_cache[sentence]
 
 # confusing examples: log fns, trig fns, pow fns
 # TODO: Side effects:
