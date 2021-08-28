@@ -134,11 +134,15 @@ class PropertyOf:
 
     def as_code(self, obj):
         if self.prop == "remainder" and isinstance(obj.obj, Op):
+            # The remainder of division
             if obj.obj.op == BinOp.Div:
                 op = copy(obj.obj)
                 op.op = BinOp.Rem
-
                 return op.as_code()
+            # The remainder of subtraction
+            if obj.obj.op == BinOp.Sub:
+                return obj.as_code()
+
         return f"{obj.as_code()}.{self.prop}()"
 
 
