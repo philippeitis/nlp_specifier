@@ -1,9 +1,13 @@
 import logging
+from copy import copy
 from enum import auto, Enum
 from typing import Optional, List, Union, Collection
 
 from nltk import Tree
 from nltk.corpus.reader import ADJ, VERB
+
+from pyrs_ast.expr import BinOp, ExprBinary
+from pyrs_ast.expr import UnaryOp
 
 from pyrs_ast.lib import Method, Fn
 
@@ -36,129 +40,119 @@ class Literal:
         return self.str
 
 
-class Ops(Enum):
-    ADD = auto()
-    SUB = auto()
-    DIV = auto()
-    MUL = auto()
-    REM = auto()
-    SHIFT = auto()
-    SHIFTL = auto()
-    SHIFTR = auto()
-    AND = auto()
-    ANDL = auto()
-    ANDB = auto()
-    OR = auto()
-    ORL = auto()
-    ORB = auto()
-    XOR = auto()
-    NEGATE = auto()
+def binop_from_str(s: str) -> Optional[BinOp]:
+    return {
+        "add": BinOp.Add,
+        "added": BinOp.Add,
+        "increment": BinOp.Add,
+        "incremented": BinOp.Add,
+        "plus": BinOp.Add,
+        "sub": BinOp.Sub,
+        "decremented": BinOp.Sub,
+        "decrement": BinOp.Sub,
+        "subtract": BinOp.Sub,
+        "subtracted": BinOp.Sub,
+        "div": BinOp.Div,
+        "divide": BinOp.Div,
+        "divided": BinOp.Div,
+        "mul": BinOp.Mul,
+        "multiply": BinOp.Mul,
+        "multiplied": BinOp.Mul,
+        "rem": BinOp.Rem,
+        "remainder": BinOp.Rem,
+        "xor": BinOp.BitXor,
+        "and": BinOp.And,
+        "or": BinOp.Or,
+    }.get(s.lower())
 
+
+def apply_jj(bin_op: BinOp, jj: str) -> BinOp:
+    jj = jj.lower()
+    if bin_op == bin_op.And:
+        if jj == "logical":
+            return bin_op.And
+        if jj in {"boolean", "bitwise"}:
+            return bin_op.BitAnd
+    if bin_op in bin_op.Or:
+        if jj == "logical":
+            return bin_op.Or
+        if jj in {"boolean", "bitwise"}:
+            return bin_op.BitOr
+    return bin_op
+
+
+def shift_with_dir(dir_: str) -> BinOp:
+    dir_ = dir_.lower()
+    if dir_ == "right":
+        return BinOp.Shr
+    if dir_ == "left":
+        return BinOp.Shl
+    raise ValueError(f"Invalid direction for shift op ({dir_})")
+
+
+def unaryop_from_str(s: str) -> Optional[UnaryOp]:
+    return {
+        "negate": UnaryOp.Neg,
+        "negated": UnaryOp.Neg,
+    }.get(s.lower())
+
+
+class Op(ExprBinary):
     @classmethod
-    def from_str(cls, s: str) -> Optional["Ops"]:
-        return {
-            "add": cls.ADD,
-            "added": cls.ADD,
-            "increment": cls.ADD,
-            "incremented": cls.ADD,
-            "plus": cls.ADD,
-            "sub": cls.SUB,
-            "decremented": cls.SUB,
-            "decrement": cls.SUB,
-            "subtract": cls.SUB,
-            "subtracted": cls.SUB,
-            "div": cls.DIV,
-            "divide": cls.DIV,
-            "divided": cls.DIV,
-            "mul": cls.MUL,
-            "multiply": cls.MUL,
-            "multiplied": cls.MUL,
-            "rem": cls.REM,
-            "remainder": cls.REM,
-            "xor": cls.XOR,
-            "and": cls.AND,
-            "or": cls.OR,
-            "shift": cls.SHIFT,
-            "shifted": cls.SHIFT,
-            "negate": cls.NEGATE,
-            "negated": cls.NEGATE,
-        }.get(s.lower())
-
-    def apply_jj(self, jj: str):
-        if self == self.AND:
-            if jj.lower() == "logical":
-                return self.ANDL
-            if jj.lower() in {"boolean", "bitwise"}:
-                return self.ANDB
-        if self == self.OR:
-            if jj.lower() == "logical":
-                return self.ORL
-            if jj.lower() in {"boolean", "bitwise"}:
-                return self.ORB
-        return self
-
-    def apply_dir(self, d: str):
-        if self == self.SHIFT:
-            if d.lower() == "right":
-                return self.SHIFTR
-            if d.lower() == "left":
-                return self.SHIFTL
-        return self
-
-    def __str__(self):
-        return {
-            self.ADD: "+",
-            self.SUB: "-",
-            self.DIV: "/",
-            self.MUL: "*",
-            self.REM: "%",
-            self.SHIFTL: "<<",
-            self.SHIFTR: ">>",
-            self.ANDL: "&&",
-            self.ANDB: "&",
-            self.ORL: "||",
-            self.ORB: "|",
-            self.XOR: "^",
-        }[self]
-
-
-class Op:
-    def __init__(self, tree, invoke_factory):
-        self.lhs = Object(tree[0], invoke_factory)
-        self.rhs = Object(tree[2], invoke_factory)
-        op = tree[1][0]
-        if op.label() == "BITOP":
-            self.op = Ops.from_str(op[1][0]).apply_jj(op[0][0])
-        elif op.label() == "ARITHOP":
-            self.op = Ops.from_str(op[0][0])
+    def from_tree(cls, tree, invoke_factory):
+        lhs = Object(tree[0], invoke_factory)
+        rhs = Object(tree[2], invoke_factory)
+        op_tree = tree[1][0]
+        if op_tree.label() == "BITOP":
+            op = apply_jj(binop_from_str(op_tree[1][0]), op_tree[0][0])
+        elif op_tree.label() == "ARITHOP":
+            op = binop_from_str(op_tree[0][0])
             # Include division? Not ambiguous, but ???
-            if self.op in {Ops.SUB} and len(op) == 2 and op[1][0].lower() in {"from"}:
-                self.lhs, self.rhs = self.rhs, self.lhs
-
-        elif op.label() == "SHIFTOP":
-            if op[0].label() == "SHIFT":
-                self.op = Ops.SHIFT.apply_dir(op[3][0])
+            if op in {BinOp.Sub} and len(op_tree) == 2 and op_tree[1][0].lower() in {"from"}:
+                lhs, rhs = rhs, lhs
+        elif op_tree.label() == "SHIFTOP":
+            if op_tree[0].label() == "SHIFT":
+                op = shift_with_dir(op_tree[3][0])
             else:
-                self.op = Ops.SHIFT.apply_dir(op[0][0])
+                op = shift_with_dir(op_tree[0][0])
         else:
-            raise ValueError(f"Unexpected op: {op}")
+            raise ValueError(f"Unexpected op: {op_tree}")
+        return cls(lhs, op, rhs)
 
     def as_code(self):
-        return f"({self.lhs.as_code()} {self.op} {self.rhs.as_code()})"
+        return f"({self.left.as_code()} {self.op} {self.right.as_code()})"
+
+
+class PropertyOf:
+    def __init__(self, tree: Tree, invoke_factory):
+        if tree[1].label() == "MNN":
+            self.prop = lemmatize(tree[1][0][0])
+        elif tree[1].label() == "MJJ":
+            self.prop = MJJ(tree[1]).lemma()
+        else:
+            raise ValueError("Unexpected production in PropOf")
+
+    def as_code(self, obj):
+        if self.prop == "remainder" and isinstance(obj.obj, Op):
+            if obj.obj.op == BinOp.Div:
+                op = copy(obj.obj)
+                op.op = BinOp.Rem
+
+                return op.as_code()
+        return f"{obj.as_code()}.{self.prop}()"
 
 
 class Object:
     DISPATCH = {
-        ("CODE",): lambda t, inv: Code(t[0]).as_code(),
-        ("LIT",): lambda t, inv: Literal(t[-1]).as_code(),
-        ("DT", "LIT"): lambda t, inv: Literal(t[-1]).as_code(),
+        ("CODE",): lambda t, inv: Code(t[0]),
+        ("LIT",): lambda t, inv: Literal(t[-1]),
+        ("DT", "LIT"): lambda t, inv: Literal(t[-1]),
         ("DT", "MNN"): lambda t, inv: lemmatize(t[1][0][0]),
         ("DT", "VBG", "MNN"): lambda t, inv: f"{lemmatize(t[2][0][0])}.{lemmatize(t[1][0], VERB)}()",
         ("MNN",): lambda t, inv: lemmatize(t[0][0][0]),
-        ("OBJ", "OP", "OBJ"): lambda t, inv: Op(t, inv).as_code(),
-        ("DT", "MNN", "IN", "OBJ"): lambda t, inv: f"{Object(t[-1], inv).as_code()}.{lemmatize(t[1][0][0])}()",
-        ("DT", "MJJ", "IN", "OBJ"): lambda t, inv: f"{Object(t[-1], inv).as_code()}.{lemmatize(t[1][0][0])}()",
-        ("FNCALL",): lambda t, inv: inv(t).as_code(),
+        ("OBJ", "OP", "OBJ"): lambda t, inv: Op.from_tree(t, inv),
+        ("FNCALL",): lambda t, inv: inv(t),
+        ("PROP_OF", "OBJ"): lambda t, inv: PropertyOf(t[0], inv).as_code(Object(t[1], inv))
     }
 
     def __init__(self, tree: Tree, invoke_factory):
@@ -173,6 +167,8 @@ class Object:
             raise ValueError(f"Bad tree - expected OBJ productions, got {labels}")
 
     def as_code(self) -> str:
+        if hasattr(self.obj, "as_code") and callable(self.obj.as_code):
+            return self.obj.as_code()
         return self.obj
 
     def is_output(self):
@@ -822,17 +818,20 @@ class SideEffect:
         # a is stored in b
 
         vb = self.fn.lemma()
-        op = Ops.from_str(self.fn.word.lower())
-        if op is not None:
-            if op == Ops.NEGATE:
-                return f"#[ensures(*{self.target.as_code()} == !*old({self.target.as_code()}))]"
-            if op == Ops.SHIFT:
+        word = self.fn.word.lower()
+        op = binop_from_str(word) or unaryop_from_str(word)
+        if op is None:
+            if word in {"shift", "shifted"}:
                 if self.fn_mod:
-                    op = op.apply_dir(self.fn_mod.word)
+                    op = shift_with_dir(self.fn_mod.word)
                 elif self.fn.mod:
-                    op = op.apply_dir(self.fn.mod)
+                    op = shift_with_dir(self.fn.mod)
                 else:
                     raise ValueError("Side Effect: got shift operation without corresponding direction.")
+
+        if op is not None:
+            if op == UnaryOp.Neg:
+                return f"#[ensures(*{self.target.as_code()} == !*old({self.target.as_code()}))]"
             return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
         else:
             raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
