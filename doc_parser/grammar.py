@@ -125,11 +125,16 @@ class Ops(Enum):
 class Op:
     def __init__(self, tree, invoke_factory):
         self.lhs = Object(tree[0], invoke_factory)
+        self.rhs = Object(tree[2], invoke_factory)
         op = tree[1][0]
         if op.label() == "BITOP":
             self.op = Ops.from_str(op[1][0]).apply_jj(op[0][0])
         elif op.label() == "ARITHOP":
             self.op = Ops.from_str(op[0][0])
+            # Include division? Not ambiguous, but ???
+            if self.op in {Ops.SUB} and len(op) == 2 and op[1][0].lower() in {"from"}:
+                self.lhs, self.rhs = self.rhs, self.lhs
+
         elif op.label() == "SHIFTOP":
             if op[0].label() == "SHIFT":
                 self.op = Ops.SHIFT.apply_dir(op[3][0])
@@ -137,7 +142,6 @@ class Op:
                 self.op = Ops.SHIFT.apply_dir(op[0][0])
         else:
             raise ValueError(f"Unexpected op: {op}")
-        self.rhs = Object(tree[2], invoke_factory)
 
     def as_code(self):
         return f"({self.lhs.as_code()} {self.op} {self.rhs.as_code()})"
