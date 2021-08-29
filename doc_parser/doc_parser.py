@@ -30,9 +30,6 @@ def replace_leaf_nodes(tree: Tree, values: Iterator[str]):
     :param values: An iterator of strings.
     :return: modified tree
     """
-    if isinstance(tree, str):
-        return tree
-
     if len(tree) == 1 and isinstance(tree[0], str):
         tree[0] = next(values)
     else:
@@ -110,7 +107,7 @@ class Parser:
         self.tree_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_SM):
+    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_SM) -> "Parser":
         with open(grammar_path) as f:
             return cls(f.read(), model)
 
