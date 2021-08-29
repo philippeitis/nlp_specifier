@@ -60,7 +60,7 @@ class BinOp(str, Enum):
 
 
 class ExprMethod:
-    """The ExprMethodClass struct from https://docs.rs/syn/1.0.75/syn/struct.ExprMethodCall.html
+    """The ExprMethodCall struct from https://docs.rs/syn/1.0.75/syn/struct.ExprMethodCall.html
     """
     __slots__ = ["receiver", "method", "turbofish", "args"]
 
@@ -84,7 +84,7 @@ class ExprMethod:
         return cls(receiver, method, turbofish, args)
 
     def __str__(self):
-        if isinstance(self.receiver.expr, (LitExpr, PathExpr)):
+        if isinstance(self.receiver.expr, (ExprLit, ExprPath)):
             receiver = str(self.receiver)
         else:
             receiver = f"({self.receiver})"
@@ -93,6 +93,9 @@ class ExprMethod:
 
 
 class ExprBinary:
+    """The ExprBinary struct from https://docs.rs/syn/1.0.75/syn/struct.ExprBinary.html
+    """
+
     __slots__ = ["left", "op", "right"]
 
     def __init__(self, left, op: BinOp, right):
@@ -113,7 +116,10 @@ class ExprBinary:
         return f"{self.left} {self.op.value} {self.right}"
 
 
-class LitExpr:
+class ExprLit:
+    """The ExprLit struct from https://docs.rs/syn/1.0.75/syn/struct.ExprLit.html
+    """
+
     def __init__(self, **kwargs):
         lit_type, val = next(iter(kwargs.items()))
         if lit_type in {"int", "float", "str"}:
@@ -126,7 +132,10 @@ class LitExpr:
         return self.val
 
 
-class StructExpr:
+class ExprStruct:
+    """The ExprStruct struct from https://docs.rs/syn/1.0.75/syn/struct.ExprStruct.html
+    """
+
     def __init__(self, **kwargs):
         pass
 
@@ -134,7 +143,10 @@ class StructExpr:
         return "STRUCT"
 
 
-class PathExpr:
+class ExprPath:
+    """The ExprPath struct from https://docs.rs/syn/1.0.75/syn/struct.ExprPath.html
+    """
+
     def __init__(self, **kwargs):
         self.path = Path(**kwargs)
 
@@ -143,11 +155,14 @@ class PathExpr:
 
 
 class Expr:
+    """The Expr enum from https://docs.rs/syn/1.0.75/syn/enum.Expr.html
+    """
+
     DISPATCH = {
-        "lit": LitExpr,
-        "struct": StructExpr,
+        "lit": ExprLit,
+        "struct": ExprStruct,
         "binary": ExprBinary.from_kwargs,
-        "path": PathExpr,
+        "path": ExprPath,
         "method_call": ExprMethod.from_kwargs,
     }
 
