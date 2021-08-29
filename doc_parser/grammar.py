@@ -521,11 +521,11 @@ class CC:
         }[self.cc]
 
 
-class ForEach:
+class QuantExpr:
     def __init__(self, tree: Tree, invoke_factory):
-        if tree[0].label() == "FOREACH":
+        if tree[0].label() == "QUANT_EXPR":
             # another range condition here
-            sub_foreach = ForEach(tree[0], invoke_factory)
+            sub_foreach = QuantExpr(tree[0], invoke_factory)
             self.quant = sub_foreach.quant
             self.range = sub_foreach.range
             if tree[1].label() == "CC":
@@ -623,29 +623,29 @@ class Quantifier:
 class QuantAssert:
     def __init__(self, tree: Tree, invoke_factory):
         labels = tuple(x.label() for x in tree)
-        if labels == ("FOREACH", "COMMA", "HASSERT"):
-            self.foreach = ForEach(tree[0], invoke_factory)
+        if labels == ("QUANT_EXPR", "COMMA", "HASSERT"):
+            self.quant_expr = QuantExpr(tree[0], invoke_factory)
             self.assertion = HardAssert(tree[2], invoke_factory)
-        elif labels == ("FOREACH", "HASSERT"):
-            self.foreach = ForEach(tree[0], invoke_factory)
+        elif labels == ("QUANT_EXPR", "HASSERT"):
+            self.quant_expr = QuantExpr(tree[0], invoke_factory)
             self.assertion = HardAssert(tree[1], invoke_factory)
-        elif labels == ("HASSERT", "FOREACH"):
-            self.foreach = ForEach(tree[1], invoke_factory)
+        elif labels == ("HASSERT", "QUANT_EXPR"):
+            self.quant_expr = QuantExpr(tree[1], invoke_factory)
             self.assertion = HardAssert(tree[2], invoke_factory)
-        elif labels == ("CODE", "FOREACH"):
-            self.foreach = ForEach(tree[1], invoke_factory)
+        elif labels == ("CODE", "QUANT_EXPR"):
+            self.quant_expr = QuantExpr(tree[1], invoke_factory)
             self.assertion = Code(tree[0])
         else:
             raise ValueError(f"Unexpected productions for QASSERT: {labels}")
 
     def bound_vars(self):
         # TODO: Fix bound vars to find actual bound variables
-        return self.foreach.quant.obj.as_code()
+        return self.quant_expr.quant.obj.as_code()
 
     def as_code(self):
         # eg. there exists some x such that y is true
         #     to forall: !forall(x st y is not true)
-        return self.foreach.as_code(self.assertion.as_code())
+        return self.quant_expr.as_code(self.assertion.as_code())
 
     def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
         def merge_to_list(a: Union[List[str], str], b: Union[List[str], str]):
@@ -662,8 +662,8 @@ class QuantAssert:
             return [a, b]
 
         if flip:
-            return self.foreach.with_conditions(post_cond, merge_to_list(pre_cond, self.assertion.as_code()), flip)
-        return self.foreach.with_conditions(merge_to_list(self.assertion.as_code(), post_cond), pre_cond, flip)
+            return self.quant_expr.with_conditions(post_cond, merge_to_list(pre_cond, self.assertion.as_code()), flip)
+        return self.quant_expr.with_conditions(merge_to_list(self.assertion.as_code(), post_cond), pre_cond, flip)
 
     def as_spec(self):
         if isinstance(self.assertion, HardAssert) and self.assertion.is_precondition():
