@@ -17,6 +17,14 @@ MODIFIER = '#902010'
 COORD = '#5151b2'
 FADE = '#b0b0b0'
 
+TREE_COLORS = {
+    "BOOL_EXPR": PREP,
+    "QASSERT": PREP,
+    "HASSERT": PREP,
+    "COND": PREP,
+    "FOR": FADE
+}
+
 
 def tag_color(pos: str) -> str:
     """Returns a color code for the part of speech."""
@@ -38,4 +46,4 @@ def tag_color(pos: str) -> str:
     if is_one_of(pos, {"CC"}):
         return COORD
 
-    return "#000000"
+    return TREE_COLORS.get(pos, "#000000")
