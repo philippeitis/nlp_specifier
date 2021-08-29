@@ -1,5 +1,6 @@
 import json
 from enum import Enum
+from typing import List, Optional
 
 from astx import astx
 
@@ -58,6 +59,39 @@ class BinOp(str, Enum):
         return self.value
 
 
+class ExprMethod:
+    """The ExprMethodClass struct from https://docs.rs/syn/1.0.75/syn/struct.ExprMethodCall.html
+    """
+    __slots__ = ["receiver", "method", "turbofish", "args"]
+
+    def __init__(self, receiver: "Expr", method: str, turbofish: Optional[str], args: List["Expr"]):
+        self.receiver = receiver
+        self.method = method
+        self.turbofish = turbofish
+        self.args = args
+
+    @classmethod
+    def from_kwargs(cls, **kwargs):
+        receiver = Expr(**kwargs["receiver"])
+        method = kwargs["method"]
+        turbofish = kwargs.get("turbofish")
+        if turbofish:
+            raise NotImplementedError("Turbofish currently not supported")
+            # Need to handle types and const values in tb
+            # tb_args = ', '.join(str(Expr(**item)) for item in turbofish)
+            # turbofish = f"::<{tb_args}>"
+        args = [Expr(**item) for item in kwargs["args"]]
+        return cls(receiver, method, turbofish, args)
+
+    def __str__(self):
+        if isinstance(self.receiver.expr, (LitExpr, PathExpr)):
+            receiver = str(self.receiver)
+        else:
+            receiver = f"({self.receiver})"
+        args = ", ".join(str(arg) for arg in self.args)
+        return f"{receiver}.{self.method}{self.turbofish or ''}({args})"
+
+
 class ExprBinary:
     __slots__ = ["left", "op", "right"]
 
@@ -113,20 +147,22 @@ class Expr:
         "lit": LitExpr,
         "struct": StructExpr,
         "binary": ExprBinary.from_kwargs,
-        "path": PathExpr
+        "path": PathExpr,
+        "method_call": ExprMethod.from_kwargs,
     }
 
     def __init__(self, **kwargs):
-        self.kwargs = kwargs
+        expr_type, val = next(iter(kwargs.items()))
+        constructor = self.DISPATCH.get(expr_type)
+        if constructor:
+            self.expr = constructor(**val)
+        else:
+            raise ValueError(f"{expr_type}: {val}")
 
     @classmethod
     def from_str(cls, s: str):
         return cls(**json.loads(astx.parse_expr(s)))
 
     def __str__(self):
-        expr_type, val = next(iter(self.kwargs.items()))
-        constructor = self.DISPATCH.get(expr_type)
+        return str(self.expr)
 
-        if constructor:
-            return str(constructor(**val))
-        raise ValueError(f"{expr_type}: {val}")

@@ -282,12 +282,10 @@ def invoke_demo():
 
 def expr_demo():
     """Demonstrates expression parsing. Incomplete."""
-
-    import astx
     from pyrs_ast.expr import Expr
 
     print(Expr.from_str("u32::MIN + 1"))
-    print(astx.parse_expr("self.divide(rhs)"))
+    print(Expr.from_str("self.divide(rhs)"))
     print(Expr.from_str("0u32"))
     print(Expr.from_str("0xFFFu32"))
     print(Expr.from_str("1.2e3_f32"))
