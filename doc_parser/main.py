@@ -470,6 +470,12 @@ def invoke_testcases(path="base_grammar_test_cases.txt"):
         invoke_helper([line.strip() for line in file.readlines()])
 
 
+def test_mod():
+    x = AstFile.from_path("../data/test_mods.rs")
+    print(x.scope.find_function("b::x"))
+    print(x.scope.find_function("AAAA::x"))
+
+
 if __name__ == '__main__':
     formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
@@ -478,7 +484,8 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    invoke_testcases()
+    test_mod()
+    # render_parse_tree("Returns `true` if and only if `self == 2^k` for some `k`.", "../images/tree_is_power_of_two.pdf")
 
     # p = Parser.default()
     # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)

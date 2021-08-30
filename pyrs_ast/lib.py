@@ -359,7 +359,7 @@ class Mod(HasAttrs):
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.content = ast_items_from_json(scope, kwargs.get("content", []))
+        self.content = ast_items_from_json(scope.modules[self.ident], kwargs.get("content", []))
 
     def __str__(self):
         content = "\n".join([indent(item) for item in self.content])
