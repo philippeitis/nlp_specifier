@@ -2,20 +2,11 @@ from typing import List, Collection
 import re
 import itertools
 
-import nltk
-from nltk.corpus import stopwords
-
 from pyrs_ast.lib import Fn
 from pyrs_ast.scope import Query, QueryField
 
 from lemmatizer import is_synonym, lemmatize
 from doc_parser import Parser
-
-try:
-    STOPWORDS = set(stopwords.words("english"))
-except LookupError:
-    nltk.download("stopwords")
-    STOPWORDS = set(stopwords.words("english"))
 
 
 def peek(it):
@@ -147,7 +138,7 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
     sent = parser.tokenize(sentence)
 
     for token in sent.doc:
-        if token.text.lower() in STOPWORDS:
+        if token.is_stop:
             if phrases[-1]:
                 phrases.append([])
         elif not is_one_of(token.tag_, {"RB", "VB", "NN", "JJ", "CODE", "LIT"}):
