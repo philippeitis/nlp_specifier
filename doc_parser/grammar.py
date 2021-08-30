@@ -155,7 +155,7 @@ class Object:
         ("DT", "VBG", "MNN"): lambda t, inv: f"{lemmatize(t[2][0][0])}.{lemmatize(t[1][0], VERB)}()",
         ("MNN",): lambda t, inv: lemmatize(t[0][0][0]),
         ("OBJ", "OP", "OBJ"): lambda t, inv: Op.from_tree(t, inv),
-        ("FNCALL",): lambda t, inv: inv(t),
+        ("FNCALL",): lambda t, inv: inv(t[0]),
         ("PROP_OF", "OBJ"): lambda t, inv: PropertyOf(t[0], inv).as_code(Object(t[1], inv))
     }
 
