@@ -1,7 +1,7 @@
 import itertools
 import json
 from pathlib import Path
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 from multiprocessing import Pool
 import subprocess
 
@@ -12,7 +12,7 @@ from lxml.html import parse
 from pyrs_ast.docs import Docs
 from py_cargo_utils import rustup_home
 
-from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod
+from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile
 from pyrs_ast.scope import Scope
 
 HEADER = {
@@ -125,7 +125,6 @@ class DocStruct(Struct):
     def from_block(cls, body: etree.ElementBase, scope: Scope = None):
         type_decl = find_with_class(body, "div", "docblock")
         body.remove(type_decl)
-        methods = []
 
         parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
@@ -255,6 +254,7 @@ class DocMod(Mod):
 
     @classmethod
     def from_doc_path(cls, path: Path, file_hints=None):
+        imports = []
         items = []
         ident = path.name
 
@@ -267,18 +267,20 @@ class DocMod(Mod):
                     items.append(item)
             else:
                 if child_path in file_hints:
-                    item = file_hints[child_path]
+                    item, imports, lines = file_hints[child_path]
+
                     if item is None:
                         continue
                     else:
+                        imports += AstFile.from_str("\n".join(imports)).items
                         items.append(item)
                 else:
                     name = child_path.name
                     if any(name.startswith(prefix) for prefix in cls.ITEM_PREFIXES):
-                        file = parse_file(child_path)
+                        file, _, _ = parse_file(child_path)
                         if file:
                             items.append(file)
-        return cls(ident, items, [])
+        return cls(ident, imports + items, [])
 
 
 class DocCrate(Crate):
@@ -294,15 +296,24 @@ class DocCrate(Crate):
         items = []
 
         files = {
-            fpath: item for item, fpath in get_all_files(path)
+            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files(path, 12)
         }
+
+        root_scope = Scope()
 
         target_dir = (path / Path("share/doc/rust/html/")).expanduser()
         for child_path in target_dir.iterdir():
             if child_path.is_dir() and child_path.name not in cls.IGNORE:
                 items.append(DocMod.from_doc_path(child_path, files))
 
-        return cls(items)
+        # This doesn't quite work. Again, compiler extension
+        # for mod in items:
+        #     mod.resolve_imports(root_scope)
+        #
+        # for mod in items:
+        #     mod.register_types(root_scope)
+
+        return cls(items, root_scope)
 
     @staticmethod
     def get_all_doc_files(path: Path) -> List[Path]:
@@ -338,25 +349,46 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
     return path_dict
 
 
-def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
+def parse_rs_html(path: Path) -> List[str]:
+    # This is intended to be used for reading imports from the source file. However,
+    # this may not be necessary if a compiler extension is implemented.
+    pass
+    # with open(path, "r") as file:
+    #     soup = parse(file)
+    #     items = soup.find("body/section/div")
+    #
+    #     rust_body = find_with_class(items, "pre", "rust")
+    #     uses = []
+    #     for use in find_with_class_iter(rust_body, "span", "kw"):
+    #         use_text = text(use)
+    #         if "use" in use_text.split(" "):
+    #             uses.append(use_text)
+    #     return uses
+
+
+def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
     with open(path, "r") as file:
         soup = parse(file)
         title = soup.find("head/title")
         if title.text == "Redirection":
-            return
+            return None, None, None
+
         body = soup.find("body/section")
-        return DISPATCH.get(
-            path.stem.split(".", 1)[0],
-            # Default case: return None
-            lambda *args, **kwargs: None
-        )(body)
+        header = find_with_class(body, "h1", "fqn")
+        srcspan = find_with_class(header, "span", "out-of-band")
+        srclink = find_with_class(srcspan, "a", "srclink")
+        src, lines = srclink.attrib["href"].split("#")
+        srcpath = (path.parent / Path(src)).resolve()
+
+        return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
 
 
 def _get_all_files_st(toolchain_root: Path):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
     targets = files["fn"] + files["struct"]
-    return [(file, path) for file, path in zip(map(parse_file, targets), targets) if file]
+    return [(file, path, rs_path, lines) for (file, rs_path, lines), path in zip(map(parse_file, targets), targets) if
+            file]
 
 
 def get_all_files(toolchain_root: Path, num_processes: int = 12):
@@ -369,16 +401,14 @@ def get_all_files(toolchain_root: Path, num_processes: int = 12):
 
     with Pool(num_processes) as p:
         targets = files["fn"] + files["struct"]
-        return [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
+        return [(file, path, rs_path, lines) for (file, rs_path, lines), path in
+                zip(p.map(parse_file, targets), targets) if file]
 
 
 def main(toolchain_root: Path):
-    for file, path in get_all_files(toolchain_root):
-        print(path)
+    crate = DocCrate.from_root_dir(toolchain_root)
+    for file in crate.files:
         print(file)
-        if isinstance(file, Struct):
-            for method in file.methods:
-                print(method)
 
 
 def choose_random_items(toolchain_root: Path):
@@ -391,7 +421,7 @@ def choose_random_items(toolchain_root: Path):
     selected = random.choices(files["struct"], k=25)
     for item in selected:
         webbrowser.open(str(item))
-        file = parse_file(item)
+        file, _, _ = parse_file(item)
         if file:
             print(item)
             print(file)
@@ -411,12 +441,7 @@ def get_toolchains() -> List[Path]:
 
 
 if __name__ == '__main__':
-    c = DocCrate.from_root_dir(get_toolchains()[0])
-    print(c)
-    print(c.files)
-    for file in c.files:
-        print(file)
-
+    c = main(get_toolchains()[0])
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
