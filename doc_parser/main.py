@@ -5,7 +5,7 @@ from nltk import Tree
 from spacy.tokens import Doc
 
 from doc_json.parse_html import DocCrate, get_toolchains
-from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct
+from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
@@ -99,7 +99,10 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
 
 
 def specify_item(item: HasItems, parser: Parser, scope: Scope, invoke_factory):
-    for sub_item in item.items:
+    if isinstance(item, Mod) and item.items is None:
+        return
+
+    for sub_item in item.value_iter():
         if isinstance(sub_item, Fn):
             apply_specifications(sub_item, parser, scope, invoke_factory)
         elif isinstance(sub_item, HasItems):
@@ -142,7 +145,10 @@ def find_specifying_sentence(fn: Fn, parser: Parser, invoke_factory: InvocationF
 
 
 def populate_grammar_helper(item: HasItems, parser: Parser, invoke_factory, word_replacements, sym_replacements):
-    for sub_item in item.items:
+    if isinstance(item, Mod) and item.items is None:
+        return
+
+    for sub_item in item.value_iter():
         if isinstance(sub_item, Fn):
             find_specifying_sentence(sub_item, parser, invoke_factory, word_replacements, sym_replacements)
         elif isinstance(sub_item, HasItems):
@@ -509,7 +515,10 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    invoke_testcases()
+    # invoke_testcases()
+    # search_demo2()
+    end_to_end_demo()
+
     # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
     # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
     # Motivate problems with what is being accomplished

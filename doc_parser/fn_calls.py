@@ -136,9 +136,12 @@ class InvocationFactory:
             rules.extend(invocations)
             productions.extend((self.productions[invoke] for invoke in invocations))
 
+        if not rules:
+            return ""
         rule_line = f"FNCALL -> {' | '.join(rules)}"
         productions = "\n".join(productions)
         return f"{rule_line}\n{productions}"
+
 
     def __call__(self, tree: Tree, *args):
         return self.initializers[tree[0].label()](tree[0], self)

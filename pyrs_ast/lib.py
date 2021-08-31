@@ -117,6 +117,9 @@ class HasItems:
             if isinstance(item, (HasItems, Mod)):
                 item.resolve_imports(source)
 
+    def value_iter(self):
+        return iter(self.items)
+
 
 class TokenType(Enum):
     PUNCT = auto()
@@ -479,6 +482,12 @@ class Mod(Queryable, HasAttrs):
             if isinstance(item, (HasItems, Mod)):
                 item.resolve_imports(source)
 
+    def value_iter(self):
+        if isinstance(self.items, dict):
+            return self.items.values()
+        else:
+            return iter(self.items)
+
     def find_item(self, item_ty, item_path):
         if isinstance(item_path, str):
             item_path = item_path.split("::")
@@ -636,6 +645,13 @@ class AstFile(HasItems, HasAttrs):
         self.items = {
             (type(item), item.ident): item for item in self.items
         }
+
+    def value_iter(self):
+        if isinstance(self.items, dict):
+            return self.items.values()
+        else:
+            return iter(self.items)
+
 
     def find_item(self, item_ty, item_path):
         if isinstance(item_path, str):
