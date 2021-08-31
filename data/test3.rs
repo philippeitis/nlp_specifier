@@ -1,3 +1,10 @@
+struct u32(_);
+struct usize(_);
+struct Vec(_);
+struct bool;
+
+const X: u32 = 0;
+
 /// Prints obj.
 fn print(obj: u32) {}
 
@@ -30,6 +37,7 @@ impl PVec {
 }
 
 impl PInt {
+    fn output_tuple(&self) -> (Self, Self) {}
     #[invoke = "the reciprocal of {OBJ:self}"]
     /// Returns the reciprocal of `self`.
     fn reciprocal(&self) -> Self {}

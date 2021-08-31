@@ -5,17 +5,17 @@ import json
 import astx
 
 from .docs import Docs
-from .ast_types import Path, Type, TypeParam
+from .ast_types import Path, Type, TypeParam, SelfType
 from .scope import Scope
 from .expr import Expr
 
 
-def ast_items_from_json(scope, items: [], parent_type=None) -> []:
+def ast_items_from_json(items: []) -> []:
     results = []
     for i, item in enumerate(items):
         item: dict = item
         item_kind = next(iter(item.keys()))
-        results.append(KEY_TO_CLASS[item_kind](scope=scope, parent_type=parent_type, **item[item_kind]))
+        results.append(KEY_TO_CLASS[item_kind](**item[item_kind]))
     return results
 
 
@@ -93,9 +93,9 @@ class HasParams:
 
 
 class HasItems:
-    def __init__(self, scope=None, parent_type=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.items = ast_items_from_json(scope or Scope(), kwargs.get("items", []), parent_type=parent_type)
+        self.items = ast_items_from_json(kwargs.get("items", []))
 
 
 class TokenType(Enum):
@@ -211,29 +211,41 @@ class Receiver:
     def set_ty(self, ty: Type):
         self.ty = ty
 
+    def register_types(self, scope):
+        pass
+
     def __str__(self):
         lifetime = "" if self.lifetime is None else f"'{self.lifetime} "
         return f"{'&' if self.ref else ''}{lifetime}{'mut ' if self.mut else ''}self"
 
 
 class Fn(HasParams, HasAttrs):
-    def __init__(self, scope=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.inputs = kwargs["inputs"]
-        if kwargs["output"] is None:
-            self.output = scope.define_type()
-        else:
-            if kwargs["output"] == "!":
-                self.output = scope.never_type()
-            else:
-                self.output = scope.define_type(**kwargs["output"])
+        self.output = kwargs["output"]
+        self.inputs = kwargs["inputs"]
         for i, inputx in enumerate(self.inputs):
             if "receiver" in inputx:
                 self.inputs[i] = Receiver(**inputx["receiver"])
             else:
-                self.inputs[i] = BoundVariable(scope=scope, **inputx["typed"])
+                self.inputs[i] = BoundVariable(**inputx["typed"])
+
+    def register_types(self, scope):
         scope.add_fn(self.ident, self)
+        if self.output is None:
+            self.output = scope.define_type()
+        else:
+            if self.output == "!":
+                self.output = scope.never_type()
+            else:
+                self.output = scope.define_type(**self.output)
+
+        for input_ in self.inputs:
+            if isinstance(input_, Receiver):
+                continue
+            input_.register_types(scope)
 
     def type_tuples(self) -> [(str, str)]:
         types = []
@@ -255,58 +267,77 @@ class Fn(HasParams, HasAttrs):
 
 
 class BoundVariable:
-    def __init__(self, scope=None, **kwargs):
-        self.ty = scope.define_type(**kwargs["ty"])
+    def __init__(self, **kwargs):
+        self.ty = kwargs["ty"]
         pat = kwargs["pat"]
         if "ident" in pat:
             self.ident = pat["ident"]["ident"]
         else:
             self.ident = "_"
 
+    def register_types(self, scope):
+        self.ty = scope.define_type(**self.ty)
+
     def __str__(self):
         return f"{self.ident}: {self.ty}"
 
 
-class NamedField(HasAttrs):
-    def __init__(self, scope=None, **kwargs):
-        super().__init__(**kwargs)
-        self.ty = scope.define_type(**kwargs["ty"])
-        self.ident = kwargs["ident"]
-
-    def __str__(self):
-        return f"{self.fmt_attrs()}{self.ident}: {self.ty}"
-
-
 class Const(HasAttrs):
-    def __init__(self, scope=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.ty = scope.define_type(**kwargs["ty"])
         self.expr = Expr(**kwargs["expr"])
+        self.ty = kwargs["ty"]
+
+    def register_types(self, scope):
+        self.ty = scope.define_type(**self.ty)
 
     def __str__(self):
         return f"{self.fmt_attrs()}const {self.ident}: {self.ty} = {self.expr};"
 
 
-class Fields:
-    def __init__(self, scope, kwargs):
-        def unnamed_fn(**x):
-            if x["ty"] == "_":
-                return "_"
-            else:
-                return scope.define_type(**x["ty"])
+class NamedField(HasAttrs):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.ty = kwargs["ty"]
+        self.ident = kwargs["ident"]
 
+    def register_types(self, scope: Scope):
+        self.ty = scope.define_type(**self.ty)
+
+    def __str__(self):
+        return f"{self.fmt_attrs()}{self.ident}: {self.ty}"
+
+
+class Fields:
+    def __init__(self, kwargs):
         if kwargs == "unit":
             self.is_unit = True
             return
         self.is_unit = False
         type_key, fields = next(iter(kwargs.items()))
-        fn = {
-            "named": lambda **x: NamedField(scope=scope, **x),
-            "unnamed": unnamed_fn
-        }[type_key]
         self.style = type_key
-        self.fields = [fn(**field) for field in fields]
+
+        if self.named():
+            self.fields = [NamedField(**val) for val in fields]
+        else:
+            self.fields = fields
+
+    def register_types(self, scope):
+        if self.is_unit:
+            return
+
+        if self.named():
+            for field in self.fields:
+                field.register_types(scope)
+        else:
+            def dispatch(x):
+                if x["ty"] == "_":
+                    return "_"
+                else:
+                    return scope.define_type(**x["ty"])
+
+            self.fields = [dispatch(field) for field in self.fields]
 
     def empty(self) -> bool:
         return len(self.fields) == 0
@@ -319,12 +350,15 @@ class Fields:
 
 
 class Struct(HasParams, HasAttrs):
-    def __init__(self, scope=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.fields = Fields(scope, kwargs["fields"])
+        self.fields = Fields(kwargs["fields"])
         self.methods = []
+
+    def register_types(self, scope):
         scope.add_struct(self.ident, self)
+        self.fields.register_types(scope)
 
     def __str__(self):
         if self.fields.is_unit:
@@ -343,27 +377,34 @@ class Struct(HasParams, HasAttrs):
 
 
 class Method(Fn):
-    def __init__(self, parent_type=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def register_self_ty(self, ty):
         if len(self.inputs) > 0 and isinstance(self.inputs[0], Receiver):
-            self.inputs[0].set_ty(parent_type)
+            self.inputs[0].set_ty(ty)
+        if isinstance(self.output, SelfType):
+            self.output.ty = ty
 
 
 class Impl(HasParams, HasItems, HasAttrs):
-    def __init__(self, scope=None, parent_type=None, **kwargs):
-        self_path = Path(**kwargs["self_ty"]["path"])
-        ty = scope.find_type(self_path.ident())
-        super().__init__(scope=scope, parent_type=ty, **kwargs)
+    __slots__ = ["path", "ty", "items", "attrs", "params", "where_clause"]
+
+    def __init__(self, **kwargs):
+        self.path = Path(**kwargs["self_ty"]["path"])
+        super().__init__(**kwargs)
+
+    def register_types(self, type_source):
+        self.ty = type_source.find_type(self.path.ident())
         for item in self.items:
-            if isinstance(item, Fn):
-                ty.methods.append(item)
-        self.ty = ty
-        self.concrete_path = self_path
+            if isinstance(item, Method):
+                item.register_types(type_source)
+                item.register_self_ty(self.ty)
+                self.ty.methods.append(item)
 
     def __str__(self):
         items = "\n\n".join([indent(item) for item in self.items])
-        return f"""{self.fmt_attrs()}impl{self.fmt_generics()} {self.concrete_path} {{
+        return f"""{self.fmt_attrs()}impl{self.fmt_generics()} {self.path} {{
 {items}
 }}"""
 
@@ -372,13 +413,23 @@ class Mod(HasAttrs):
     def __init__(self, ident: str, items: Optional[list], attrs: list[dict]):
         super().__init__(attrs=attrs)
         self.ident = ident
-        self.items = items
+        if items is not None:
+            self.items = {
+                item.ident: item for item in items
+            }
+        else:
+            self.items = items
+
+    def register_types(self, type_source):
+        own_mod = type_source.modules[self.ident]
+        for item in self.items:
+            item.register_types(own_mod)
 
     @classmethod
-    def from_kwargs(cls, scope=None, **kwargs):
+    def from_kwargs(cls, **kwargs):
         ident = kwargs["ident"]
         if "content" in kwargs:
-            items = ast_items_from_json(scope.modules[ident], kwargs["content"])
+            items = ast_items_from_json(kwargs["content"])
         else:
             items = None
         return cls(ident, items, kwargs.get("attrs", []))
@@ -386,7 +437,7 @@ class Mod(HasAttrs):
     def __str__(self):
         if self.items is None:
             return f"{self.fmt_attrs()}mod {self.ident};"
-        content = "\n".join([indent(item) for item in self.items])
+        content = "\n".join([indent(item) for item in self.items.values()])
         return f"""{self.fmt_attrs()}mod {self.ident} {{
 {content}
 }}"""
@@ -413,14 +464,20 @@ class Use(HasAttrs):
         else:
             self.layers.append("*")
 
+    def register_types(self, scope):
+        pass
+
     def __str__(self):
         return f"{self.fmt_attrs()}use {'::'.join(self.layers)};"
 
 
 class EnumVariant:
-    def __init__(self, scope=None, **kwargs):
-        self.fields = Fields(scope, kwargs["fields"])
+    def __init__(self, **kwargs):
+        self.fields = Fields(kwargs["fields"])
         self.ident = kwargs["ident"]
+
+    def register_types(self, scope):
+        self.fields.register_types(scope)
 
     def __str__(self):
         if self.fields.is_unit:
@@ -434,10 +491,14 @@ class EnumVariant:
 
 
 class Enum(HasParams, HasAttrs):
-    def __init__(self, scope=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.variants = [EnumVariant(scope, **v) for v in kwargs["variants"]]
+        self.variants = [EnumVariant(**variant) for variant in kwargs["variants"]]
+
+    def register_types(self, scope):
+        for variant in self.variants:
+            variant.register_types(scope)
 
     def __str__(self):
         enum_vals = ",\n    ".join([str(v) for v in self.variants])
@@ -478,6 +539,11 @@ class AstFile(HasItems, HasAttrs):
         super().__init__(**kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
         self.scope = kwargs["scope"]
+        self.register_types(self.scope)
+
+    def register_types(self, type_source):
+        for item in self.items:
+            item.register_types(type_source)
 
     @classmethod
     def from_str(cls, s: str, scope=None):
@@ -495,13 +561,9 @@ class AstFile(HasItems, HasAttrs):
         return cls.from_str(code, scope=scope)
 
     def __str__(self):
-        ast = ""
-        for attr in self.attrs:
-            ast += f"{attr}\n"
-
-        for item in self.items:
-            ast += f"{item}\n\n"
-        return ast
+        attrs = "\n".join(str(attr) for attr in self.attrs)
+        items = "\n\n".join(str(item) for item in self.items)
+        return attrs + items
 
 
 class Crate:

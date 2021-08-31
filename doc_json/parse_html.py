@@ -12,7 +12,7 @@ from lxml.html import parse
 from pyrs_ast.docs import Docs
 from py_cargo_utils import rustup_home
 
-from pyrs_ast.lib import Crate, Fn, Struct, Method
+from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod
 from pyrs_ast.scope import Scope
 
 HEADER = {
@@ -248,6 +248,39 @@ DISPATCH = {
 }
 
 
+class DocMod(Mod):
+    ITEM_PREFIXES = ("struct.", "fn.")
+
+    # , "enum.", "constant.", "macro.", "trait.", "keyword.")
+
+    @classmethod
+    def from_doc_path(cls, path: Path, file_hints=None):
+        items = []
+        ident = path.name
+
+        for child_path in path.iterdir():
+            if child_path.is_dir():
+                if child_path.name in DocCrate.IGNORE:
+                    continue
+                item = DocMod.from_doc_path(child_path, file_hints)
+                if len(item.items) != 0:
+                    items.append(item)
+            else:
+                if child_path in file_hints:
+                    item = file_hints[child_path]
+                    if item is None:
+                        continue
+                    else:
+                        items.append(item)
+                else:
+                    name = child_path.name
+                    if any(name.startswith(prefix) for prefix in cls.ITEM_PREFIXES):
+                        file = parse_file(child_path)
+                        if file:
+                            items.append(file)
+        return cls(ident, items, [])
+
+
 class DocCrate(Crate):
     IGNORE = {
         "rust-by-example", "reference", "embedded-book", "edition-guide", "arch", "core_arch",
@@ -255,8 +288,21 @@ class DocCrate(Crate):
     }
 
     @classmethod
-    def from_root_file(cls, path):
-        pass
+    def from_root_dir(cls, path: Path):
+        if path.is_dir() and path.name in DocCrate.IGNORE:
+            raise ValueError("Bad path")
+        items = []
+
+        files = {
+            fpath: item for item, fpath in get_all_files(path)
+        }
+
+        target_dir = (path / Path("share/doc/rust/html/")).expanduser()
+        for child_path in target_dir.iterdir():
+            if child_path.is_dir() and child_path.name not in cls.IGNORE:
+                items.append(DocMod.from_doc_path(child_path, files))
+
+        return cls(items)
 
     @staticmethod
     def get_all_doc_files(path: Path) -> List[Path]:
@@ -365,7 +411,11 @@ def get_toolchains() -> List[Path]:
 
 
 if __name__ == '__main__':
-    main(get_toolchains()[0])
+    c = DocCrate.from_root_dir(get_toolchains()[0])
+    print(c)
+    print(c.files)
+    for file in c.files:
+        print(file)
 
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Union, Collection
 
-from .ast_types import Type, Segment, NeverType
+from .ast_types import Type, Segment, NeverType, SelfType
 
 NEVER_TYPE = NeverType()
 
@@ -71,13 +71,10 @@ class Scope:
         if len(path) != 1:
             return self.modules[str(path[0])].add_type(ty, path[1:])
 
-        name = str(path[0])
-
-        if name in self.named_types:
-            return self.named_types[name]
-        if name in self.structs:
-            ty.register_struct(self.structs[name])
-        self.named_types[name] = ty
+        name = path[0].ident
+        if name == "Self":
+            return SelfType()
+        ty.register_struct(self.structs[name])
         return ty
 
     def find_fn_matches(self, query: Query) -> Collection["Fn"]:

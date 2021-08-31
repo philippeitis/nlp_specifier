@@ -69,13 +69,12 @@ def json_to_graph(
 
 
 def simplify_json(xjson):
-    scope = Scope()
     if not isinstance(xjson, dict):
         return
 
     if "fn" in xjson and "ident" in xjson["fn"]:
         fjson = xjson["fn"]
-        fn = Fn(**fjson, scope=scope)
+        fn = Fn(**fjson)
         fjson["inputs"] = [str(inputx) for inputx in fn.inputs]
         fjson["attrs"] = [str(attr) for attr in fn.attrs]
         fjson["output"] = str(fn.output)
@@ -85,7 +84,7 @@ def simplify_json(xjson):
 
     if "method" in xjson and "ident" in xjson["method"]:
         fjson = xjson["method"]
-        fn = Method(**fjson, scope=scope)
+        fn = Method(**fjson)
         fjson["inputs"] = [str(inputx) for inputx in fn.inputs]
         fjson["attrs"] = [str(attr) for attr in fn.attrs]
         fjson["output"] = str(fn.output)
@@ -112,7 +111,7 @@ def simplify_json(xjson):
         xjson["attrs"] = [str(attr) for attr in attrs.attrs]
 
     if "fields" in xjson:
-        f = Fields(scope, xjson["fields"])
+        f = Fields(xjson["fields"])
         xjson["fields"] = [str(field) for field in f]
 
     for name in list(xjson.keys()):

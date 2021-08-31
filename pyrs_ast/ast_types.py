@@ -3,6 +3,14 @@ from typing import Optional
 from . import expr
 
 
+class SelfType:
+    def __init__(self):
+        self.ty = None
+
+    def __str__(self):
+        return "Self"
+
+
 class Binding:
     def __init__(self, **kwargs):
         self.ident = kwargs["ident"]
