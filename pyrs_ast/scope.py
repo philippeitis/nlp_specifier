@@ -1,7 +1,9 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Union, Collection
 
-from .ast_types import Type, Segment
+from .ast_types import Type, Segment, NeverType
+
+NEVER_TYPE = NeverType()
 
 
 class QueryField:
@@ -24,6 +26,7 @@ class Scope:
         self.structs: Dict[str, "Struct"] = {}
         self.functions: Dict[str, "Fn"] = {}
         self.modules = defaultdict(Scope)
+        self.imports = defaultdict(Scope)
 
         self.parent = None
         self.visibility = None
@@ -51,6 +54,9 @@ class Scope:
             return self.named_types.get(ty[0], self.structs.get(ty[0]))
         else:
             return self.modules[ty[0]].find_type(ty[1:])
+
+    def never_type(self):
+        return NEVER_TYPE
 
     def define_type(self, **kwargs) -> Type:
         ty = Type(**kwargs)

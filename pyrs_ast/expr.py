@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from astx import astx
 
-from .ast_types import Path
+from . import ast_types
 
 
 class ExprArray:
@@ -148,7 +148,7 @@ class ExprPath:
     """
 
     def __init__(self, **kwargs):
-        self.path = Path(**kwargs)
+        self.path = ast_types.Path(**kwargs)
 
     def __str__(self):
         return str(self.path)

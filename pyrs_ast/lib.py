@@ -224,7 +224,10 @@ class Fn(HasParams, HasAttrs):
         if kwargs["output"] is None:
             self.output = scope.define_type()
         else:
-            self.output = scope.define_type(**kwargs["output"])
+            if kwargs["output"] == "!":
+                self.output = scope.never_type()
+            else:
+                self.output = scope.define_type(**kwargs["output"])
         for i, inputx in enumerate(self.inputs):
             if "receiver" in inputx:
                 self.inputs[i] = Receiver(**inputx["receiver"])
@@ -254,7 +257,11 @@ class Fn(HasParams, HasAttrs):
 class BoundVariable:
     def __init__(self, scope=None, **kwargs):
         self.ty = scope.define_type(**kwargs["ty"])
-        self.ident = kwargs["pat"]["ident"]["ident"]
+        pat = kwargs["pat"]
+        if "ident" in pat:
+            self.ident = pat["ident"]["ident"]
+        else:
+            self.ident = "_"
 
     def __str__(self):
         return f"{self.ident}: {self.ty}"
