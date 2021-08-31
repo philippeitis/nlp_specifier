@@ -8,6 +8,7 @@ from .docs import Docs
 from .ast_types import Path, Type, TypeParam, SelfType, NeverType
 from .scope import Scope
 from .expr import Expr
+from .use import UseTree
 
 
 def ast_items_from_json(items: []) -> []:
@@ -453,27 +454,17 @@ class Use(HasAttrs):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.layers = []
-        next_layer = kwargs["tree"]
-        self.glob = False
-        while "ident" not in next_layer:
-            if next_layer == "*":
-                self.glob = True
-                break
-            next_layer = next_layer["path"]
-            self.layers.append(next_layer["ident"])
-            next_layer = next_layer["tree"]
+        self.tree = UseTree(kwargs["tree"])
+        self.ident = ""
 
-        if not self.glob:
-            self.layers.append(next_layer["ident"])
-        else:
-            self.layers.append("*")
+    def get_from_scope(self, scope):
+        return self.tree.get_from_scope(scope)
 
     def register_types(self, scope):
         pass
 
     def __str__(self):
-        return f"{self.fmt_attrs()}use {'::'.join(self.layers)};"
+        return f"{self.fmt_attrs()}use {self.tree};"
 
 
 class EnumVariant:
