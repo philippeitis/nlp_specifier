@@ -359,16 +359,23 @@ class Mod(HasAttrs):
     def __init__(self, scope=None, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.content = ast_items_from_json(scope.modules[self.ident], kwargs.get("content", []))
+        if "content" in kwargs:
+            self.items = ast_items_from_json(scope.modules[self.ident], kwargs["content"])
+        else:
+            self.items = None
 
     def __str__(self):
-        content = "\n".join([indent(item) for item in self.content])
+        if self.items is None:
+            return f"{self.fmt_attrs()}mod {self.ident};"
+        content = "\n".join([indent(item) for item in self.items])
         return f"""{self.fmt_attrs()}mod {self.ident} {{
 {content}
 }}"""
 
 
 class Use(HasAttrs):
+    """use X;"""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layers = []
@@ -476,3 +483,26 @@ class AstFile(HasItems, HasAttrs):
         for item in self.items:
             ast += f"{item}\n\n"
         return ast
+
+
+class Crate:
+    def __init__(self, files: List[AstFile]):
+        self.files = files
+
+    @classmethod
+    def from_root_file(cls, path):
+        from pathlib import Path as Path_
+        rel_path = Path_(path).parent
+
+        root = AstFile.from_path(path)
+        files = [root]
+        for item in root.items:
+            if isinstance(item, Mod) and item.items is None:
+                # dir_path = rel_path / item.ident
+                rs_path = rel_path / f"{item.ident}.rs"
+                if rs_path.exists():
+                    mod = AstFile.from_path(rs_path, root.scope.modules[item.ident])
+                    files.append(mod)
+                else:
+                    raise ValueError(f"No item found for mod {item.ident}. Directory modules not supported.")
+        return cls(files)

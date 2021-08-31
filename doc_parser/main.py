@@ -4,7 +4,7 @@ import logging
 from nltk import Tree
 from spacy.tokens import Doc
 
-from pyrs_ast.lib import LitAttr, Fn, HasItems
+from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate
 from pyrs_ast.scope import Query, FnArg, Scope
 from pyrs_ast import AstFile
 
@@ -190,7 +190,7 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
 
 def end_to_end_demo():
     """Demonstrates entire pipeline from end to end."""
-    ast = AstFile.from_path("../data/test4.rs")
+    ast = AstFile.from_path("../data/test3.rs")
     grammar, invoke_factory = generate_grammar(ast)
 
     parser = Parser(grammar)
@@ -471,9 +471,8 @@ def invoke_testcases(path="base_grammar_test_cases.txt"):
 
 
 def test_mod():
-    x = AstFile.from_path("../data/test_mods.rs")
-    print(x.scope.find_function("b::x"))
-    print(x.scope.find_function("AAAA::x"))
+    x = Crate.from_root_file("../data/test_mods.rs")
+    print(x.files)
 
 
 if __name__ == '__main__':
