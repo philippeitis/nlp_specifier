@@ -335,7 +335,7 @@ class Struct(HasParams, HasAttrs):
             else:
                 fields = " {\n" + ",\n".join([indent(field) for field in self.fields]) + "\n}"
         else:
-            fields = "(" + ", ".join([indent(field) for field in self.fields]) + ");"
+            fields = "(" + ", ".join([str(field) for field in self.fields]) + ");"
         return f"{self.fmt_attrs()}struct {self.ident}{self.fmt_generics()}{fields}"
 
     def name(self):
