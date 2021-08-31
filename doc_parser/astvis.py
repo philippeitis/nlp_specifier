@@ -1,12 +1,10 @@
 from pathlib import Path
-from typing import Optional
 import logging
 import json
 
 import astx
 from pyrs_ast.ast_types import Path
 from pyrs_ast.lib import HasAttrs, Fn, Fields, Method
-from pyrs_ast.scope import Scope
 
 from treevis import PersistentCounter, Node, Edge, call_dot
 
