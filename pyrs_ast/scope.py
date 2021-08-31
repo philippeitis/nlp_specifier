@@ -23,10 +23,6 @@ class Scope:
         self.structs: Dict[str, "Struct"] = {}
         self.functions: Dict[str, "Fn"] = {}
         self.modules = defaultdict(Scope)
-        self.imports = defaultdict(Scope)
-
-        self.parent = None
-        self.visibility = None
 
     def add_struct(self, name: str, struct):
         self.structs[name] = struct
