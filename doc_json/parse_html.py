@@ -12,11 +12,8 @@ from lxml.html import parse
 from pyrs_ast.docs import Docs
 from py_cargo_utils import rustup_home
 
-from pyrs_ast.lib import Crate, Fn
+from pyrs_ast.lib import Crate, Fn, Struct, Method
 from pyrs_ast.scope import Scope
-
-SINCE = ("span", {"class": "since"})
-SRCLINK = ("a", {"class": "srclink"})
 
 
 def peek(it):
@@ -125,45 +122,40 @@ class HasDoc:
         return "```CODE```"
 
 
-class HasHeader:
-    def __init__(self, body: etree.ElementBase):
-        header = find_with_class(body, "h1", "fqn")
-        remove_all_spans(header)
-        remove_all_src_links(header)
-        text_ = stringify(header)
-        body.remove(header)
-        self.header = text_
-
-
-class Struct(HasHeader, HasDoc):
-    def __init__(self, body: etree.ElementBase):
-        super().__init__(body)
+class DocStruct(Struct):
+    @classmethod
+    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
         type_decl = find_with_class(body, "div", "docblock")
         body.remove(type_decl)
-        self.methods = []
+        methods = []
 
         parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
-            self.docs = self.parse_doc(doc)
+            docs = HasDoc.parse_doc(doc)
             body.remove(parent)
         else:
-            self.docs = Docs()
+            docs = Docs()
+
+        s = f"{docs}\n{stringify(type_decl)}"
+        try:
+            struct = cls(**json.loads(astx.parse_struct(s)), scope=scope or Scope())
+        except json.decoder.JSONDecodeError:
+            return
 
         impl_block = find_with_class(body, "details", "implementors-toggle")
         if impl_block is not None:
             for doc in find_with_class_iter(impl_block, "div", "impl-items"):
-                self.methods += self.eat_impl_dispatch(doc)
+                struct.methods += struct.eat_impl_dispatch(doc, scope)
+        return struct
 
-        self.type_decl = stringify(type_decl)
-
-    def eat_impls_old(self, doc: etree.ElementBase, doc_iter) -> List["Method"]:
+    def eat_impls_old(self, doc: etree.ElementBase, doc_iter, scope: Scope) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "div":
-                    return items + self.eat_impl(doc, doc_iter)
+                    return items + self.eat_impl(doc, doc_iter, scope)
                 remove_all_spans(item)
                 remove_all_src_links(item)
                 name = stringify(item)
@@ -180,18 +172,18 @@ class Struct(HasHeader, HasDoc):
                     raise ValueError(str(set(item.classes)))
             except StopIteration:
                 pass
-            items.append(Method(name, Docs()))
+            items.append(DocMethod.from_ident_and_docs(name, Docs(), parent_type=self, scope=scope))
 
         return items
 
-    def eat_impl(self, doc: etree.ElementBase, doc_iter) -> List["Method"]:
+    def eat_impl(self, doc: etree.ElementBase, doc_iter, scope: Scope) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "details":
-                    return items + self.eat_impls_old(doc, doc_iter)
-                items.append(Method.from_block(item))
+                    return items + self.eat_impls_old(doc, doc_iter, scope)
+                items.append(DocMethod.from_block(item, parent_type=self, scope=scope))
                 next(doc_iter)
                 doc.remove(item)
 
@@ -199,21 +191,15 @@ class Struct(HasHeader, HasDoc):
                 break
         return items
 
-    def eat_impl_dispatch(self, doc: etree.ElementBase) -> List["Method"]:
+    def eat_impl_dispatch(self, doc: etree.ElementBase, scope: Scope) -> List["DocMethod"]:
         try:
             first = next(iter(doc))
             if "method" in first.classes:
-                return self.eat_impls_old(doc, iter(doc))
-            return self.eat_impl(doc, iter(doc))
+                return self.eat_impls_old(doc, iter(doc), scope)
+            return self.eat_impl(doc, iter(doc), scope)
 
         except StopIteration:
             return []
-
-    def decl(self) -> str:
-        return f"{self.docs}\n{self.type_decl}"
-
-    def __str__(self):
-        return self.decl()
 
 
 class DocFn(Fn):
@@ -239,28 +225,28 @@ class DocFn(Fn):
             pass
 
 
-class Method(HasDoc):
-    def __init__(self, name: str, docs: Docs):
-        self.name = name
-        self.docs = docs
-        self.attrs = []
+class DocMethod(Method):
+    @classmethod
+    def from_ident_and_docs(cls, ident: str, docs: Docs, parent_type: Struct = None, scope: Scope = None):
+        s = f"{docs}\n{ident} {{}}"
+        try:
+            return cls(**json.loads(astx.parse_impl_method(s)), parent_type=parent_type, scope=scope or Scope())
+        except json.decoder.JSONDecodeError:
+            pass
 
     @classmethod
-    def from_block(cls, block) -> "Method":
+    def from_block(cls, block, parent_type: Struct = None, scope: Scope = None) -> "DocMethod":
         name = block.find("summary/div")
         remove_all_src_links(name)
         remove_all_spans(name)
         name = stringify(name)
-        docs = cls.parse_doc(find_with_class(block, "div", "docblock"))
-        return cls(name, docs)
-
-    def decl(self) -> str:
-        return f"{self.docs}\n{self.name}"
+        docs = HasDoc.parse_doc(find_with_class(block, "div", "docblock"))
+        return cls.from_ident_and_docs(name, docs, parent_type, scope)
 
 
 DISPATCH = {
     "fn": DocFn.from_block,
-    "struct": Struct,
+    "struct": DocStruct.from_block,
 }
 
 
@@ -322,28 +308,33 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
         )(body)
 
 
-def get_all_files_st(toolchain_root: Path):
+def _get_all_files_st(toolchain_root: Path):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
-    targets = files["fn"]
+    targets = files["fn"] + files["struct"]
     return [(file, path) for file, path in zip(map(parse_file, targets), targets) if file]
 
 
 def get_all_files(toolchain_root: Path, num_processes: int = 12):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
     files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
+
+    # For debugging purposes
+    if num_processes == 1:
+        return _get_all_files_st(toolchain_root)
+
     with Pool(num_processes) as p:
         targets = files["fn"] + files["struct"]
         return [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
 
 
 def main(toolchain_root: Path):
-    for file, path in get_all_files_st(toolchain_root):
+    for file, path in get_all_files(toolchain_root):
         print(path)
         print(file)
         if isinstance(file, Struct):
-            for impl in file.methods:
-                print(impl.decl())
+            for method in file.methods:
+                print(method)
 
 
 def choose_random_items(toolchain_root: Path):
@@ -359,10 +350,10 @@ def choose_random_items(toolchain_root: Path):
         file = parse_file(item)
         if file:
             print(item)
-            print(str(file))
+            print(file)
             if isinstance(file, Struct):
-                for impl in file.methods:
-                    print(impl.decl())
+                for method in file.methods:
+                    print(method)
             input()
 
 
@@ -378,7 +369,6 @@ def get_toolchains() -> List[Path]:
 if __name__ == '__main__':
     main(get_toolchains()[0])
 
-    # choose_random_items(get_toolchains()[0])
     # make section 1 intro / problem statement / high level approach
     # diagram of process eg. tokenizer -> parser -> specifier -> search
     # section 1.1. motivate sequence of problems
