@@ -159,6 +159,8 @@ TYPE_DICT = {
     "slice": SliceType,
     "trait": TraitType,
     "bare_fn": lambda **kwargs: print("bare_fn", kwargs),
+    "impl_trait": lambda **kwargs: print("impl_trait", kwargs),
+    "paren": lambda **kwargs: print("paren", kwargs)
 }
 
 
