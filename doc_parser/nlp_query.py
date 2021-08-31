@@ -3,7 +3,7 @@ import re
 import itertools
 
 from pyrs_ast.lib import Fn
-from pyrs_ast.scope import Query, QueryField
+from pyrs_ast.query import Query, QueryField
 
 from lemmatizer import is_synonym, lemmatize
 from doc_parser import Parser
@@ -77,57 +77,61 @@ class Phrase(QueryField):
         self.tag_regex = re.compile(regex_str)
         self.regex_str = regex_str
 
-    def matches(self, fn: Fn):
+    def matches(self, item):
         """Determines whether the phrase matches the provided fn.
         To match the phrase, the function must contain all non-optional words, in sequence, with no gaps.
         Words do not need to have matching tenses or forms to be considered equal (using NLTK's lemmatizer).
         """
-
         def split_str(s: str, index: int):
             return s[:index], s[index:]
 
-        docs = fn.docs.sections()
+        docs = item.docs.sections()
+        if isinstance(item, Fn):
+            idents = {ty.ident for ty in item.inputs}
+        else:
+            idents = None
+
         if docs:
-            sent = self.parser.tokenize(docs[0].body, idents=[ty.ident for ty in fn.inputs])
-            s = " ".join(tag for tag in sent.tags)
+            for sentx in docs[0].sentences:
+                sent = self.parser.tokenize(sentx, idents=idents)
+                s = " ".join(tag for tag in sent.tags)
+                for match in self.tag_regex.finditer(s):
+                    prev, curr = split_str(s, match.start(0))
+                    curr, after = split_str(curr, match.end(0) - match.start(0))
 
-            for match in self.tag_regex.finditer(s):
-                prev, curr = split_str(s, match.start(0))
-                curr, after = split_str(curr, match.end(0) - match.start(0))
+                    match_len = curr.count(" ") + 1
+                    match_start = prev.count(" ")
 
-                match_len = curr.count(" ") + 1
-                match_start = prev.count(" ")
-
-                match_tokens = sent.doc[match_start: match_start + match_len]
-                word_iter = iter(match_tokens)
-                matches = True
-                for word in self.phrase:
-                    match, word_iter = peek(word_iter)
-                    if tags_similar(word.tag, match.tag_):
-                        next(word_iter)
-                        if word.lemma == match.lemma_:
-                            continue
-                        elif word.allow_synonyms:
-                            if not is_synonym(word.word, match.text, word.tag):
+                    match_tokens = sent.doc[match_start: match_start + match_len]
+                    word_iter = iter(match_tokens)
+                    matches = True
+                    for word in self.phrase:
+                        match, word_iter = peek(word_iter)
+                        if tags_similar(word.tag, match.tag_):
+                            next(word_iter)
+                            if word.lemma == match.lemma_:
+                                continue
+                            elif word.allow_synonyms:
+                                if not is_synonym(word.word, match.text, word.tag):
+                                    matches = False
+                                    break
+                            else:
                                 matches = False
                                 break
+                        elif word.is_optional:
+                            continue
                         else:
                             matches = False
                             break
-                    elif word.is_optional:
-                        continue
-                    else:
-                        matches = False
-                        break
-                if matches:
-                    return True
+                    if matches:
+                        return True
         return False
 
     def __str__(self):
         return " ".join(str(x) for x in self.phrase)
 
 
-def query_from_sentence(sentence, parser: Parser) -> Query:
+def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> Query:
     """Forms a query from a sentence.
 
     Stopwords (per Wordnet's stopwords), and words which are not verbs, nouns, adverbs, or adjectives, are all removed.
@@ -146,5 +150,6 @@ def query_from_sentence(sentence, parser: Parser) -> Query:
                 phrases.append([])
         else:
             is_describer = is_one_of(token.tag_, {"RB", "JJ"})
-            phrases[-1].append(Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
-    return Query([Phrase(block, parser) for block in phrases if block])
+            phrases[-1].append(
+                Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
+    return Query([Phrase(block, parser) for block in phrases if block], *args, **kwargs)
