@@ -97,6 +97,24 @@ class HasItems:
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.items = ast_items_from_json(kwargs.get("items", []))
+        self.import_items = {}
+
+    def resolve_imports(self, source):
+        if isinstance(self.items, dict):
+            value_iter = self.items.values()
+        else:
+            value_iter = iter(self.items)
+
+        for item in value_iter:
+            if isinstance(item, Use):
+                imports = item.get_from_scope(source)
+                for ident, item in imports:
+                    if item is None:
+                        raise ValueError("Item not found")
+
+                    self.import_items[(type(item), ident)] = item
+            if isinstance(item, (HasItems, Mod)):
+                item.resolve_imports(source)
 
 
 class TokenType(Enum):
@@ -331,6 +349,7 @@ class Fields:
                 if ty == "_":
                     return ty
                 return Type(**ty)
+
             self.fields = [dispatch(field["ty"]) for field in fields]
 
     def register_types(self, scope):
@@ -399,6 +418,7 @@ class Impl(HasParams, HasItems, HasAttrs):
     def __init__(self, **kwargs):
         self.path = Path(**kwargs["self_ty"]["path"])
         super().__init__(**kwargs)
+        self.ident = str(self.path.ident())
 
     def register_types(self, type_source):
         self.ty = type_source.find_type(self.path.ident())
@@ -421,15 +441,55 @@ class Mod(HasAttrs):
         self.ident = ident
         if items is not None:
             self.items = {
-                item.ident: item for item in items
+                (type(item), item.ident): item for item in items
             }
         else:
+            self.file = None
             self.items = items
+        self.import_items = {}
 
     def register_types(self, type_source):
+        if self.items is None:
+            return
         own_mod = type_source.modules[self.ident]
         for item in self.items:
             item.register_types(own_mod)
+
+    def resolve_imports(self, source):
+        if self.items is None:
+            self.file.resolve_imports(source)
+            return
+
+        if isinstance(self.items, dict):
+            value_iter = self.items.values()
+        else:
+            value_iter = iter(self.items)
+
+        for item in value_iter:
+            if isinstance(item, Use):
+                imports = item.get_from_scope(source)
+                for ident, item in imports:
+                    if item is None:
+                        raise ValueError("Item not found")
+
+                    self.import_items[(type(item), ident)] = item
+            if isinstance(item, (HasItems, Mod)):
+                item.resolve_imports(source)
+
+    def find_item(self, item_ty, item_path):
+        if isinstance(item_path, str):
+            item_path = item_path.split("::")
+
+        if self.items is None:
+            return self.file.find_item((item_ty, item_path))
+
+        if len(item_path) == 1:
+            return self.items.get((item_ty, item_path)) or self.import_items.get((item_ty, item_path))
+
+        mod = self.items.get((Mod, item_path[0]))
+        if mod:
+            return mod.find_item((item_ty, item_path[1:]))
+        return None
 
     @classmethod
     def from_kwargs(cls, **kwargs):
@@ -445,8 +505,8 @@ class Mod(HasAttrs):
             return f"{self.fmt_attrs()}mod {self.ident};"
         content = "\n".join([indent(item) for item in self.items.values()])
         return f"""{self.fmt_attrs()}mod {self.ident} {{
-{content}
-}}"""
+    {content}
+    }}"""
 
 
 class Use(HasAttrs):
@@ -536,29 +596,45 @@ class AstFile(HasItems, HasAttrs):
         self.shebang: Optional[str] = kwargs.get("shebang")
         self.scope = kwargs["scope"]
         self.register_types(self.scope)
+        self.ident = kwargs.get("ident")
+        self.items = {
+            (type(item), item.ident): item for item in self.items
+        }
+
+    def find_item(self, item_ty, item_path):
+        if isinstance(item_path, str):
+            item_path = item_path.split("::")
+
+        if len(item_path) == 1:
+            return self.items.get((item_ty, item_path[0])) or self.import_items.get((item_ty, item_path[0]))
+
+        mod = self.items.get((Mod, item_path[0]))
+        if mod:
+            return mod.find_item((item_ty, item_path[1:]))
+        return None
 
     def register_types(self, type_source):
         for item in self.items:
             item.register_types(type_source)
 
     @classmethod
-    def from_str(cls, s: str, scope=None):
+    def from_str(cls, s: str, scope=None, ident: str = None):
         result = astx.ast_from_str(s)
         try:
-            return cls(scope=scope or Scope(), **json.loads(result))
+            return cls(**json.loads(result), scope=scope or Scope(), ident=ident)
         except json.decoder.JSONDecodeError:
             pass
         raise LexError(result)
 
     @classmethod
-    def from_path(cls, path, scope=None):
+    def from_path(cls, path, scope=None, ident: str = None):
         with open(path, "r") as file:
             code = file.read()
-        return cls.from_str(code, scope=scope)
+        return cls.from_str(code, scope=scope, ident=ident)
 
     def __str__(self):
         attrs = "\n".join(str(attr) for attr in self.attrs)
-        items = "\n\n".join(str(item) for item in self.items)
+        items = "\n\n".join(str(item) for item in self.items.values())
         return attrs + items
 
 
@@ -573,13 +649,21 @@ class Crate:
 
         root = AstFile.from_path(path)
         files = [root]
-        for item in root.items:
+        for item in root.items.values():
             if isinstance(item, Mod) and item.items is None:
                 # dir_path = rel_path / item.ident
                 rs_path = rel_path / f"{item.ident}.rs"
                 if rs_path.exists():
-                    mod = AstFile.from_path(rs_path, root.scope.modules[item.ident])
+                    mod = AstFile.from_path(rs_path, root.scope.modules[item.ident], ident=item.ident)
+                    item.file = mod
                     files.append(mod)
                 else:
                     raise ValueError(f"No item found for mod {item.ident}. Directory modules not supported.")
+        mods = {
+            file.ident: file for file in files
+        }
+
+        for mod in mods.values():
+            mod.resolve_imports(root.scope)
+
         return cls(files)

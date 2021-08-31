@@ -1,3 +1,7 @@
+mod test4;
+
+use test4::{a as c, b};
+
 struct u32;
 struct usize;
 struct Vec;
