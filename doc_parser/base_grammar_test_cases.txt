@@ -62,3 +62,6 @@ Adds 1 to `a`
 `a` is right shifted by `n`
 Returns the cosine of an `f32`
 Returns the remainder of `a` divided by `2`
+
+For all indices `i` from 0 to 32, `result.lookup(i)` will be equal to `self.lookup(31 - i)`
+For all indices `i` from `0` to `32`, `result.lookup(i)` will be equal to `self.lookup(31 - i)`

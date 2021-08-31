@@ -528,7 +528,7 @@ class QuantExpr:
             sub_foreach = QuantExpr(tree[0], invoke_factory)
             self.quant = sub_foreach.quant
             self.range = sub_foreach.range
-            if tree[1].label() == "CC":
+            if tree[2].label() == "CC":
                 self.range_conditions = sub_foreach.range_conditions + [
                     (CC(tree[1]), ModRelation(tree[-1], invoke_factory))
                 ]

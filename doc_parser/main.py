@@ -318,8 +318,12 @@ def search_demo():
 def search_demo2():
     """Demonstrates searching for function arguments and phrases with synonyms."""
     ast = Crate.from_root_file("../data/test3.rs")
-    query = query_from_sentence("remove", Parser.default(), (Fn, Struct))
-    query.fields.append(FnArg("usize"))
+    parser = Parser.default()
+    fields = [
+        Phrase([Word("take", "VB", True, False)], parser),
+        FnArg("usize")
+    ]
+    query = Query(fields, (Fn, Struct))
     for file in ast.files:
         for match in file.find_matches(query):
             print(match)
@@ -505,7 +509,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    search_demo2()
+    invoke_testcases()
     # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
     # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
     # Motivate problems with what is being accomplished
