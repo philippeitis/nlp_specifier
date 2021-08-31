@@ -369,13 +369,19 @@ class Impl(HasParams, HasItems, HasAttrs):
 
 
 class Mod(HasAttrs):
-    def __init__(self, scope=None, **kwargs):
-        super().__init__(**kwargs)
-        self.ident = kwargs["ident"]
+    def __init__(self, ident: str, items: Optional[list], attrs: list[dict]):
+        super().__init__(attrs=attrs)
+        self.ident = ident
+        self.items = items
+
+    @classmethod
+    def from_kwargs(cls, scope=None, **kwargs):
+        ident = kwargs["ident"]
         if "content" in kwargs:
-            self.items = ast_items_from_json(scope.modules[self.ident], kwargs["content"])
+            items = ast_items_from_json(scope.modules[ident], kwargs["content"])
         else:
-            self.items = None
+            items = None
+        return cls(ident, items, kwargs.get("attrs", []))
 
     def __str__(self):
         if self.items is None:
@@ -457,7 +463,7 @@ KEY_TO_CLASS = {
     "impl": Impl,
     "method": Method,
     "use": Use,
-    "mod": Mod,
+    "mod": Mod.from_kwargs,
     "extern_crate": ExternCrate,
     "enum": Enum,
 }
