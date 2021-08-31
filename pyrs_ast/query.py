@@ -1,6 +1,7 @@
 from collections import Collection
 from typing import List
 
+from . import lib
 
 class QueryField:
     def matches(self, fn: "Fn") -> bool:
@@ -14,14 +15,23 @@ class FnArg(QueryField):
         self.is_input = is_input
 
     def matches(self, fn):
+        if not isinstance(fn, lib.Fn):
+            return False
+
+        def eq(ty, fn_ty):
+            if ty == fn_ty:
+                return True
+            elif isinstance(ty, str) and fn_ty is not None:
+                return ty == str(fn_ty.name())
+            return False
         # TODO: Handle tuple types.
         items = fn.inputs if self.is_input else fn.output
         if self.position is not None:
             if len(items) <= self.position:
                 return False
-            return self.type == items[self.position].ty
+            return eq(self.type, items[self.position].ty)
         else:
-            return any(self.type == item.ty for item in items)
+            return any(eq(self.type, item.ty) for item in items)
 
 
 class Query:
