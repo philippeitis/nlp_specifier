@@ -1,11 +1,12 @@
 from enum import Enum, auto
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Collection
 import json
 
 import astx
 
 from .docs import Docs
 from .ast_types import Path, Type, TypeParam, SelfType, NeverType
+from .query import Queryable, Query
 from .scope import Scope
 from .expr import Expr
 from .use import UseTree
@@ -435,7 +436,7 @@ class Impl(HasParams, HasItems, HasAttrs):
 }}"""
 
 
-class Mod(HasAttrs):
+class Mod(Queryable, HasAttrs):
     def __init__(self, ident: str, items: Optional[list], attrs: list[dict]):
         super().__init__(attrs=attrs)
         self.ident = ident
@@ -452,7 +453,9 @@ class Mod(HasAttrs):
         if self.items is None:
             return
         own_mod = type_source.modules[self.ident]
-        for item in self.items:
+        print(f"REGISTERING {self.ident}")
+        for item in self.items.values():
+            print(item.ident)
             item.register_types(own_mod)
 
     def resolve_imports(self, source):
@@ -491,6 +494,39 @@ class Mod(HasAttrs):
             return mod.find_item((item_ty, item_path[1:]))
         return None
 
+    def find_matches(self, query: Query, recurse=None) -> Collection:
+        res = set()
+
+        if self.items is None:
+            return self.file.find_matches(query, recurse)
+
+        if isinstance(self.items, dict):
+            value_iter = self.items.values()
+        else:
+            value_iter = iter(self.items)
+
+        for val in value_iter:
+            if query.matches_item(val):
+                res.add(val)
+            if isinstance(val, Mod):
+                if recurse is None:
+                    next_recurse = None
+                else:
+                    if recurse == 1:
+                        continue
+                    next_recurse = recurse - 1
+                res = res.union(val.find_matches(query, next_recurse))
+            elif isinstance(val, HasItems):
+                for item in val.items:
+                    if query.matches_item(item):
+                        res.add(item)
+            elif isinstance(val, Struct):
+                for item in val.methods:
+                    if query.matches_item(item):
+                        res.add(item)
+
+        return res
+
     @classmethod
     def from_kwargs(cls, **kwargs):
         ident = kwargs["ident"]
@@ -505,8 +541,8 @@ class Mod(HasAttrs):
             return f"{self.fmt_attrs()}mod {self.ident};"
         content = "\n".join([indent(item) for item in self.items.values()])
         return f"""{self.fmt_attrs()}mod {self.ident} {{
-    {content}
-    }}"""
+{content}
+}}"""
 
 
 class Use(HasAttrs):
@@ -613,6 +649,26 @@ class AstFile(HasItems, HasAttrs):
             return mod.find_item((item_ty, item_path[1:]))
         return None
 
+    def find_matches(self, query: Query, recurse=None) -> Collection:
+        res = set()
+        for val in self.items.values():
+            if query.matches_item(val):
+                res.add(val)
+            if isinstance(val, Mod):
+                if recurse is None:
+                    next_recurse = None
+                else:
+                    if recurse == 1:
+                        continue
+                    next_recurse = recurse - 1
+                res = res.union(val.find_matches(query, next_recurse))
+            elif isinstance(val, HasItems):
+                for item in val.items:
+                    if query.matches_item(item):
+                        res.add(item)
+
+        return res
+
     def register_types(self, type_source):
         for item in self.items:
             item.register_types(type_source)
@@ -639,8 +695,9 @@ class AstFile(HasItems, HasAttrs):
 
 
 class Crate:
-    def __init__(self, files: List[AstFile]):
+    def __init__(self, files: List[AstFile], root_scope):
         self.files = files
+        self.root_scope = root_scope
 
     @classmethod
     def from_root_file(cls, path):
@@ -666,4 +723,4 @@ class Crate:
         for mod in mods.values():
             mod.resolve_imports(root.scope)
 
-        return cls(files)
+        return cls(files, root)
