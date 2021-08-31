@@ -1,6 +1,6 @@
-struct u32(_);
-struct usize(_);
-struct Vec(_);
+struct u32;
+struct usize;
+struct Vec;
 struct bool;
 
 const X: u32 = 0;

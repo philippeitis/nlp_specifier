@@ -22,7 +22,6 @@ class Query:
 # Acts like a type factory, ensuring that only one instance of a type exists for a particular declaration.
 class Scope:
     def __init__(self):
-        self.named_types: Dict[str, Type] = {}
         self.structs: Dict[str, "Struct"] = {}
         self.functions: Dict[str, "Fn"] = {}
         self.modules = defaultdict(Scope)
@@ -33,8 +32,6 @@ class Scope:
 
     def add_struct(self, name: str, struct):
         self.structs[name] = struct
-        if name in self.named_types:
-            self.named_types[name].register_struct(struct)
 
     def add_fn(self, name: str, fn):
         self.functions[name] = fn
@@ -51,23 +48,21 @@ class Scope:
         if isinstance(ty, str):
             ty = ty.split("::")
         if len(ty) == 1:
-            return self.named_types.get(ty[0], self.structs.get(ty[0]))
+            return self.structs.get(ty[0])
         else:
             return self.modules[ty[0]].find_type(ty[1:])
 
     def never_type(self):
         return NEVER_TYPE
 
-    def define_type(self, **kwargs) -> Type:
-        ty = Type(**kwargs)
-        name = ty.name()
+    def add_type(self, ty, path: Optional[List[Segment]] = None) -> Type:
+        if path is None:
+            name = ty.name()
+            if name is None:
+                return ty
+            else:
+                path = name.segments
 
-        if name is None:
-            return ty
-
-        return self.add_type(ty, name.segments)
-
-    def add_type(self, ty, path: List[Segment]) -> Type:
         if len(path) != 1:
             return self.modules[str(path[0])].add_type(ty, path[1:])
 
@@ -81,10 +76,6 @@ class Scope:
         """Return all functions and methods which match the particular set of queries, in no particular order."""
         res = set()
         for ty in self.structs.values():
-            for method in ty.methods:
-                if query.matches_fn(method):
-                    res.add(method)
-        for ty in self.named_types.values():
             for method in ty.methods:
                 if query.matches_fn(method):
                     res.add(method)

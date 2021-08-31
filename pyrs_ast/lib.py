@@ -5,7 +5,7 @@ import json
 import astx
 
 from .docs import Docs
-from .ast_types import Path, Type, TypeParam, SelfType
+from .ast_types import Path, Type, TypeParam, SelfType, NeverType
 from .scope import Scope
 from .expr import Expr
 
@@ -223,8 +223,15 @@ class Fn(HasParams, HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
-        self.inputs = kwargs["inputs"]
-        self.output = kwargs["output"]
+
+        output = kwargs["output"]
+        if output is None:
+            self.output = Type()
+        elif output == "!":
+            self.output = NeverType()
+        else:
+            self.output = Type(**output)
+
         self.inputs = kwargs["inputs"]
         for i, inputx in enumerate(self.inputs):
             if "receiver" in inputx:
@@ -233,19 +240,15 @@ class Fn(HasParams, HasAttrs):
                 self.inputs[i] = BoundVariable(**inputx["typed"])
 
     def register_types(self, scope):
-        scope.add_fn(self.ident, self)
-        if self.output is None:
-            self.output = scope.define_type()
-        else:
-            if self.output == "!":
-                self.output = scope.never_type()
-            else:
-                self.output = scope.define_type(**self.output)
+        if not isinstance(self, Method):
+            scope.add_fn(self.ident, self)
 
         for input_ in self.inputs:
             if isinstance(input_, Receiver):
                 continue
             input_.register_types(scope)
+
+        scope.add_type(self.output)
 
     def type_tuples(self) -> [(str, str)]:
         types = []
@@ -268,7 +271,7 @@ class Fn(HasParams, HasAttrs):
 
 class BoundVariable:
     def __init__(self, **kwargs):
-        self.ty = kwargs["ty"]
+        self.ty = Type(**kwargs["ty"])
         pat = kwargs["pat"]
         if "ident" in pat:
             self.ident = pat["ident"]["ident"]
@@ -276,7 +279,7 @@ class BoundVariable:
             self.ident = "_"
 
     def register_types(self, scope):
-        self.ty = scope.define_type(**self.ty)
+        self.ty = scope.add_type(self.ty)
 
     def __str__(self):
         return f"{self.ident}: {self.ty}"
@@ -287,10 +290,10 @@ class Const(HasAttrs):
         super().__init__(**kwargs)
         self.ident = kwargs["ident"]
         self.expr = Expr(**kwargs["expr"])
-        self.ty = kwargs["ty"]
+        self.ty = Type(**kwargs["ty"])
 
     def register_types(self, scope):
-        self.ty = scope.define_type(**self.ty)
+        self.ty = scope.add_type(self.ty)
 
     def __str__(self):
         return f"{self.fmt_attrs()}const {self.ident}: {self.ty} = {self.expr};"
@@ -299,11 +302,14 @@ class Const(HasAttrs):
 class NamedField(HasAttrs):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.ty = kwargs["ty"]
+        if kwargs["ty"] == "_":
+            self.ty = "_"
+        else:
+            self.ty = Type(**kwargs["ty"])
         self.ident = kwargs["ident"]
 
     def register_types(self, scope: Scope):
-        self.ty = scope.define_type(**self.ty)
+        self.ty = scope.add_type(self.ty)
 
     def __str__(self):
         return f"{self.fmt_attrs()}{self.ident}: {self.ty}"
@@ -317,27 +323,26 @@ class Fields:
         self.is_unit = False
         type_key, fields = next(iter(kwargs.items()))
         self.style = type_key
-
         if self.named():
-            self.fields = [NamedField(**val) for val in fields]
+            self.fields = [NamedField(**field) for field in fields]
         else:
-            self.fields = fields
+            def dispatch(ty):
+                if ty == "_":
+                    return ty
+                return Type(**ty)
+            self.fields = [dispatch(field["ty"]) for field in fields]
 
     def register_types(self, scope):
         if self.is_unit:
             return
 
-        if self.named():
-            for field in self.fields:
+        for field in self.fields:
+            if field == "_":
+                pass
+            elif isinstance(field, NamedField):
                 field.register_types(scope)
-        else:
-            def dispatch(x):
-                if x["ty"] == "_":
-                    return "_"
-                else:
-                    return scope.define_type(**x["ty"])
-
-            self.fields = [dispatch(field) for field in self.fields]
+            else:
+                scope.add_type(field)
 
     def empty(self) -> bool:
         return len(self.fields) == 0
