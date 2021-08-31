@@ -1,6 +1,9 @@
+import logging
 from typing import Optional
 
 from . import expr
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SelfType:
@@ -166,9 +169,9 @@ TYPE_DICT = {
     "trait_object": TraitObjectType,
     "slice": SliceType,
     "trait": TraitType,
-    "bare_fn": lambda **kwargs: print("bare_fn", kwargs),
-    "impl_trait": lambda **kwargs: print("impl_trait", kwargs),
-    "paren": lambda **kwargs: print("paren", kwargs)
+} | {
+    item: lambda **kwargs: LOGGER.error(f"Type {item} not handled {kwargs}")
+    for item in ["bare_fn", "impl_trait", "paren"]
 }
 
 

@@ -1,5 +1,6 @@
 import itertools
 import json
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Union, Tuple
 from multiprocessing import Pool
@@ -14,6 +15,8 @@ from py_cargo_utils import rustup_home
 
 from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile
 from pyrs_ast.scope import Scope
+
+LOGGER = logging.getLogger(__name__)
 
 HEADER = {
     f"h{n}": "#" * n for n in range(1, 7)
@@ -111,7 +114,7 @@ def parse_doc(html_doc: etree.ElementBase) -> Docs:
             # Tooltips are not handled.
             pass
         else:
-            print("Unknown item", item)
+            LOGGER.debug("Unknown item", item)
     docs.consolidate()
     return docs
 
