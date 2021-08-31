@@ -32,6 +32,8 @@ class Segment:
                     res.append(str(LifetimeParam(**arg)))
                 elif arg_type == "binding":
                     res.append(str(Binding(**arg_val)))
+                elif arg_type == "constraint":
+                    res.append(str(IdentParam(**arg_val)))
                 else:
                     raise ValueError(f"{arg_type}, {arg}")
             return f"{self.ident}<{', '.join(res)}>"
@@ -210,6 +212,15 @@ class LifetimeParam:
         return f"'{self.lifetime}"
 
 
+class ConstParam:
+    def __init__(self, **kwargs):
+        self.ident = kwargs["ident"]
+        self.ty = Type(**kwargs["ty"])
+
+    def __str__(self):
+        return f"{self.ident}: {self.ty}"
+
+
 class IdentParam:
     def __init__(self, **kwargs):
         self.ident = kwargs.get("ident")
@@ -231,13 +242,18 @@ class IdentParam:
 
 
 class TypeParam:
+    DISPATCH = {
+        "lifetime": LifetimeParam,
+        "type": IdentParam,
+        "const": ConstParam,
+    }
+
     def __init__(self, **kwargs):
-        if "lifetime" in kwargs:
-            self.param = LifetimeParam(**kwargs["lifetime"])
-        elif "type" in kwargs:
-            self.param = IdentParam(**kwargs["type"])
-        else:
-            raise ValueError(f"Expected lifetime or type in kwargs, got {kwargs}")
+        key, val = next(iter(kwargs.items()))
+        constructor = self.DISPATCH.get(key)
+        if constructor is None:
+            raise ValueError(f"Unexpected type param key: {key} (val: {val})")
+        self.param = constructor(**val)
 
     def __str__(self):
         return str(self.param)

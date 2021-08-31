@@ -144,15 +144,15 @@ class Token:
             return self.val
         if self.key == TokenType.GROUP:
             sym = {
-                Delimiter.PARENTHESIS: ("(", ")"),
-                Delimiter.BRACKET: ("[", "]"),
-                Delimiter.BRACE: ("{", "}")
+                Delimiter.PARENTHESIS: "()",
+                Delimiter.BRACKET: "[]",
+                Delimiter.BRACE: "{}"
             }[Delimiter.from_str(self.val["delimiter"])]
-            return f"{sym[0]} {TokenStream(self.val['stream'])} {sym[1]}]"
+            return f"{sym[0]} {TokenStream(self.val['stream'])} {sym[1]}"
 
         if self.key == TokenType.IDENT:
             return self.val
-        return f"[{self.key}, {self.val}]"
+        raise ValueError(f"[{self.key}, {self.val}]")
 
     def is_ident(self):
         return self.key == TokenType.IDENT
@@ -190,7 +190,7 @@ class TokenStream:
                 s += str(token)
             else:
                 s += " " + str(token)
-            last_token_key = token
+            last_token = token
         return s
 
     def __getitem__(self, item):
@@ -290,6 +290,12 @@ class Const(HasAttrs):
 
 class Fields:
     def __init__(self, scope, kwargs):
+        def unnamed_fn(**x):
+            if x["ty"] == "_":
+                return "_"
+            else:
+                return scope.define_type(**x["ty"])
+
         if kwargs == "unit":
             self.is_unit = True
             return
@@ -297,7 +303,7 @@ class Fields:
         type_key, fields = next(iter(kwargs.items()))
         fn = {
             "named": lambda **x: NamedField(scope=scope, **x),
-            "unnamed": lambda **x: scope.define_type(**x["ty"])
+            "unnamed": unnamed_fn
         }[type_key]
         self.style = type_key
         self.fields = [fn(**field) for field in fields]
