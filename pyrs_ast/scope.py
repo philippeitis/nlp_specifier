@@ -2,19 +2,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Union, Collection
 
 from .ast_types import Type, Segment, SelfType
-
-
-class QueryField:
-    def matches(self, fn: "Fn") -> bool:
-        pass
-
-
-class Query:
-    def __init__(self, fields: List[QueryField]):
-        self.fields = fields
-
-    def matches_fn(self, fn) -> bool:
-        return all(field.matches(fn) for field in self.fields)
+from .query import Query
 
 
 # Acts like a type factory, ensuring that only one instance of a type exists for a particular declaration.
@@ -67,10 +55,10 @@ class Scope:
         res = set()
         for ty in self.structs.values():
             for method in ty.methods:
-                if query.matches_fn(method):
+                if query.matches_item(method):
                     res.add(method)
         for fn in self.functions.values():
-            if query.matches_fn(fn):
+            if query.matches_item(fn):
                 res.add(fn)
 
         return res
@@ -81,20 +69,3 @@ class Scope:
 
         if path[0].ident in self.modules:
             return self.modules[path[0].ident].find_item(path[1:])
-
-
-class FnArg(QueryField):
-    def __init__(self, xtype, position: int = None, is_input: bool = True):
-        self.type = xtype
-        self.position = position
-        self.is_input = is_input
-
-    def matches(self, fn):
-        # TODO: Handle tuple types.
-        items = fn.inputs if self.is_input else fn.output
-        if self.position is not None:
-            if len(items) <= self.position:
-                return False
-            return self.type == items[self.position].ty
-        else:
-            return any(self.type == item.ty for item in items)
