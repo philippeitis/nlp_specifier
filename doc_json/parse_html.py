@@ -1,14 +1,19 @@
 import itertools
+import json
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 from multiprocessing import Pool
 import subprocess
 
+import astx
 from lxml import etree
 from lxml.html import parse
 
 from pyrs_ast.docs import Docs
 from py_cargo_utils import rustup_home
+
+from pyrs_ast.lib import Crate, Fn
+from pyrs_ast.scope import Scope
 
 SINCE = ("span", {"class": "since"})
 SRCLINK = ("a", {"class": "srclink"})
@@ -21,7 +26,7 @@ def peek(it):
 
 def remove_all_spans(item: etree.ElementBase):
     for val in item.findall("span"):
-        if "since" in val.classes or "notable-traits-tooltip" in val.classes:
+        if "since" in val.classes or "notable-traits-tooltip" in val.classes or "notable-traits" in val.classes:
             item.remove(val)
 
 
@@ -207,30 +212,38 @@ class Struct(HasHeader, HasDoc):
     def decl(self) -> str:
         return f"{self.docs}\n{self.type_decl}"
 
+    def __str__(self):
+        return self.decl()
 
-class Fn(HasHeader, HasDoc):
-    def __init__(self, body: etree.ElementBase):
-        super().__init__(body)
+
+class DocFn(Fn):
+    @classmethod
+    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
         fn_decl_block = find_with_class(body, "pre", "fn")
-        for span in fn_decl_block.findall("span"):
-            fn_decl_block.remove(span)
-        self.fn_decl = stringify(fn_decl_block)
+        remove_all_src_links(fn_decl_block)
+        remove_all_spans(fn_decl_block)
+        fn_decl = stringify(fn_decl_block) + " {}"
         body.remove(fn_decl_block)
+
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
-            self.docs = Docs()
-            return
-        doc = find_with_class(parent, "div", "docblock")
-        self.docs = self.parse_doc(doc)
+            docs = Docs()
+        else:
+            doc = find_with_class(parent, "div", "docblock")
+            docs = HasDoc.parse_doc(doc)
 
-    def decl(self) -> str:
-        return f"{self.docs}\n{self.fn_decl} {{}}"
+        s = f"{docs}\n{fn_decl}"
+        try:
+            return cls(**json.loads(astx.parse_fn(s)), scope=scope or Scope())
+        except json.decoder.JSONDecodeError:
+            pass
 
 
 class Method(HasDoc):
     def __init__(self, name: str, docs: Docs):
         self.name = name
         self.docs = docs
+        self.attrs = []
 
     @classmethod
     def from_block(cls, block) -> "Method":
@@ -246,30 +259,38 @@ class Method(HasDoc):
 
 
 DISPATCH = {
-    "fn": Fn,
+    "fn": DocFn.from_block,
     "struct": Struct,
 }
 
 
-def get_all_doc_files(path: Path) -> List[Path]:
-    if path.is_dir() and path.name in {
+class DocCrate(Crate):
+    IGNORE = {
         "rust-by-example", "reference", "embedded-book", "edition-guide", "arch", "core_arch",
         "book", "nomicon", "unstable-book", "cargo", "rustc", "implementors", "rustdoc"
-    }:
-        return []
+    }
 
-    choices = ("struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword.")
+    @classmethod
+    def from_root_file(cls, path):
+        pass
 
-    items = []
-    for child_path in path.iterdir():
-        if child_path.is_dir():
-            items += get_all_doc_files(child_path)
-        else:
-            name = child_path.name
-            if any(name.startswith(choice) for choice in choices):
-                items.append(child_path)
-            # can also have trait or macro
-    return items
+    @staticmethod
+    def get_all_doc_files(path: Path) -> List[Path]:
+        if path.is_dir() and path.name in DocCrate.IGNORE:
+            return []
+
+        choices = ("struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword.")
+
+        items = []
+        for child_path in path.iterdir():
+            if child_path.is_dir():
+                items += DocCrate.get_all_doc_files(child_path)
+            else:
+                name = child_path.name
+                if any(name.startswith(choice) for choice in choices):
+                    items.append(child_path)
+                # can also have trait or macro
+        return items
 
 
 def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
@@ -301,18 +322,25 @@ def parse_file(path: Path) -> Optional[Union[Struct, Fn]]:
         )(body)
 
 
-def get_all_files(toolchain_root: Path, num_processes: int = 8):
+def get_all_files_st(toolchain_root: Path):
     target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
-    files = files_into_dict(get_all_doc_files(target_dir))
+    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
+    targets = files["fn"]
+    return [(file, path) for file, path in zip(map(parse_file, targets), targets) if file]
+
+
+def get_all_files(toolchain_root: Path, num_processes: int = 12):
+    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
+    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
     with Pool(num_processes) as p:
         targets = files["fn"] + files["struct"]
         return [(file, path) for file, path in zip(p.map(parse_file, targets), targets) if file]
 
 
 def main(toolchain_root: Path):
-    for file, path in get_all_files(toolchain_root):
+    for file, path in get_all_files_st(toolchain_root):
         print(path)
-        print(file.decl())
+        print(file)
         if isinstance(file, Struct):
             for impl in file.methods:
                 print(impl.decl())
@@ -323,7 +351,7 @@ def choose_random_items(toolchain_root: Path):
     import webbrowser
 
     target_dir = (Path(toolchain_root) / Path("share/doc/rust/html/")).expanduser()
-    files = files_into_dict(get_all_doc_files(target_dir))
+    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
 
     selected = random.choices(files["struct"], k=25)
     for item in selected:
@@ -331,7 +359,7 @@ def choose_random_items(toolchain_root: Path):
         file = parse_file(item)
         if file:
             print(item)
-            print(file.decl())
+            print(str(file))
             if isinstance(file, Struct):
                 for impl in file.methods:
                     print(impl.decl())
