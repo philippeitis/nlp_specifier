@@ -1,9 +1,7 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Union, Collection
 
-from .ast_types import Type, Segment, NeverType, SelfType
-
-NEVER_TYPE = NeverType()
+from .ast_types import Type, Segment, SelfType
 
 
 class QueryField:
@@ -52,10 +50,7 @@ class Scope:
         else:
             return self.modules[ty[0]].find_type(ty[1:])
 
-    def never_type(self):
-        return NEVER_TYPE
-
-    def add_type(self, ty, path: Optional[List[Segment]] = None) -> Type:
+    def attach_struct(self, ty, path: Optional[List[Segment]] = None):
         if path is None:
             name = ty.name()
             if name is None:
@@ -64,13 +59,12 @@ class Scope:
                 path = name.segments
 
         if len(path) != 1:
-            return self.modules[str(path[0])].add_type(ty, path[1:])
+            return self.modules[str(path[0])].attach_struct(ty, path[1:])
 
         name = path[0].ident
         if name == "Self":
             return SelfType()
         ty.register_struct(self.structs[name])
-        return ty
 
     def find_fn_matches(self, query: Query) -> Collection["Fn"]:
         """Return all functions and methods which match the particular set of queries, in no particular order."""

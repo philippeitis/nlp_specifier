@@ -248,7 +248,7 @@ class Fn(HasParams, HasAttrs):
                 continue
             input_.register_types(scope)
 
-        scope.add_type(self.output)
+        scope.attach_struct(self.output)
 
     def type_tuples(self) -> [(str, str)]:
         types = []
@@ -279,7 +279,7 @@ class BoundVariable:
             self.ident = "_"
 
     def register_types(self, scope):
-        self.ty = scope.add_type(self.ty)
+        scope.attach_struct(self.ty)
 
     def __str__(self):
         return f"{self.ident}: {self.ty}"
@@ -293,7 +293,7 @@ class Const(HasAttrs):
         self.ty = Type(**kwargs["ty"])
 
     def register_types(self, scope):
-        self.ty = scope.add_type(self.ty)
+        scope.attach_struct(self.ty)
 
     def __str__(self):
         return f"{self.fmt_attrs()}const {self.ident}: {self.ty} = {self.expr};"
@@ -309,7 +309,7 @@ class NamedField(HasAttrs):
         self.ident = kwargs["ident"]
 
     def register_types(self, scope: Scope):
-        self.ty = scope.add_type(self.ty)
+        scope.attach_struct(self.ty)
 
     def __str__(self):
         return f"{self.fmt_attrs()}{self.ident}: {self.ty}"
@@ -342,7 +342,7 @@ class Fields:
             elif isinstance(field, NamedField):
                 field.register_types(scope)
             else:
-                scope.add_type(field)
+                scope.attach_struct(field)
 
     def empty(self) -> bool:
         return len(self.fields) == 0
