@@ -15,6 +15,10 @@ from py_cargo_utils import rustup_home
 from pyrs_ast.lib import Crate, Fn, Struct, Method
 from pyrs_ast.scope import Scope
 
+HEADER = {
+    f"h{n}": "#" * n for n in range(1, 7)
+}
+
 
 def peek(it):
     first = next(it)
@@ -75,51 +79,45 @@ class RList:
             self.items.append(stringify(item))
 
 
-class HasDoc:
-    HEADER = {
-        f"h{n}": "#" * n for n in range(1, 7)
-    }
-
-    @classmethod
-    def parse_doc(cls, html_doc: etree.ElementBase) -> Docs:
-        docs = Docs()
-        if html_doc is None:
-            return docs
-
-        for item in html_doc:
-            h = cls.HEADER.get(item.tag)
-            if h and "section-header" in item.classes:
-                docs.push_line(f"{h} {stringify(item)}")
-            elif item.tag == "p":
-                text_ = stringify(item)
-                if text_:
-                    docs.push_line(text_.replace("\n", " "))
-                else:
-                    docs.push_line("")
-            elif item.tag == "div" and "example-wrap" in item.classes:
-                docs.push_line(cls.parse_example(item))
-            elif item.tag == "ul":
-                for sub_item in RList(item).items:
-                    docs.push_line("* " + sub_item.strip())
-            elif item.tag == "ol":
-                for n, sub_item in enumerate(RList(item).items):
-                    docs.push_line("{n}. " + sub_item.strip())
-            elif item.tag == "blockquote":
-                docs.push_line(f"> {stringify(item)}")
-            elif item.tag == "table":
-                # Tables not handled. std::mem::size_of demonstrates usage.
-                pass
-            elif item.tag == "div" and "information" in item.classes:
-                # Tooltips are not handled.
-                pass
-            else:
-                print("Unknown item", item)
-        docs.consolidate()
+def parse_doc(html_doc: etree.ElementBase) -> Docs:
+    docs = Docs()
+    if html_doc is None:
         return docs
 
-    @classmethod
-    def parse_example(cls, doc: etree.ElementBase) -> str:
-        return "```CODE```"
+    for item in html_doc:
+        h = HEADER.get(item.tag)
+        if h and "section-header" in item.classes:
+            docs.push_line(f"{h} {stringify(item)}")
+        elif item.tag == "p":
+            text_ = stringify(item)
+            if text_:
+                docs.push_line(text_.replace("\n", " "))
+            else:
+                docs.push_line("")
+        elif item.tag == "div" and "example-wrap" in item.classes:
+            docs.push_line(parse_example(item))
+        elif item.tag == "ul":
+            for sub_item in RList(item).items:
+                docs.push_line("* " + sub_item.strip())
+        elif item.tag == "ol":
+            for n, sub_item in enumerate(RList(item).items):
+                docs.push_line("{n}. " + sub_item.strip())
+        elif item.tag == "blockquote":
+            docs.push_line(f"> {stringify(item)}")
+        elif item.tag == "table":
+            # Tables not handled. std::mem::size_of demonstrates usage.
+            pass
+        elif item.tag == "div" and "information" in item.classes:
+            # Tooltips are not handled.
+            pass
+        else:
+            print("Unknown item", item)
+    docs.consolidate()
+    return docs
+
+
+def parse_example(doc: etree.ElementBase) -> str:
+    return "```CODE```"
 
 
 class DocStruct(Struct):
@@ -132,7 +130,7 @@ class DocStruct(Struct):
         parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
-            docs = HasDoc.parse_doc(doc)
+            docs = parse_doc(doc)
             body.remove(parent)
         else:
             docs = Docs()
@@ -216,7 +214,7 @@ class DocFn(Fn):
             docs = Docs()
         else:
             doc = find_with_class(parent, "div", "docblock")
-            docs = HasDoc.parse_doc(doc)
+            docs = parse_doc(doc)
 
         s = f"{docs}\n{fn_decl}"
         try:
@@ -240,7 +238,7 @@ class DocMethod(Method):
         remove_all_src_links(name)
         remove_all_spans(name)
         name = stringify(name)
-        docs = HasDoc.parse_doc(find_with_class(block, "div", "docblock"))
+        docs = parse_doc(find_with_class(block, "div", "docblock"))
         return cls.from_ident_and_docs(name, docs, parent_type, scope)
 
 
