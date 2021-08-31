@@ -4,8 +4,10 @@ import logging
 from nltk import Tree
 from spacy.tokens import Doc
 
-from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate
-from pyrs_ast.scope import Query, FnArg, Scope
+from doc_json.parse_html import DocCrate, get_toolchains
+from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct
+from pyrs_ast.query import Query, FnArg
+from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
 
 from doc_parser import Parser, GRAMMAR_PATH, is_quote
@@ -315,19 +317,18 @@ def search_demo():
 
 def search_demo2():
     """Demonstrates searching for function arguments and phrases with synonyms."""
-    ast = AstFile.from_path("../data/test2.rs")
-    parser = Parser.default()
+    ast = Crate.from_root_file("../data/test3.rs")
+    query = query_from_sentence("remove", Parser.default(), (Fn, Struct))
+    query.fields.append(FnArg("usize"))
+    for file in ast.files:
+        for match in file.find_matches(query):
+            print(match)
 
-    # Query Demo
-    words = [Word("Hello", "UH", False, False), Word("globe", "NN", True, False)]
-    print("Finding documentation matches.")
-    items = ast.scope.find_fn_matches(Query([Phrase(words, parser)]))
-    for item in items:
-        print(item.sig_str())
-    print("Finding function argument matches")
-    items = ast.scope.find_fn_matches(Query([FnArg(ast.scope.find_type("crate2::Lime"))]))
-    for item in items:
-        print(item.sig_str())
+    print("FULL STDLIB")
+    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
+    for file in doc_ast.files:
+        for match in file.find_matches(query):
+            print(match)
 
 
 def query_formation_demo():
@@ -410,6 +411,32 @@ def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_
         webbrowser.open(path)
 
 
+def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_browser=False):
+    from spacy import displacy
+    from palette import tag_color
+    import webbrowser
+
+    parser = Parser.default()
+    if no_fix:
+        sent = parser.tagger(sentence)
+    else:
+        sent = parser.tokenize(sentence, idents)
+    tags_as_ents(sent.doc)
+    colors = {tag: tag_color(tag) for tag in parser.tokens()}
+
+    html = displacy.render(
+        sent.doc,
+        style="dep",
+        options={"word_spacing": 30, "distance": 140, "colors": colors},
+        page=True
+    )
+    with open(path, "w") as file:
+        file.write(html)
+
+    if open_browser:
+        webbrowser.open(path)
+
+
 def render_parse_tree(sentence: str, path: str, idents=None, open_browser=False):
     from treevis import render_tree
     import webbrowser
@@ -470,11 +497,6 @@ def invoke_testcases(path="base_grammar_test_cases.txt"):
         invoke_helper([line.strip() for line in file.readlines()])
 
 
-def test_mod():
-    x = Crate.from_root_file("../data/test_mods.rs")
-    print(x.files)
-
-
 if __name__ == '__main__':
     formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
@@ -483,10 +505,7 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
 
-    test_mod()
-    # render_parse_tree("Returns `true` if and only if `self == 2^k` for some `k`.", "../images/tree_is_power_of_two.pdf")
-
-    # p = Parser.default()
+    search_demo2()
     # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
     # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
     # Motivate problems with what is being accomplished

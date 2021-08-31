@@ -94,7 +94,7 @@ class Parser:
     ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
-    def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_SM):
+    def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_LG):
         if model not in Parser.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
             Parser.TAGGER_CACHE[model] = spacy.load(str(model))
@@ -107,7 +107,7 @@ class Parser:
         self.tree_parser = nltk.ChartParser(self.grammar)
 
     @classmethod
-    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_SM) -> "Parser":
+    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_LG) -> "Parser":
         with open(grammar_path) as f:
             return cls(f.read(), model)
 
