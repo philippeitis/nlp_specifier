@@ -142,10 +142,10 @@ def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> Query:
     sent = parser.tokenize(sentence)
 
     for token in sent.doc:
-        if token.is_stop:
+        if token.is_stop or token.tag_ in {"CODE", "LIT"}:
             if phrases[-1]:
                 phrases.append([])
-        elif not is_one_of(token.tag_, {"RB", "VB", "NN", "JJ", "CODE", "LIT"}):
+        elif not is_one_of(token.tag_, {"RB", "VB", "NN", "JJ"}):
             if phrases[-1]:
                 phrases.append([])
         else:
