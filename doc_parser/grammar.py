@@ -324,6 +324,7 @@ class MNN:
             return "_".join(lemmatize(adj, ADJ) for adj in self.adjs) + "_" + lemmatize(self.root.lower())
         return self.root_lemma()
 
+
 class MVB:
     def __init__(self, tree: Tree):
         self.mod = tree[0][0] if tree[0].label() == "RB" else None
@@ -746,11 +747,18 @@ class Negated:
             raise ValueError(f"Unexpected type {type(expr)} can not be negated")
 
     def as_code(self):
-        return f"!{self.expr.as_code()}"
+        return f"!({self.expr.as_code()})"
 
 
 class ReturnIf(MReturn):
     __slots__ = ["preds", "ret_vals"]
+    DISPATCH = {
+        ("MRET", "COND"),
+        ("COND", "COMMA", "MRET"),
+        ("RETIF", "COMMA", "RB", "RETIF"),
+        ("RETIF", "COMMA", "RB", "OBJ"),
+        ("MRET", "COMMA", "MRET", "COND"),
+    }
 
     def __init__(self, tree: Union[Tree, List[Tree]], invoke_factory: InvocationFactory):
         if tree[0].label() == "RETIF":
@@ -766,10 +774,19 @@ class ReturnIf(MReturn):
             else:
                 self.ret_vals.append(Object(tree[3], invoke_factory))
                 self.preds.append(self.preds[-1].negated())
-            return
-        if tree[0].label() == "MRET":
+        elif tree[0].label() == "MRET":
             super().__init__(tree[0], invoke_factory)
-            pred = tree[1]
+            if tree[1].label() == "COMMA":
+                self.preds = []
+                super().__init__(tree[2], invoke_factory)
+                second_ret = MReturn(tree[0], invoke_factory)
+                self.ret_vals = [self.ret_val, second_ret.ret_val]
+                self.preds.append(BoolCond(tree[3], invoke_factory))
+                self.preds.append(self.preds[-1].negated())
+                return
+            else:
+                super().__init__(tree[0], invoke_factory)
+                pred = tree[1]
         elif tree[-1].label() == "MRET":
             super().__init__(tree[-1], invoke_factory)
             pred = tree[0]

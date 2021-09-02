@@ -34,14 +34,14 @@ def lower(text: str):
     return {"LOWER": text}
 
 
-RET_LEMMA = {'LEMMA': "return"}
+RET_LEMMA = {'LEMMA': {"IN": ["return", "compute"]}}
 IS_OBJ = {
     "TAG": {"REGEX": "^(CODE)|(LIT)|(NN.*)$"}
 }
 ANY_TEXT = {"TEXT": {"REGEX": ".*"}}
 
 RET_RULES = [
-    [{'LEMMA': "return", "POS": "VERB"}],
+    [{**RET_LEMMA, "POS": "VERB"}],
     [RET_LEMMA, tag("DT"), tag("JJ"), tag("IN"), IS_OBJ],
     [RET_LEMMA, IS_OBJ],
     [RET_LEMMA, ANY_TEXT, IS_OBJ],
@@ -64,7 +64,7 @@ ARITH_SIGN = {
 
 def ret_rule_to_matcher(rule):
     for i, sub_rule in enumerate(rule):
-        if "LEMMA" in sub_rule and sub_rule["LEMMA"] == "return":
+        if "LEMMA" in sub_rule:
             matcher = Matcher(nlp.vocab)
             matcher.add("RETURN", [rule])
             return i, {"tag_": "RET", "pos_": "VERB"}, matcher
