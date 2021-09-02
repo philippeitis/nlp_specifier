@@ -126,7 +126,7 @@ class Op(ExprBinary):
 class PropertyOf:
     def __init__(self, tree: Tree, invoke_factory):
         if tree[1].label() == "MNN":
-            self.prop = lemmatize(tree[1][0][0])
+            self.prop = MNN(tree[1]).lemma_sum()
         elif tree[1].label() == "MJJ":
             self.prop = MJJ(tree[1]).lemma()
         else:
@@ -151,9 +151,9 @@ class Object:
         ("CODE",): lambda t, inv: Code(t[0]),
         ("LIT",): lambda t, inv: Literal(t[-1]),
         ("DT", "LIT"): lambda t, inv: Literal(t[-1]),
-        ("DT", "MNN"): lambda t, inv: lemmatize(t[1][0][0]),
+        ("DT", "MNN"): lambda t, inv: MNN(t[1]).lemma_sum(),
         ("DT", "VBG", "MNN"): lambda t, inv: f"{lemmatize(t[2][0][0])}.{lemmatize(t[1][0], VERB)}()",
-        ("MNN",): lambda t, inv: lemmatize(t[0][0][0]),
+        ("MNN",): lambda t, inv: MNN(t[0]).lemma_sum(),
         ("OBJ", "OP", "OBJ"): lambda t, inv: Op.from_tree(t, inv),
         ("FNCALL",): lambda t, inv: inv(t[0]),
         ("PROP_OF", "OBJ"): lambda t, inv: PropertyOf(t[0], inv).as_code(Object(t[1], inv))
@@ -304,6 +304,25 @@ class ModRelation(Relation):
         else:
             super().__init__(tree[0], invoke_factory)
 
+
+class MNN:
+    def __init__(self, tree):
+        self.adjs = []
+        if tree[-1].label() == "MNN":
+            sub = MNN(tree[-1])
+            self.adjs += [tree[0][0]]
+            self.adjs += sub.adjs
+            self.root = sub.root
+        else:
+            self.root = tree[0][0]
+
+    def root_lemma(self):
+        return lemmatize(self.root.lower())
+
+    def lemma_sum(self):
+        if self.adjs:
+            return "_".join(lemmatize(adj, ADJ) for adj in self.adjs) + "_" + lemmatize(self.root.lower())
+        return self.root_lemma()
 
 class MVB:
     def __init__(self, tree: Tree):
