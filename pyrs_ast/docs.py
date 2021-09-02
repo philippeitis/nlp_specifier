@@ -40,7 +40,7 @@ class Section:
 
     def consolidate(self):
         self.body = " ".join(self.lines)
-        self.sentences = [s for s in split_str_on(self.body, ".") if s]
+        self.sentences = [s.strip() for s in split_str_on(self.body, ".") if s.strip()]
 
 
 class Docs:
