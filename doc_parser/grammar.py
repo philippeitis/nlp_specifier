@@ -409,6 +409,8 @@ class Property:
             if self.mvb.is_change():
                 sym = "=" if self.negate else "!"
                 return f"{lhs.as_code()} {sym}= old({lhs.as_code()})"
+            elif self.mvb.lemma() == "overflow":
+                return f"overflows!({lhs.as_code()})"
             else:
                 raise ValueError(f"PROP: unexpected verb in MVB case ({self.mvb.word})")
 
@@ -416,9 +418,37 @@ class Property:
             r = RangeMod(self.tree[-1], self.invoke_factory)
             if r.ident:
                 raise ValueError(f"PROP: Unexpected ident in RANGE case: {r.ident}")
+            if r.end or r.upper_bound is None:
+                raise ValueError("Bad range bounds")
             return f"{r.start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {r.end.as_code()}"
 
         raise ValueError(f"Case {self.labels} not handled.")
+
+
+class EventType(Enum):
+    OVERFLOW = auto()
+    PANIC = auto()
+    NO_OVERFLOW = auto()
+    NO_PANIC = auto()
+
+
+class Event:
+    def __init__(self, tree, *args):
+        self.nn = MNN(tree[0])
+        self.vb = lemmatize(tree[1][0], VERB)
+        self.root = None
+
+    def resolve(self):
+        if self.vb == "occur":
+            rl = self.nn.root_lemma()
+            if rl == "overflow":
+                if "not" in self.nn.adjs:
+                    return EventType.NO_OVERFLOW
+                return EventType.OVERFLOW
+            elif rl == "panic":
+                if "not" in self.nn.adjs:
+                    return EventType.NO_PANIC
+                return EventType.PANIC
 
 
 class Assert:
@@ -502,6 +532,8 @@ class Range:
             self.end = Object(tree[2], invoke_factory)
         else:
             raise ValueError(f"Range case not handled: {labels}")
+        if isinstance(self.end.obj, MNN):
+            raise ValueError(f"Bad range case: {labels}")
 
 
 class UpperBound(Enum):
@@ -702,12 +734,16 @@ class BoolCond:
             "ASSERT": Assert,
             "QASSERT": QuantAssert,
             "CODE": Code,
+            "EVENT": Event,
         }
         expr = tree[1][0]
         if expr.label() in dispatch:
             self.expr = dispatch[expr.label()](expr, invoke_factory)
         else:
-            raise ValueError(f"Bad tree - expected PRED, QPRED or CODE, got {expr.label()}")
+            raise ValueError(f"Bad tree - expected ASSERT, QASSERT or CODE, got {expr.label()}")
+
+    def is_event(self):
+        return isinstance(self.expr, Event)
 
     def as_code(self):
         return self.expr.as_code()
@@ -739,7 +775,7 @@ class MReturn:
 
 class Negated:
     def __init__(self, expr, iff):
-        if isinstance(expr, (Assert, Code)):
+        if isinstance(expr, (Assert, Code, Event)):
             self.iff = iff
             self.expr = expr
         elif isinstance(expr, QuantAssert):
@@ -783,6 +819,9 @@ class ReturnIf(MReturn):
                 second_ret = MReturn(tree[0], invoke_factory)
                 self.ret_vals = [self.ret_val, second_ret.ret_val]
                 self.preds.append(BoolCond(tree[3], invoke_factory))
+                if isinstance(self.preds[-1].expr, Event):
+                    if self.preds[-1].expr.resolve() is not None:
+                        self.preds[-1].expr.root = self.ret_vals[1]
                 self.preds.append(self.preds[-1].negated())
                 return
             else:
@@ -809,6 +848,15 @@ class ReturnIf(MReturn):
             ret_assert = "!result"
         else:
             ret_assert = f"(result == {ret_val})"
+
+        if isinstance(pred.expr, Event):
+            s = "!" if isinstance(pred, Negated) else ""
+            overflow_item = pred.expr.root or ret_val
+            if pred.expr.resolve() == EventType.OVERFLOW:
+                ret_assert = f"{s}overflows!({overflow_item.as_code()}) ==> (result == {ret_val})"
+            elif pred.expr.resolve() == EventType.NO_OVERFLOW:
+                ret_assert = f"{s}!overflows!({overflow_item.as_code()}) ==> (result == {ret_val})"
+            return f"#[ensures({ret_assert})]"
 
         if isinstance(pred.expr, QuantAssert):
             expr = pred.expr
@@ -854,6 +902,7 @@ class TargetRule:
 
 class SideEffect:
     def __init__(self, tree: Tree, invoke_factory):
+        raise ValueError("Not supported")
         self.target = Object(tree[0], invoke_factory)
         if len(tree) > 3:
             if tree[2].label() == "MJJ":
