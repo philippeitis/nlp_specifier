@@ -262,6 +262,15 @@ class Fn(HasParams, HasAttrs):
             else:
                 self.inputs[i] = BoundVariable(**inputx["typed"])
 
+    @classmethod
+    def from_str(cls, s):
+        result = astx.parse_fn(s)
+        print(result)
+        try:
+            return cls(**json.loads(result))
+        except json.decoder.JSONDecodeError as e:
+            raise LexError(f"{result}, {e}\n{s}")
+
     def register_types(self, scope):
         if not isinstance(self, Method):
             scope.add_fn(self.ident, self)
@@ -385,6 +394,14 @@ class Struct(HasParams, HasAttrs):
         self.fields = Fields(kwargs["fields"])
         self.methods = []
 
+    @classmethod
+    def from_str(cls, s):
+        result = astx.parse_struct(s)
+        try:
+            return cls(**json.loads(result))
+        except json.decoder.JSONDecodeError as e:
+            raise LexError(f"{result}, {e}\n{s}")
+
     def register_types(self, scope):
         scope.add_struct(self.ident, self)
         self.fields.register_types(scope)
@@ -408,6 +425,14 @@ class Struct(HasParams, HasAttrs):
 class Method(Fn):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    @classmethod
+    def from_str(cls, s: str, scope=None, ident: str = None):
+        result = astx.parse_impl_method(s)
+        try:
+            return cls(**json.loads(result))
+        except json.decoder.JSONDecodeError as e:
+            raise LexError(f"{result}, {e}\n{s}")
 
     def register_self_ty(self, ty):
         if len(self.inputs) > 0 and isinstance(self.inputs[0], Receiver):
@@ -652,7 +677,6 @@ class AstFile(HasItems, HasAttrs):
         else:
             return iter(self.items)
 
-
     def find_item(self, item_ty, item_path):
         if isinstance(item_path, str):
             item_path = item_path.split("::")
@@ -694,9 +718,8 @@ class AstFile(HasItems, HasAttrs):
         result = astx.ast_from_str(s)
         try:
             return cls(**json.loads(result), scope=scope or Scope(), ident=ident)
-        except json.decoder.JSONDecodeError:
-            pass
-        raise LexError(result)
+        except json.decoder.JSONDecodeError as e:
+            raise LexError(f"{result}, {e}\n{s}")
 
     @classmethod
     def from_path(cls, path, scope=None, ident: str = None):

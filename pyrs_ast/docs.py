@@ -54,6 +54,11 @@ class Docs:
                 section.consolidate()
         self._consolidated = True
 
+    def push_lines(self, lines: str):
+        lines = split_str_on(lines, "\n")
+        for line in lines:
+            self.push_line(line)
+
     def push_line(self, line: str):
         line_strip = line.strip("\" ")
         if line_strip.startswith("#"):

@@ -13,7 +13,7 @@ from lxml.html import parse
 from pyrs_ast.docs import Docs
 from py_cargo_utils import rustup_home
 
-from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile
+from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile, LexError
 from pyrs_ast.scope import Scope
 
 LOGGER = logging.getLogger(__name__)
@@ -96,23 +96,19 @@ def parse_doc(html_doc: etree.ElementBase) -> Docs:
     for item in html_doc:
         h = HEADER.get(item.tag)
         if h and "section-header" in item.classes:
-            docs.push_line(f"{h} {stringify(item)}")
+            docs.push_lines(f"{h} {stringify(item)}")
         elif item.tag == "p":
-            text_ = stringify(item)
-            if text_:
-                docs.push_line(text_.replace("\n", " "))
-            else:
-                docs.push_line("")
+            docs.push_lines(stringify(item))
         elif item.tag == "div" and "example-wrap" in item.classes:
-            docs.push_line(parse_example(item))
+            docs.push_lines(parse_example(item))
         elif item.tag == "ul":
             for sub_item in RList(item).items:
-                docs.push_line("* " + sub_item.strip())
+                docs.push_lines("* " + sub_item.strip())
         elif item.tag == "ol":
             for n, sub_item in enumerate(RList(item).items):
-                docs.push_line("{n}. " + sub_item.strip())
+                docs.push_lines("{n}. " + sub_item.strip())
         elif item.tag == "blockquote":
-            docs.push_line(f"> {stringify(item)}")
+            docs.push_lines(f"> {stringify(item)}")
         elif item.tag == "table":
             # Tables not handled. std::mem::size_of demonstrates usage.
             pass
@@ -143,25 +139,17 @@ class DocStruct(Struct):
         else:
             docs = Docs()
 
-        s = f"{docs}\n{stringify(type_decl)}"
-        try:
-            struct = cls(**json.loads(astx.parse_struct(s)), scope=scope or Scope())
-        except json.decoder.JSONDecodeError:
-            return
-
-        impl_block = find_with_class(body, "details", "implementors-toggle")
-        if impl_block is not None:
-            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
-                struct.methods += struct.eat_impl_dispatch(doc, scope)
+        struct = cls.from_str(f"{docs}\n{stringify(type_decl)}")
+        struct.eat_impls(body)
         return struct
 
-    def eat_impls_old(self, doc: etree.ElementBase, doc_iter, scope: Scope) -> List["DocMethod"]:
+    def eat_impls_old(self, doc: etree.ElementBase, doc_iter) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "div":
-                    return items + self.eat_impl(doc, doc_iter, scope)
+                    return items + self.eat_impl(doc, doc_iter)
                 remove_all_spans(item)
                 remove_all_src_links(item)
                 name = stringify(item)
@@ -178,18 +166,18 @@ class DocStruct(Struct):
                     raise ValueError(str(set(item.classes)))
             except StopIteration:
                 pass
-            items.append(DocMethod.from_ident_and_docs(name, Docs(), parent_type=self, scope=scope))
+            items.append(DocMethod.from_str(f"{Docs()}\n{name} {{}}"))
 
         return items
 
-    def eat_impl(self, doc: etree.ElementBase, doc_iter, scope: Scope) -> List["DocMethod"]:
+    def eat_impl(self, doc: etree.ElementBase, doc_iter) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "details":
-                    return items + self.eat_impls_old(doc, doc_iter, scope)
-                items.append(DocMethod.from_block(item, parent_type=self, scope=scope))
+                    return items + self.eat_impls_old(doc, doc_iter)
+                items.append(DocMethod.from_block(item))
                 next(doc_iter)
                 doc.remove(item)
 
@@ -197,15 +185,21 @@ class DocStruct(Struct):
                 break
         return items
 
-    def eat_impl_dispatch(self, doc: etree.ElementBase, scope: Scope) -> List["DocMethod"]:
+    def eat_impl_dispatch(self, doc: etree.ElementBase) -> List["DocMethod"]:
         try:
             first = next(iter(doc))
             if "method" in first.classes:
-                return self.eat_impls_old(doc, iter(doc), scope)
-            return self.eat_impl(doc, iter(doc), scope)
+                return self.eat_impls_old(doc, iter(doc))
+            return self.eat_impl(doc, iter(doc))
 
         except StopIteration:
             return []
+
+    def eat_impls(self, body):
+        impl_block = find_with_class(body, "details", "implementors-toggle")
+        if impl_block is not None:
+            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
+                self.methods += self.eat_impl_dispatch(doc)
 
 
 class DocPrimitive(DocStruct):
@@ -219,35 +213,26 @@ class DocPrimitive(DocStruct):
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
             docs = parse_doc(doc)
-            body.remove(parent)
+            parent.drop_tree()
         else:
             docs = Docs()
 
         tdcl = f"struct {stringify(type_decl).rsplit(' ', 1)[1]} {{}}"
         body.remove(type_decl)
 
-        s = f"{docs}\n{tdcl}"
-
-        try:
-            struct = cls(**json.loads(astx.parse_struct(s)), scope=scope or Scope())
-        except json.decoder.JSONDecodeError:
-            return
-
-        impl_block = find_with_class(body, "details", "implementors-toggle")
-        if impl_block is not None:
-            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
-                struct.methods += struct.eat_impl_dispatch(doc, scope)
+        struct = cls.from_str(f"{docs}\n{tdcl}")
+        struct.eat_impls(body)
         return struct
 
 
 class DocFn(Fn):
     @classmethod
-    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
+    def from_block(cls, body: etree.ElementBase):
         fn_decl_block = find_with_class(body, "pre", "fn")
         remove_all_src_links(fn_decl_block)
         remove_all_spans(fn_decl_block)
         fn_decl = stringify(fn_decl_block) + " {}"
-        body.remove(fn_decl_block)
+        fn_decl_block.drop_tree()
 
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
@@ -256,24 +241,13 @@ class DocFn(Fn):
             doc = find_with_class(parent, "div", "docblock")
             docs = parse_doc(doc)
 
-        s = f"{docs}\n{fn_decl}"
-        try:
-            return cls(**json.loads(astx.parse_fn(s)), scope=scope or Scope())
-        except json.decoder.JSONDecodeError:
-            pass
+        print(f"{docs}\n{fn_decl}")
+        return cls.from_str(f"{docs}\n{fn_decl}")
 
 
 class DocMethod(Method):
     @classmethod
-    def from_ident_and_docs(cls, ident: str, docs: Docs, parent_type: Struct = None, scope: Scope = None):
-        s = f"{docs}\n{ident} {{}}"
-        try:
-            return cls(**json.loads(astx.parse_impl_method(s)), parent_type=parent_type, scope=scope or Scope())
-        except json.decoder.JSONDecodeError:
-            pass
-
-    @classmethod
-    def from_block(cls, block, parent_type: Struct = None, scope: Scope = None) -> "DocMethod":
+    def from_block(cls, block) -> "DocMethod":
         name = block.find("summary/div/h4")
         remove_all_src_links(name)
         remove_all_spans(name)
@@ -281,7 +255,7 @@ class DocMethod(Method):
 
         name = stringify(name)
         docs = parse_doc(find_with_class(block, "div", "docblock"))
-        return cls.from_ident_and_docs(name, docs, parent_type, scope)
+        return cls.from_str(f"{docs}\n{name} {{}}")
 
 
 DISPATCH = {
@@ -340,7 +314,7 @@ class DocCrate(Crate):
         items = []
 
         files = {
-            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files(path, 12)
+            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files(path, 1)
         }
 
         root_scope = Scope()
@@ -425,12 +399,15 @@ def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
         header = find_with_class(body, "h1", "fqn")
         srcspan = find_with_class(header, "span", "out-of-band")
         srclink = find_with_class(srcspan, "a", "srclink")
-        if srclink is not None:
-            src, lines = srclink.attrib["href"].split("#")
-            srcpath = (path.parent / Path(src)).resolve()
+        try:
+            if srclink is not None:
+                src, lines = srclink.attrib["href"].split("#")
+                srcpath = (path.parent / Path(src)).resolve()
 
-            return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
-        return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
+                return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
+            return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
+        except LexError:
+            return None, None, None
 
 
 def _get_all_files_st(toolchain_root: Path):
