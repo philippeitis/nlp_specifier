@@ -1,11 +1,13 @@
 from collections import defaultdict
 import logging
+from itertools import chain
+from typing import Collection
 
 from nltk import Tree
 from spacy.tokens import Doc
 
-from doc_json.parse_html import DocCrate, get_toolchains
-from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod
+from doc_json.parse_html import DocStruct, DocFn
+from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod, Const
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
@@ -39,6 +41,17 @@ def tree_references_fn(fn: Fn, tree: Tree) -> bool:
     return any(tree_references_fn(fn, child) for child in tree)
 
 
+def tree_contains_fn_call(tree: Tree) -> bool:
+    """Determines whether the tree references the provided fn."""
+    if isinstance(tree, str):
+        return tree == "FNCALL"
+
+    if tree.label() == "FNCALL":
+        return True
+
+    return any(tree_contains_fn_call(child) for child in tree)
+
+
 def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
     """Creates a specification for the function, using all available sentences.
     Each sentence is cross-referenced with the grammar to form a syntax tree. If a syntax tree can be formed,
@@ -61,21 +74,25 @@ def apply_specifications(fn: Fn, parser: Parser, scope: Scope, invoke_factory):
         LOGGER.info(f"Specifying documentation section {section.header} of {fn.ident}")
         for sentence in section.sentences:
             try:
-                skipped = []
+                skipped_self_ref = []
+                skipped_fn_call = []
                 parse_it = parser.parse_tree(sentence, idents=fn_idents)
                 spec = None
                 for tree in parse_it:
                     if tree_references_fn(fn, tree):
                         LOGGER.info("Skipping tree due to self-reference.")
-                        skipped.append(tree)
+                        skipped_self_ref.append(tree)
+                    elif tree_contains_fn_call(tree):
+                        LOGGER.info("Skipping tree due to self-reference.")
+                        skipped_fn_call.append(tree)
                     else:
                         LOGGER.info("Found tree without self-reference, applying.")
                         spec = Specification(tree, invoke_factory).as_spec()
                         break
 
                 if spec is None:
-                    LOGGER.info("No non-recursive specification could be found.")
-                    raise StopIteration()
+                    LOGGER.info("Attempting to use specification with function call.")
+                    spec = Specification(next(iter(skipped_fn_call)), invoke_factory).as_spec()
                     # spec = Specification(next(iter(skipped)), invoke_factory).as_spec()
 
                 attr = LitAttr(spec)
@@ -207,7 +224,7 @@ def end_to_end_demo():
     print(ast)
 
 
-def invoke_helper(invocations, invocation_triples=None):
+def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=False):
     """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
 
     from nltk import Tree
@@ -234,35 +251,51 @@ def invoke_helper(invocations, invocation_triples=None):
                 sym_replacements[sym].add(word)
 
     invocation_triples = invocation_triples or []
-    grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
+    if use_invokes:
+        grammar, factory = generate_grammar(invocation_triples + invocations, populate_grammar_helper)
+        parser = Parser(grammar)
+    else:
+        parser = Parser.default()
+        factory = None
 
-    parser = Parser(grammar)
-
-    successes = 0
-    sentences = invocations + [sentence for _, _, sentence in invocation_triples]
-    for sentence in sentences:
+    ntrees = 0
+    nspecs = 0
+    num_sents = len(invocations) + len(invocation_triples)
+    successful_sents = 0
+    for sentence in chain(invocations, (sentence for _, _, sentence in invocation_triples)):
         print("=" * 80)
         print("Sentence:", sentence)
         print("    Tags:", parser.tokenize(sentence).tags)
         print("=" * 80)
-        success = False
+        specs = []
+        trees = []
         try:
-            for tree in parser.parse_tree(sentence):
-                success = True
+            for tree in parser.parse_tree(sentence, attach_tags=use_invokes):
+                print(tree)
                 tree: Tree = tree
+                trees.append(tree)
+                specs.append(None)
                 try:
-                    print(Specification(tree, factory).as_spec())
+                    specs[-1] = Specification(tree, factory).as_spec()
                 except LookupError as e:
                     print(f"No specification found: {e}")
                 except UnsupportedSpec as s:
                     print(f"Specification element not supported ({s})")
-                print(tree)
-                print()
         except ValueError as e:
             print(f"Grammar: ({e})")
-        if success:
-            successes += 1
-    return successes
+        if specs:
+            # print("=" * 80)
+            # print("Sentence:", sentence)
+            # print("    Tags:", parser.tokenize(sentence).tags)
+            # print("=" * 80)
+            for tree, spec in zip(trees, specs):
+                print(tree)
+                print(spec)
+            print()
+            successful_sents += 1
+        nspecs += len([spec for spec in specs if spec])
+        ntrees += len(trees)
+    return successful_sents, nspecs, ntrees, num_sents
 
 
 def invoke_demo():
@@ -335,8 +368,18 @@ def search_demo2():
             print(match)
 
     print("FULL STDLIB")
-    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
-    for file in doc_ast.files:
+
+    query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
+
+    # doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
+    # for file in doc_ast.files:
+    #     for match in file.find_matches(query):
+    #         print(match)
+
+    query = query_from_sentence("The smallest value", parser, (Fn, Struct, Const))
+
+    # doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
+    for file in ast.files:
         for match in file.find_matches(query):
             print(match)
 
@@ -493,12 +536,19 @@ def run_on_rust_docs():
     files = get_all_files(get_toolchains()[0])
 
     sentences = []
-    for item, path in files:
+    for item, _, _, _ in files:
         try:
-            sentences.append(item.docs.sections()[0].sentences[0])
+            if isinstance(item, DocStruct):
+                for method in item.methods:
+                    if method is None:
+                        continue
+                    sentences += method.docs.sections()[0].sentences
+            elif isinstance(item, DocFn):
+                sentences += item.docs.sections()[0].sentences
+
         except IndexError:
             pass
-
+    sentences = set(sentences)
     print(invoke_helper(sentences))
 
 
@@ -517,8 +567,23 @@ if __name__ == '__main__':
 
     # invoke_testcases()
     # search_demo2()
-    end_to_end_demo()
+    # end_to_end_demo()
+    run_on_rust_docs()
+    # print(Parser.default().tokenize("Assigns 1 to `self.x`.").tags)
+    # print(invoke_helper([
+    #     "Assigns 1 to `self.x`.",
+    #     "`self.x` is set to 1",
+    #     "Sets `self.x` to 1",
+    #     "1 is assigned to `self.x`",
+    #     "1 is stored in `self.x`"
+    # ], use_invokes=False))
+    # print(invoke_helper([
+    #     "Computes `self + rhs`, returning `None` if overflow occurred",
+    #     "Returns `true` if and only if `self + rhs` overflows",
+    #
+    # ], use_invokes=False))
 
+    # render_parse_tree("Computes `self + rhs`, returning `None` if overflow occurred.", "../images/overflow.pdf")
     # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
     # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
     # Motivate problems with what is being accomplished
@@ -537,3 +602,5 @@ if __name__ == '__main__':
     #  std::any::type_name_of_val
     # TODO: allow specifying default value in #[invoke]
     #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
+    # print(Struct.from_str("pub const unsafe extern \"rust-intrinsic\" fn size_of_val<T>(*const T) -> usize where T: ?Sized, {}"))
+    # check Constructs a new, empty Vec<T>.
