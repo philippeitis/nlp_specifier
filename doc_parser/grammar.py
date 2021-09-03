@@ -156,6 +156,7 @@ class Object:
         ("MNN",): lambda t, inv: MNN(t[0]).lemma_sum(),
         ("OBJ", "OP", "OBJ"): lambda t, inv: Op.from_tree(t, inv),
         ("FNCALL",): lambda t, inv: inv(t[0]),
+        ("DT", "FNCALL",): lambda t, inv: inv(t[1]),
         ("PROP_OF", "OBJ"): lambda t, inv: PropertyOf(t[0], inv).as_code(Object(t[1], inv))
     }
 
@@ -828,6 +829,29 @@ class ReturnIf(MReturn):
         return "\n".join(self.spec(p, rv) for p, rv in zip(self.preds, self.ret_vals))
 
 
+class TargetRule:
+    EXPECT = {
+        ("assign", "to"): 1,
+        ("store", "in"): 1,
+        ("set", "to"): 0,
+        ("set", "to"): 0,
+        ("add", "to"): 1,
+        ("subtract", "to"): 1,
+        ("multiply", "by"): 1,
+        ("divide", "by"): 0,
+    }
+
+    @staticmethod
+    def determine_target(first_item, verb, det, second_item):
+        ind = TargetRule.EXPECT.get((verb.lemma(), det.lower()))
+        if ind is not None:
+            if ind == 0:
+                return first_item, second_item
+            else:
+                return second_item, first_item
+        raise ValueError("Unhandled case")
+
+
 class SideEffect:
     def __init__(self, tree: Tree, invoke_factory):
         self.target = Object(tree[0], invoke_factory)
@@ -841,12 +865,17 @@ class SideEffect:
                 self.fn_mod = None
                 target_i = 3
 
-            if tree[target_i][0].lower() in {"by", "in"}:
-                self.target = Object(tree[0], invoke_factory)
-                self.inputs = [Object(tree[target_i + 1], invoke_factory)]
-            elif tree[target_i][0].lower() in {"to"}:
-                self.target = Object(tree[target_i + 1], invoke_factory)
-                self.inputs = [Object(tree[0], invoke_factory)]
+            det = tree[target_i][0]
+            first_item = Object(tree[0], invoke_factory)
+            second_item = Object(tree[target_i + 1], invoke_factory)
+            self.target, input_ = TargetRule.determine_target(first_item, self.fn, det, second_item)
+            self.inputs = [input_]
+            # if tree[target_i][0].lower() in {"by", "in"}:
+            #     self.target = Object(tree[0], invoke_factory)
+            #     self.inputs = [Object(tree[target_i + 1], invoke_factory)]
+            # elif tree[target_i][0].lower() in {"to"}:
+            #     self.target = Object(tree[target_i + 1], invoke_factory)
+            #     self.inputs = [Object(tree[0], invoke_factory)]
         else:
             self.fn = MVB(tree[2])
             self.fn_mod = None
@@ -873,8 +902,10 @@ class SideEffect:
             if op == UnaryOp.Neg:
                 return f"#[ensures(*{self.target.as_code()} == !*old({self.target.as_code()}))]"
             return f"#[ensures(*{self.target.as_code()} == old(*{self.target.as_code()}) {op} {self.inputs[0].as_code()})]"
-        else:
-            raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
+
+        if vb in {"assign", "set", "store"}:
+            return f"#[ensures({self.target.as_code()} == {self.inputs[0].as_code()})]"
+        raise UnsupportedSpec(f"Not expecting non-op side effects (got {vb})")
 
 
 class Specification:
