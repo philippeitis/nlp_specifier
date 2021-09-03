@@ -4,7 +4,7 @@ Dependencies for individual components of the system are specified below, or are
 Note that all .sh files and commands provided are specific to Linux. 
 
 ## HTML Documentation Mining
-This project provides functionality for extracting Rust documentation from pages output by cargo docs - and for documentation downloaded via Rustup.
+This project provides functionality for extracting Rust documentation from pages output by cargo docs, and for documentation downloaded via `rustup`.
 To set up parsing of HTML documentation, use [doc_json/setup.sh](doc_json/setup.sh):
 ```bash
 cd ./doc_json/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
