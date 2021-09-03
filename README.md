@@ -46,7 +46,7 @@ cd ./pyrs_ast/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
 
 ## Named-entity Recognition and Semantic Role Labelling
-# Requirements
+### Requirements
 To use NER and SRL analysis for documentation, Docker and Docker Compose must be installed. Additionally, downloading the relevant models requires installing Git,
 and Git LFS. All other dependencies for this are set up using [jml_nlp/setup.sh](jml_nlp/setup.sh).
 ```bash
