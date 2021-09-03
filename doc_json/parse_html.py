@@ -30,16 +30,22 @@ def peek(it):
 
 def remove_all_spans(item: etree.ElementBase):
     for val in item.findall("span"):
-        if "since" in val.classes or "notable-traits-tooltip" in val.classes or "notable-traits" in val.classes:
-            item.remove(val)
+        if not {"since", "notable-traits-tooltip", "notable-traits", "out-of-band"}.isdisjoint(val.classes):
+            val.drop_tree()
+
+
+def remove_mustuse_div(item: etree.ElementBase):
+    for val in item.findall("div"):
+        if not {"code-attribute"}.isdisjoint(val.classes):
+            val.drop_tree()
 
 
 def remove_all_src_links(item: etree.ElementBase):
     for val in item.findall("a"):
         if "srclink" in val.classes:
-            item.remove(val)
+            val.drop_tree()
         if val.attrib["href"] == "javascript:void(0)":
-            item.remove(val)
+            val.drop_tree()
 
 
 def find_with_class(item: etree.ElementBase, tag: str, class_: str):
@@ -202,6 +208,38 @@ class DocStruct(Struct):
             return []
 
 
+class DocPrimitive(DocStruct):
+    @classmethod
+    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
+        type_decl = find_with_class(body, "h1", "fqn")
+        remove_all_spans(type_decl)
+        remove_all_src_links(type_decl)
+
+        parent = find_with_class(body, "details", "top-doc")
+        if parent is not None:
+            doc = find_with_class(parent, "div", "docblock")
+            docs = parse_doc(doc)
+            body.remove(parent)
+        else:
+            docs = Docs()
+
+        tdcl = f"struct {stringify(type_decl).rsplit(' ', 1)[1]} {{}}"
+        body.remove(type_decl)
+
+        s = f"{docs}\n{tdcl}"
+
+        try:
+            struct = cls(**json.loads(astx.parse_struct(s)), scope=scope or Scope())
+        except json.decoder.JSONDecodeError:
+            return
+
+        impl_block = find_with_class(body, "details", "implementors-toggle")
+        if impl_block is not None:
+            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
+                struct.methods += struct.eat_impl_dispatch(doc, scope)
+        return struct
+
+
 class DocFn(Fn):
     @classmethod
     def from_block(cls, body: etree.ElementBase, scope: Scope = None):
@@ -236,9 +274,11 @@ class DocMethod(Method):
 
     @classmethod
     def from_block(cls, block, parent_type: Struct = None, scope: Scope = None) -> "DocMethod":
-        name = block.find("summary/div")
+        name = block.find("summary/div/h4")
         remove_all_src_links(name)
         remove_all_spans(name)
+        remove_mustuse_div(name)
+
         name = stringify(name)
         docs = parse_doc(find_with_class(block, "div", "docblock"))
         return cls.from_ident_and_docs(name, docs, parent_type, scope)
@@ -247,11 +287,12 @@ class DocMethod(Method):
 DISPATCH = {
     "fn": DocFn.from_block,
     "struct": DocStruct.from_block,
+    "primitive": DocPrimitive.from_block,
 }
 
 
 class DocMod(Mod):
-    ITEM_PREFIXES = ("struct.", "fn.")
+    ITEM_PREFIXES = ("struct.", "fn.", "primitive.")
 
     # , "enum.", "constant.", "macro.", "trait.", "keyword.")
 
@@ -323,7 +364,7 @@ class DocCrate(Crate):
         if path.is_dir() and path.name in DocCrate.IGNORE:
             return []
 
-        choices = ("struct.", "fn.", "enum.", "constant.", "macro.", "trait.", "keyword.")
+        choices = ("struct.", "fn.", "enum.", "primitive.", "constant.", "macro.", "trait.", "keyword.")
 
         items = []
         for child_path in path.iterdir():
@@ -345,6 +386,7 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
         "constant": [],
         "macro": [],
         "trait": [],
+        "primitive": [],
         "keyword": [],
     }
     for path in paths:
@@ -376,14 +418,19 @@ def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
         if title.text == "Redirection":
             return None, None, None
 
+        if {"rustdoc", "source"}.issubset(soup.find("body").classes):
+            return None, None, None
         body = soup.find("body/section")
+        # print(path)
         header = find_with_class(body, "h1", "fqn")
         srcspan = find_with_class(header, "span", "out-of-band")
         srclink = find_with_class(srcspan, "a", "srclink")
-        src, lines = srclink.attrib["href"].split("#")
-        srcpath = (path.parent / Path(src)).resolve()
+        if srclink is not None:
+            src, lines = srclink.attrib["href"].split("#")
+            srcpath = (path.parent / Path(src)).resolve()
 
-        return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
+            return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
+        return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
 
 
 def _get_all_files_st(toolchain_root: Path):
@@ -403,9 +450,10 @@ def get_all_files(toolchain_root: Path, num_processes: int = 12):
         return _get_all_files_st(toolchain_root)
 
     with Pool(num_processes) as p:
-        targets = files["fn"] + files["struct"]
+        targets = files["fn"] + files["struct"] + files["primitive"]
+        results = p.map(parse_file, targets)
         return [(file, path, rs_path, lines) for (file, rs_path, lines), path in
-                zip(p.map(parse_file, targets), targets) if file]
+                zip(results, targets) if file]
 
 
 def main(toolchain_root: Path):
@@ -444,12 +492,6 @@ def get_toolchains() -> List[Path]:
 
 
 if __name__ == '__main__':
-    c = main(get_toolchains()[0])
-    # make section 1 intro / problem statement / high level approach
-    # diagram of process eg. tokenizer -> parser -> specifier -> search
-    # section 1.1. motivate sequence of problems
-    # sections 1.2. high level details - methods used and why
-    # section 3. specific details
+    main(get_toolchains()[0])
     # mention that documentation is incomplete spec
     # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)
-    # squares connecting each component
