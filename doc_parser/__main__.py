@@ -447,10 +447,16 @@ def end_to_end(path: Path):
     print(ast)
 
 
-@cli.command()
+@cli.group()
+def specify():
+    """Creates specifications for a variety of sources."""
+    pass
+
+
+@specify.command("sentence")
 @click.argument("sentence")
 def specify_sentence(sentence: str):
-    """Prints the specification for the sentence."""
+    """Specifies the sentence, and prints the specification to the console."""
     parser = Parser.default()
     tree = next(
         parser.parse_tree(sentence, attach_tags=False)
@@ -458,14 +464,14 @@ def specify_sentence(sentence: str):
     print(Specification(tree, None).as_spec())
 
 
-
-@cli.command()
+@specify.command("file")
 @click.option('--path', "-p", default=DIR_PATH / "../data/test3.rs", help='Source file to specify.', type=Path)
 @click.option('--dest', "-d", default=None, type=Path,
               help='Output file path. If not specified, defaults to --path variable, adding _specified suffix.'
-)
+              )
 def specify_file(path: Path, dest: Path):
-    """Creates a copy of the provided file with automatically generated specifications."""
+    """Specifies the items in the file at path, and writes a copy of the file with specifications included to
+    `dest`."""
     ast = AstFile.from_path(path)
     grammar, invoke_factory = generate_grammar(ast)
 
@@ -477,13 +483,13 @@ def specify_file(path: Path, dest: Path):
     dest.write_text(str(ast))
 
 
-@cli.command()
-@click.option('--path', default=get_toolchains()[0], help='Source path of documentation.', type=Path)
+@specify.command("docs")
+@click.option('--path', default=get_toolchains()[0], help='Path to documentation.', type=Path)
 def specify_docs(path: Path):
-    """Creates specifications for the items in the documentation at the given path.
-    Documentation is generated using `cargo doc`, or is provided via `rustup`.
+    """Specifies each item in the documentation at the given path.
+    Documentation can be generated using `cargo doc`, or can be downloaded via `rustup`.
 
-    By default, specifies items in local Rust documentation.
+    By default, specifies items in toolchain documentation.
     """
     from doc_json import get_all_files
     files = get_all_files(path)
@@ -505,15 +511,21 @@ def specify_docs(path: Path):
     print(invoke_helper(sentences))
 
 
-@cli.command()
+@specify.command("testcases")
 @click.option('--path', default=TESTCASE_PATH, help='Path to test cases.', type=Path)
-def invoke_testcases(path: Path):
-    """Creates specifications for all sentences in the provided file. Each sentence should be on a separate line."""
+def specify_testcases(path: Path):
+    """Specifies each newline separated sentence in the provided file."""
     with open(path, "r") as file:
         invoke_helper([line.strip() for line in file.readlines()])
 
 
-@cli.command()
+@cli.group()
+def render():
+    """Visualization of various components in the system's pipeline."""
+    pass
+
+
+@render.command("pos")
 @click.argument("sentence", nargs=1)
 @click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
 @click.option('--retokenize/--no-retokenize', "-r/-R", default=True, help="Applies retokenization")
@@ -546,7 +558,7 @@ def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, 
         webbrowser.open(str(path))
 
 
-@cli.command()
+@render.command("parse-tree")
 @click.argument("sentence", nargs=1)
 @click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
 @click.option('--path', default=Path("./images/parse_tree.pdf"), help="Output path", type=Path)
@@ -566,7 +578,7 @@ def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None
         webbrowser.open(str(path))
 
 
-@cli.command()
+@render.command("entities")
 @click.argument("sentence", nargs=1)
 @click.option('--type', "-t", 'entity_type', type=click.Choice(['ner', 'srl'], case_sensitive=False), default="srl")
 @click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
@@ -580,7 +592,7 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
     sent = Parser.default().entities(sentence)
 
     html = displacy.render(
-        sent[entity_type][0],
+        sent[entity_type.lower()][0],
         style="ent",
         options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
         page=True,
@@ -591,6 +603,24 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
 
     if open_browser:
         webbrowser.open(str(path))
+
+
+@render.command("srl")
+@click.argument("sentence", nargs=1)
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--path', default=Path("./images/srl.html"), help="Output path", type=Path)
+def render_srl(sentence: str, open_browser: bool, path: Path):
+    """Renders the SRL entities in the provided sentence."""
+    render_entities(sentence, "SRL", open_browser, path)
+
+
+@render.command("ner")
+@click.argument("sentence", nargs=1)
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--path', default=Path("./images/srl.html"), help="Output path", type=Path)
+def render_ner(sentence: str, open_browser: bool, path: Path):
+    """Renders the NER entities in the provided sentence."""
+    render_entities(sentence, "NER", open_browser, path)
 
 
 if __name__ == '__main__':
