@@ -56,3 +56,35 @@ After running this script, the SRL service will be available at 127.0.0.8:701, a
 [doc_parser/ner.py](doc_parser/ner.py) provides functions for annotating text using these services. The Parser class in [doc_parser/doc_parser.py](doc_parser/doc_parser.py) transforms these annotations to a format that can be rendered by spaCy's displaCy tool.
 
 The NER and SRL models are sourced from `Combining formal and machine learning techniques for the generation of JML specifications`.
+
+# Usage
+Once installation is complete, this project can be used through `doc_parser`. Run the following command to see a list of all possible commands.
+```console
+foo@bar:~$ python -m doc_parser --help
+Usage: __main__.py [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  end-to-end         Demonstrates entire pipeline from end to end on...
+  invoke-testcases   Creates specifications for all sentences in the...
+  render-entities    Renders the NER or SRL entities in the provided...
+  render-parse-tree  Renders the parse tree for the provided sentence.
+  render-pos         Renders the part of speech tags in the provided...
+  specify-file       Creates a copy of the provided file with automatically...
+  specify-rust-docs  Creates specifications for the items in Rust standard...
+  specify-sentence   Prints the specification for the sentence.
+```
+
+To see more specific help, do the following:
+```console
+foo@bar:~$ python -m doc_parser end-to-end --help
+Usage: __main__.py end-to-end [OPTIONS]
+
+  Demonstrates entire pipeline from end to end on provided file.
+
+Options:
+  -p, --path PATH  Source file to specify.
+  --help           Show this message and exit.
+```
