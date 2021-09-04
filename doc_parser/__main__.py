@@ -429,20 +429,8 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
         webbrowser.open(path)
 
 
-def spec_from_sentence(sentence: str, idents=None):
-    parser = Parser.default()
-    tree = next(
-        parser.parse_tree(sentence, idents=idents, attach_tags=False)
-    )
-    print(Specification(tree, None).as_spec())
-
-
 @click.group()
 def cli():
-    pass
-
-
-class Emptyish:
     pass
 
 
@@ -457,6 +445,18 @@ def end_to_end(path: Path):
     print(grammar)
     specify_item(ast, parser, ast.scope, invoke_factory)
     print(ast)
+
+
+@cli.command()
+@click.argument("sentence")
+def specify_sentence(sentence: str):
+    """Prints the specification for the sentence."""
+    parser = Parser.default()
+    tree = next(
+        parser.parse_tree(sentence, attach_tags=False)
+    )
+    print(Specification(tree, None).as_spec())
+
 
 
 @cli.command()
@@ -596,30 +596,9 @@ if __name__ == '__main__':
     sh.setLevel(logging.INFO)
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
-    cli()
-    # invoke_testcases()
-    # search_demo2()
-    # end_to_end_demo()
-    # run_on_rust_docs()
-    # print(Parser.default().tokenize("Assigns 1 to `self.x`.").tags)
-    # print(invoke_helper([
-    #     "Assigns 1 to `self.x`.",
-    #     "`self.x` is set to 1",
-    #     "Sets `self.x` to 1",
-    #     "1 is assigned to `self.x`",
-    #     "1 is stored in `self.x`"
-    # ], use_invokes=False))
-    # print(invoke_helper([
-    #     "Computes `self + rhs`, returning `None` if overflow occurred",
-    #     "Returns `true` if and only if `self + rhs` overflows",
-    #
-    # ], use_invokes=False))
 
-    # render_parse_tree("Computes `self + rhs`, returning `None` if overflow occurred.", "../images/overflow.pdf")
-    # render_ner("Removes and returns the element at position index within the vector, shifting all elements after it to the left.", "/tmp/x.html", open_browser=True)
-    # print([t.label_ for t in p.tokenize("Removes and returns the element at position index within the vector").doc.ents])
-    # Motivate problems with what is being accomplished
-    # problem and solution and reflection - therefore we do this
+    cli()
+
     # design writeup
     # bert library
     # search around
@@ -634,5 +613,3 @@ if __name__ == '__main__':
     #  std::any::type_name_of_val
     # TODO: allow specifying default value in #[invoke]
     #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
-    # print(Struct.from_str("pub const unsafe extern \"rust-intrinsic\" fn size_of_val<T>(*const T) -> usize where T: ?Sized, {}"))
-    # check Constructs a new, empty Vec<T>.
