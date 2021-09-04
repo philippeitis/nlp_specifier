@@ -479,8 +479,12 @@ def specify_file(path: Path, dest: Path):
 
 @cli.command()
 @click.option('--path', default=get_toolchains()[0], help='Source path of documentation.', type=Path)
-def specify_rust_docs(path: Path):
-    """Creates specifications for the items in Rust standard library documentation."""
+def specify_docs(path: Path):
+    """Creates specifications for the items in the documentation at the given path.
+    Documentation is generated using `cargo doc`, or is provided via `rustup`.
+
+    By default, specifies items in local Rust documentation.
+    """
     from doc_json import get_all_files
     files = get_all_files(path)
 
