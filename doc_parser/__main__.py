@@ -1,22 +1,36 @@
 from collections import defaultdict
 import logging
 from itertools import chain
+from pathlib import Path
 from typing import Collection
 
 from nltk import Tree
 from spacy.tokens import Doc
+import click
 
-from doc_json.parse_html import DocStruct, DocFn
+from doc_json.parse_html import DocStruct, DocFn, get_toolchains
 from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod, Const
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
 
-from doc_parser import Parser, GRAMMAR_PATH, is_quote
-from fn_calls import InvocationFactory, Invocation
-from grammar import Specification, generate_constructor_from_grammar
-from nlp_query import query_from_sentence, Phrase, Word
+DIR_PATH = Path(__file__).parent.resolve()
 
+try:
+    from doc_parser import Parser, GRAMMAR_PATH, is_quote
+    from fn_calls import InvocationFactory, Invocation
+    from grammar import Specification, generate_constructor_from_grammar
+    from nlp_query import query_from_sentence, Phrase, Word
+except ImportError:
+    import sys
+
+    sys.path.insert(0, str(DIR_PATH))
+    from doc_parser.doc_parser import Parser, GRAMMAR_PATH, is_quote
+    from doc_parser.fn_calls import InvocationFactory, Invocation
+    from doc_parser.grammar import Specification, generate_constructor_from_grammar
+    from doc_parser.nlp_query import query_from_sentence, Phrase, Word
+
+TESTCASE_PATH = DIR_PATH / "base_grammar_test_cases.txt"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -213,17 +227,6 @@ def generate_grammar(ast, helper_fn=populate_grammar_helper):
     return full_grammar, invoke_factory
 
 
-def end_to_end_demo():
-    """Demonstrates entire pipeline from end to end."""
-    ast = AstFile.from_path("../data/test3.rs")
-    grammar, invoke_factory = generate_grammar(ast)
-
-    parser = Parser(grammar)
-    print(grammar)
-    specify_item(ast, parser, ast.scope, invoke_factory)
-    print(ast)
-
-
 def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=False):
     """Demonstrates creation of invocations from specifically formatted strings, as well as usage."""
 
@@ -321,22 +324,6 @@ def invoke_demo():
     invoke_helper(invocations, invocation_triples)
 
 
-def expr_demo():
-    """Demonstrates expression parsing. Incomplete."""
-    from pyrs_ast.expr import Expr
-
-    print(Expr.from_str("u32::MIN + 1"))
-    print(Expr.from_str("self.divide(rhs)"))
-    print(Expr.from_str("0u32"))
-    print(Expr.from_str("0xFFFu32"))
-    print(Expr.from_str("1.2e3_f32"))
-    print(Expr.from_str("1."))
-    print(Expr.from_str("33"))
-    print(Expr.from_str("hello"))
-
-    # Parse expr, plug in types, and find corresponding fn
-
-
 def search_demo():
     """Demonstrates searching for functions with multiple keywords."""
 
@@ -416,54 +403,6 @@ def tags_as_ents(doc: Doc):
     doc.set_ents(spans)
 
 
-def render_ner(sentence: str, path: str, open_browser=False):
-    from spacy import displacy
-    from palette import ENTITY_COLORS
-    import webbrowser
-
-    sent = Parser.default().entities(sentence)
-
-    html = displacy.render(
-        sent["srl"][0],
-        style="ent",
-        options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
-        page=True,
-        manual=True,
-    )
-
-    with open(path, "w") as file:
-        file.write(html)
-
-    if open_browser:
-        webbrowser.open(path)
-
-
-def render_pos_tokens(sentence: str, path: str, idents=None, no_fix=False, open_browser=False):
-    from spacy import displacy
-    from palette import tag_color
-    import webbrowser
-
-    parser = Parser.default()
-    if no_fix:
-        sent = parser.tagger(sentence)
-    else:
-        sent = parser.tokenize(sentence, idents)
-    tags_as_ents(sent.doc)
-    colors = {tag: tag_color(tag) for tag in parser.tokens()}
-
-    html = displacy.render(
-        sent.doc,
-        style="ent",
-        options={"word_spacing": 30, "distance": 120, "colors": colors},
-        page=True
-    )
-    with open(path, "w") as file:
-        file.write(html)
-
-    if open_browser:
-        webbrowser.open(path)
-
-
 def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_browser=False):
     from spacy import displacy
     from palette import tag_color
@@ -490,19 +429,6 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
         webbrowser.open(path)
 
 
-def render_parse_tree(sentence: str, path: str, idents=None, open_browser=False):
-    from treevis import render_tree
-    import webbrowser
-
-    parser = Parser.default()
-    tree = next(
-        parser.parse_tree(sentence, idents=idents, attach_tags=False)
-    )
-    render_tree(tree, path)
-    if open_browser:
-        webbrowser.open(path)
-
-
 def spec_from_sentence(sentence: str, idents=None):
     parser = Parser.default()
     tree = next(
@@ -511,29 +437,52 @@ def spec_from_sentence(sentence: str, idents=None):
     print(Specification(tree, None).as_spec())
 
 
-def vis_demo():
-    """Demonstrates entire pipeline from end to end."""
-    ast = AstFile.from_path("../data/test3.rs")
-    render_parse_tree(
-        ast.scope.find_function("reciprocal").docs.sections()[0].sentences[0],
-        idents={"self"},
-        path="../images/reciprocal.pdf"
-    )
-
-    # sent = parser.tokenize_sentence(sentence, idents=idents)
-    #
-    # Path("../images/").mkdir(exist_ok=True)
-    # svg = displacy.render(sent.doc, style="dep", options={"word_spacing": 30, "distance": 120})
-    # output_path = Path("../images/pos_tags.svg")
-    # output_path.open("w", encoding="utf-8").write(svg)
-
-    render_pos_tokens("Returns `true`", idents=None, path="../images/pos_tags_pre2.html", no_fix=True)
-    render_pos_tokens("Returns `true`", idents=None, path="../images/pos_tags_post2.html")
+@click.group()
+def cli():
+    pass
 
 
-def run_on_rust_docs():
-    from doc_json import get_toolchains, get_all_files
-    files = get_all_files(get_toolchains()[0])
+class Emptyish:
+    pass
+
+
+@cli.command()
+@click.option('--path', "-p", default=DIR_PATH / "../data/test3.rs", help='Source file to specify.', type=Path)
+def end_to_end(path: Path):
+    """Demonstrates entire pipeline from end to end on provided file."""
+    ast = AstFile.from_path(path)
+    grammar, invoke_factory = generate_grammar(ast)
+
+    parser = Parser(grammar)
+    print(grammar)
+    specify_item(ast, parser, ast.scope, invoke_factory)
+    print(ast)
+
+
+@cli.command()
+@click.option('--path', "-p", default=DIR_PATH / "../data/test3.rs", help='Source file to specify.', type=Path)
+@click.option('--dest', "-d", default=None, type=Path,
+              help='Output file path. If not specified, defaults to --path variable, adding _specified suffix.'
+)
+def specify_file(path: Path, dest: Path):
+    """Creates a copy of the provided file with automatically generated specifications."""
+    ast = AstFile.from_path(path)
+    grammar, invoke_factory = generate_grammar(ast)
+
+    parser = Parser(grammar)
+    specify_item(ast, parser, ast.scope, invoke_factory)
+
+    if dest is None:
+        dest = path.parent / Path(path.stem + "_specified.rs")
+    dest.write_text(str(ast))
+
+
+@cli.command()
+@click.option('--path', default=get_toolchains()[0], help='Source path of documentation.', type=Path)
+def specify_rust_docs(path: Path):
+    """Creates specifications for the items in Rust standard library documentation."""
+    from doc_json import get_all_files
+    files = get_all_files(path)
 
     sentences = []
     for item, _, _, _ in files:
@@ -552,9 +501,92 @@ def run_on_rust_docs():
     print(invoke_helper(sentences))
 
 
-def invoke_testcases(path="base_grammar_test_cases.txt"):
+@cli.command()
+@click.option('--path', default=TESTCASE_PATH, help='Path to test cases.', type=Path)
+def invoke_testcases(path: Path):
+    """Creates specifications for all sentences in the provided file. Each sentence should be on a separate line."""
     with open(path, "r") as file:
         invoke_helper([line.strip() for line in file.readlines()])
+
+
+@cli.command()
+@click.argument("sentence", nargs=1)
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--retokenize/--no-retokenize', "-r/-R", default=True, help="Applies retokenization")
+@click.option('--path', default=Path("./images/pos_tags.html"), help="Output path", type=Path)
+# @click.option('--idents', nargs=-1, help="Idents in string")
+def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, idents=None):
+    """Renders the part of speech tags in the provided sentence."""
+    from spacy import displacy
+    from palette import tag_color
+    import webbrowser
+
+    parser = Parser.default()
+    if retokenize:
+        sent = parser.tokenize(sentence, idents)
+    else:
+        sent = parser.tagger(sentence)
+
+    tags_as_ents(sent.doc)
+    colors = {tag: tag_color(tag) for tag in parser.tokens()}
+
+    html = displacy.render(
+        sent.doc,
+        style="ent",
+        options={"word_spacing": 30, "distance": 120, "colors": colors},
+        page=True
+    )
+
+    path.write_text(html)
+    if open_browser:
+        webbrowser.open(str(path))
+
+
+@cli.command()
+@click.argument("sentence", nargs=1)
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--path', default=Path("./images/parse_tree.pdf"), help="Output path", type=Path)
+# @click.option('--idents', nargs=-1, help="Idents in string")
+def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None):
+    """Renders the parse tree for the provided sentence."""
+    from treevis import render_tree
+    import webbrowser
+
+    parser = Parser.default()
+    tree = next(
+        parser.parse_tree(sentence, idents=idents, attach_tags=False)
+    )
+
+    render_tree(tree, str(path))
+    if open_browser:
+        webbrowser.open(str(path))
+
+
+@cli.command()
+@click.argument("sentence", nargs=1)
+@click.option('--type', "-t", 'entity_type', type=click.Choice(['ner', 'srl'], case_sensitive=False), default="srl")
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--path', default=Path("./images/srl.html"), help="Output path", type=Path)
+def render_entities(sentence: str, entity_type: str, open_browser: bool, path: Path):
+    """Renders the NER or SRL entities in the provided sentence."""
+    from spacy import displacy
+    from palette import ENTITY_COLORS
+    import webbrowser
+
+    sent = Parser.default().entities(sentence)
+
+    html = displacy.render(
+        sent[entity_type][0],
+        style="ent",
+        options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
+        page=True,
+        manual=True,
+    )
+
+    path.write_text(html)
+
+    if open_browser:
+        webbrowser.open(str(path))
 
 
 if __name__ == '__main__':
@@ -564,11 +596,11 @@ if __name__ == '__main__':
     sh.setLevel(logging.INFO)
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.INFO)
-
+    cli()
     # invoke_testcases()
     # search_demo2()
     # end_to_end_demo()
-    run_on_rust_docs()
+    # run_on_rust_docs()
     # print(Parser.default().tokenize("Assigns 1 to `self.x`.").tags)
     # print(invoke_helper([
     #     "Assigns 1 to `self.x`.",

@@ -6,7 +6,10 @@ from pyrs_ast.lib import Fn
 from pyrs_ast.query import Query, QueryField
 
 from lemmatizer import is_synonym, lemmatize
-from doc_parser import Parser
+try:
+    from doc_parser import Parser
+except ImportError:
+    from doc_parser.doc_parser import Parser
 
 
 def peek(it):
@@ -37,6 +40,8 @@ def get_regex_for_tag(tag: str) -> str:
         return "RB(R|S)?"
     if "JJ" in tag:
         return "JJ(R|S)?"
+    if is_one_of(tag, {"CODE", "LIT"}):
+        return "(CODE|LIT)"
     return tag
 
 

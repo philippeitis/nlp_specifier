@@ -1,3 +1,4 @@
 nltk==3.6.2
 unidecode==1.2
 requests==2.26
+click==8.0
