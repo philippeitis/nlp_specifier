@@ -1,0 +1,4849 @@
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ (MNN (NNS data)))
+    (IN on)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to))
+      (OBJ (DT the) (MNN (VBN given) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ (MNN (NNS data)))
+    (IN on)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to) (DT the))
+      (OBJ (MNN (VBN given) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sends data on the socket to the given address
+    Tags: ('VBZ', 'NNS', 'IN', 'DT', 'NN', 'IN', 'DT', 'VBN', 'NN')
+ VERDICT: UNV
+================================================================================
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN entry))) (IN to))
+      (OBJ (DT the) (MNN (JJ set) (MNN (NN output)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (NN entry)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ set) (MNN (NN output)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN entry))))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ set) (MNN (NN output))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Adds a new entry to the set output
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: UNC
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ square) (MNN (NN root))) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ square) (MNN (NN root)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Returns the square root of a number
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ square) (MNN (NN root))) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.square_root())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ square) (MNN (NN root)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.square_root())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of) (DT the))
+      (OBJ (CODE `LinkedList`)))))
+================================================================================
+Sentence: Returns the length of the `LinkedList`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of) (DT the))
+      (OBJ (CODE `LinkedList`)))))
+#[ensures(result == LinkedList.length())]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ current) (MNN (NN position)))
+        (IN of))
+      (OBJ (DT this) (MNN (NN cursor))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ current) (MNN (NN position)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN cursor))))))
+================================================================================
+Sentence: Returns the current position of this cursor
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ current) (MNN (NN position)))
+        (IN of))
+      (OBJ (DT this) (MNN (NN cursor))))))
+#[ensures(result == cursor.current_position())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ current) (MNN (NN position)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN cursor))))))
+#[ensures(result == cursor.current_position())]
+
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from))
+      (OBJ (DT the) (MNN (NN set))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from) (DT the))
+      (OBJ (MNN (NN set))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN set)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Removes a value from the set
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: MUT
+================================================================================
+
+(S (ASSIGN (VBZ Creates) (DT a) (JJ new) (OBJ (CODE `AtomicPtr`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new `AtomicPtr`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+ VERDICT: INIT
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN reader))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ (DT the) (VBG underlying) (MNN (NN reader)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a mutable reference to the underlying reader
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (NN source)))
+    (CC and)
+    (HASSERT
+      (OBJ (MNN (NN destination)))
+      (MD may)
+      (PROP (MVB (RB not) (VB overlap))))))
+Grammar: (PROP: unexpected verb in MVB case (overlap))
+================================================================================
+Sentence: The source and destination may not overlap
+    Tags: ('DT', 'NN', 'CC', 'NN', 'MD', 'RB', 'VB')
+ VERDICT: SBS (+)
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (JJ previous) (MNN (NN element)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (JJ previous) (MNN (NN element)))))))
+================================================================================
+Sentence: Returns a reference to the previous element
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (JJ previous) (MNN (NN element)))))))
+#[ensures(result == previous_element.reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (JJ previous) (MNN (NN element)))))))
+#[ensures(result == previous_element.reference())]
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN slice)))
+          (PROP
+            (MVB (VBZ has))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN length)) (IN of))
+              (OBJ (LIT 0)))))))))
+Grammar: (Unexpected verb in PROPERTY (has))
+================================================================================
+Sentence: Returns `true` if the slice has a length of 0
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'DT', 'NN', 'IN', 'LIT')
+ VERDICT: SBS (+)
+================================================================================
+
+(S (ASSIGN (VBZ Constructs) (DT a) (JJ new) (OBJ (CODE `Arc<T>`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new `Arc<T>`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+ VERDICT: INIT
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (JJ forward) (MNN (NN iterator))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (DT a)
+    (OBJ (MNN (JJ forward) (MNN (NN iterator))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (DT a)
+    (JJ forward)
+    (OBJ (MNN (NN iterator)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a forward iterator
+    Tags: ('VBZ', 'DT', 'JJ', 'NN')
+ VERDICT: ID
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Receives)
+    (OBJ (MNN (NNS data)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN socket)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Receives data from the socket
+    Tags: ('VBZ', 'NNS', 'IN', 'DT', 'NN')
+ VERDICT: UNC
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (SIDE
+    (OBJ (DT The) (MNN (VBN matched) (MNN (NN element))))
+    (VBZ is)
+    (MVB (VBN contained))
+    (IN in)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN end)) (IN of))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ previous) (MNN (NN subslice)))
+          (IN as))
+        (OBJ (DT a) (MNN (NN terminator)))))))
+Grammar: (Not supported)
+================================================================================
+Sentence: The matched element is contained in the end of the previous subslice as a terminator
+    Tags: ('DT', 'VBN', 'NN', 'VBZ', 'VBN', 'IN', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: UNC
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Pushes)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN item)) (IN onto))
+      (OBJ (DT the) (MNN (JJ binary) (MNN (NN heap)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Pushes)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN item)) (IN onto) (DT the))
+      (OBJ (MNN (JJ binary) (MNN (NN heap)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Pushes)
+    (OBJ (DT an) (MNN (NN item)))
+    (IN onto)
+    (OBJ (DT the) (MNN (JJ binary) (MNN (NN heap))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Pushes an item onto the binary heap
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: ID
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+      (OBJ
+        (PROP_OF (DT an) (MNN (NN iterator)) (IN of))
+        (OBJ (MNN (NNS entries)))))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ set) (MNN (NN output))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Adds the contents of an iterator of entries to the set output
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'DT', 'NN', 'IN', 'NNS', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: UNC
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN cursor)) (IN at))
+      (OBJ (DT the) (MNN (JJ front) (MNN (NN element)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN cursor)) (IN at) (DT the))
+      (OBJ (MNN (JJ front) (MNN (NN element)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (NN cursor)))
+    (IN at)
+    (OBJ (DT the) (MNN (JJ front) (MNN (NN element))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a cursor at the front element
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: UNC
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+      (OBJ
+        (PROP_OF (DT this) (MNN (NN cell)) (IN to))
+        (OBJ (CODE `value`))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+      (OBJ (DT this) (MNN (NN cell))))
+    (IN to)
+    (OBJ (CODE `value`))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of) (DT this))
+      (OBJ (MNN (NN cell))))
+    (IN to)
+    (OBJ (CODE `value`))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ (DT the) (MNN (NNS contents)))
+    (IN of)
+    (OBJ
+      (PROP_OF (DT this) (MNN (NN cell)) (IN to))
+      (OBJ (CODE `value`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the contents of this cell to `value`
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'DT', 'NN', 'IN', 'CODE')
+ VERDICT: SBS (+)
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Terminates)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN process)) (IN in))
+      (OBJ (DT an) (MNN (JJ abnormal) (MNN (NN fashion)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Terminates)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN process)) (IN in) (DT an))
+      (OBJ (MNN (JJ abnormal) (MNN (NN fashion)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Terminates)
+    (OBJ (DT the) (MNN (NN process)))
+    (IN in)
+    (OBJ (DT an) (MNN (JJ abnormal) (MNN (NN fashion))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Terminates the process in an abnormal fashion
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: UNV
+================================================================================
+
+(S (ASSIGN (VBZ Creates) (DT an) (JJ empty) (OBJ (CODE `HashSet`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates an empty `HashSet`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+ VERDICT: INIT
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN value)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN value)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT the) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ underlying) (MNN (NN value))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets the mutable reference to the underlying value
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: SBS (++)
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Writes)
+    (OBJ
+      (PROP_OF
+        (DT some)
+        (MNN (VBN formatted) (MNN (NN information)))
+        (IN into))
+      (OBJ (DT this) (MNN (NN instance))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Writes)
+    (OBJ
+      (PROP_OF
+        (DT some)
+        (MNN (VBN formatted) (MNN (NN information)))
+        (IN into)
+        (DT this))
+      (OBJ (MNN (NN instance))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Writes)
+    (OBJ (DT some) (MNN (VBN formatted) (MNN (NN information))))
+    (IN into)
+    (OBJ (DT this) (MNN (NN instance)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Writes some formatted information into this instance
+    Tags: ('VBZ', 'DT', 'VBN', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: SBS (+++)
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ symbolic) (MNN (NN link))))
+        (IN on))
+      (OBJ (DT the) (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ symbolic) (MNN (NN link))))
+        (IN on)
+        (DT the))
+      (OBJ (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ new) (MNN (JJ symbolic) (MNN (NN link)))))
+    (IN on)
+    (OBJ (DT the) (MNN (NN filesystem)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new symbolic link on the filesystem
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: UNV
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (SIDE
+    (OBJ (DT This) (MNN (NN handle)))
+    (VBZ is)
+    (MVB (RB not) (VBN buffered))))
+Grammar: (Not supported)
+================================================================================
+Sentence: This handle is not buffered
+    Tags: ('DT', 'NN', 'VBZ', 'RB', 'VBN')
+ VERDICT: UNV
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN element)) (IN at))
+        (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN element)) (IN at) (DT the))
+        (OBJ (MNN (VBN given) (MNN (NN index))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (NN element))))
+    (IN at)
+    (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (NN element))))
+    (IN at)
+    (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN element)) (IN at))
+      (OBJ (DT the) (MNN (VBN given) (MNN (NN index)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN element)) (IN at) (DT the))
+      (OBJ (MNN (VBN given) (MNN (NN index)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a reference to the element at the given index
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'VBN', 'NN')
+ VERDICT: SBS (+)
+================================================================================
+
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ absolute) (MNN (NN value))) (IN of))
+      (OBJ (CODE `self`)))))
+================================================================================
+Sentence: Computes the absolute value of `self`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'CODE')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ absolute) (MNN (NN value))) (IN of))
+      (OBJ (CODE `self`)))))
+#[ensures(result == self.absolute_value())]
+
+(S
+  (ASSIGN
+    (VBZ Performs)
+    (OBJ
+      (OBJ (MNN (NNS bounds)))
+      (OP (ARITHOP (ARITH -)))
+      (OBJ (MNN (NN checking))))
+    (IN of)
+    (OBJ (DT a) (MNN (NN range)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Performs bounds-checking of a range
+    Tags: ('VBZ', 'NNS', 'ARITH', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: SBS (+)
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Views)
+    (OBJ (DT the) (VBG underlying) (MNN (NNS data)))
+    (IN as)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN subslice)) (IN of))
+      (OBJ (DT the) (MNN (JJ original) (MNN (NNS data)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Views)
+    (OBJ (DT the) (VBG underlying) (MNN (NNS data)))
+    (IN as)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN subslice)) (IN of) (DT the))
+      (OBJ (MNN (JJ original) (MNN (NNS data)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Views the underlying data as a subslice of the original data
+    Tags: ('VBZ', 'DT', 'VBG', 'NNS', 'IN', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NNS')
+ VERDICT: SBS (+++)
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'RBS'".)
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN writer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ (DT the) (VBG underlying) (MNN (NN writer)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a reference to the underlying writer
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'VBG', 'NN')
+ VERDICT: SBS (+)
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN size)) (IN of))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN type)) (IN in))
+        (OBJ (MNN (NNS bytes)))))))
+================================================================================
+Sentence: Returns the size of a type in bytes
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN', 'IN', 'NNS')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN size)) (IN of))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN type)) (IN in))
+        (OBJ (MNN (NNS bytes)))))))
+#[ensures(result == byte.type().size())]
+
+Grammar: (Grammar does not cover some of the input words: "'RBS'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `self`))
+          (CC and)
+          (ASSERT
+            (OBJ (CODE `other`))
+            (PROP
+              (MVB (VBP are))
+              (MREL
+                (REL
+                  (IN from)
+                  (OBJ (MNN (JJ different) (MNN (NNS files)))))))))))))
+================================================================================
+Sentence: Returns `None` if `self` and `other` are from different files
+    Tags: ('RET', 'CODE', 'IF', 'CODE', 'CC', 'CODE', 'VBP', 'IN', 'JJ', 'NNS')
+ VERDICT: SBS (++)
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `self`))
+          (CC and)
+          (ASSERT
+            (OBJ (CODE `other`))
+            (PROP
+              (MVB (VBP are))
+              (MREL
+                (REL
+                  (IN from)
+                  (OBJ (MNN (JJ different) (MNN (NNS files)))))))))))))
+#[ensures((other < different_file && self < different_file) ==> (result == None))]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of))
+      (OBJ (DT the) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Returns the natural logarithm of the number
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of))
+      (OBJ (DT the) (MNN (NN number))))))
+#[ensures(result == number.natural_logarithm())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.natural_logarithm())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN integer)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN pointer)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN integer)))))))
+================================================================================
+Sentence: Returns a mutable pointer to the underlying integer
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN integer)))))))
+#[ensures(result == underlying_integer.mutable_pointer())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN pointer)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN integer)))))))
+#[ensures(result == underlying_integer.mutable_pointer())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ terminates))
+            (RANGEMOD
+              (RANGE
+                (IN in)
+                (OBJ (DT a) (MNN (NN root)))
+                (RSEP (CC or))
+                (OBJ (MNN (NN prefix)))))))))))
+Grammar: (Bad range bounds)
+================================================================================
+Sentence: Returns `None` if the path terminates in a root or prefix
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'IN', 'DT', 'NN', 'CC', 'NN')
+ VERDICT: SBS (++)
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'RBS'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS entries)) (IN within))
+        (OBJ (DT a) (MNN (NN directory)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS entries)) (IN within) (DT a))
+        (OBJ (MNN (NN directory)))))))
+================================================================================
+Sentence: Returns an iterator over the entries within a directory
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NNS', 'IN', 'DT', 'NN')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS entries)) (IN within))
+        (OBJ (DT a) (MNN (NN directory)))))))
+#[ensures(result == directory.entry().iterator())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS entries)) (IN within) (DT a))
+        (OBJ (MNN (NN directory)))))))
+#[ensures(result == directory.entry().iterator())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cosine)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the cosine of an `f32`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cosine)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.cosine())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN to))
+      (OBJ (DT the) (MNN (NN set))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN to) (DT the))
+      (OBJ (MNN (NN set))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Adds)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN to)
+    (OBJ (DT the) (MNN (NN set)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Adds a value to the set
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: ID
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN element)) (IN at))
+        (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN element)) (IN at) (DT the))
+        (OBJ (MNN (VBN given) (MNN (NN index))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN element))))
+    (IN at)
+    (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN element))))
+    (IN at)
+    (OBJ (DT the) (MNN (VBN given) (MNN (NN index))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN element)) (IN at))
+      (OBJ (DT the) (MNN (VBN given) (MNN (NN index)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN element)) (IN at) (DT the))
+      (OBJ (MNN (VBN given) (MNN (NN index)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a mutable reference to the element at the given index
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'VBN', 'NN')
+ VERDICT: ID
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN message)) (IN in))
+      (OBJ (CODE `self`)))))
+================================================================================
+Sentence: Returns the message in `self`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'CODE')
+ VERDICT: SBS (+)
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN message)) (IN in))
+      (OBJ (CODE `self`)))))
+#[ensures(result == self.message())]
+
+Grammar: (Grammar does not cover some of the input words: "'_SP'".)
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ new) (MNN (JJ empty) (MNN (NN cell)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (OBJ (MNN (JJ new) (MNN (JJ empty) (MNN (NN cell)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (JJ new)
+    (OBJ (MNN (JJ empty) (MNN (NN cell))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new empty cell
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN')
+ VERDICT: INIT
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN set)))
+          (PROP
+            (MVB (VBZ contains))
+            (OBJ (DT no) (MNN (NNS elements)))))))))
+Grammar: (Unexpected verb in PROPERTY (contains))
+================================================================================
+Sentence: Returns `true` if the set contains no elements
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'DT', 'NNS')
+ VERDICT: SBS (++)
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Compares)
+    (OBJ (MNN (JJ raw) (MNN (NNS pointers))))
+    (IN for)
+    (OBJ (MNN (NN equality)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Compares raw pointers for equality
+    Tags: ('VBZ', 'JJ', 'NNS', 'IN', 'NN')
+ VERDICT: SBS (++)
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN integer)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN integer)))))))
+================================================================================
+Sentence: Returns a mutable reference to the underlying integer
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+ VERDICT: SBS (++)
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN integer)))))))
+#[ensures(result == underlying_integer.mutable_reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN integer)))))))
+#[ensures(result == underlying_integer.mutable_reference())]
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN value))))
+    (IN in)
+    (OBJ (DT this) (MNN (NN cursor)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a reference to the underlying value in this cursor
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'VBG', 'NN', 'IN', 'DT', 'NN')
+ VERDICT: SBS (++)
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN range)))
+          (PROP (MVB (VBZ contains)) (OBJ (DT no) (MNN (NNS items)))))))))
+Grammar: (Unexpected verb in PROPERTY (contains))
+================================================================================
+Sentence: Returns `true` if the range contains no items
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'DT', 'NNS')
+ VERDICT: SBS (++)
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of))
+      (OBJ (CODE `self`)))))
+================================================================================
+Sentence: Returns the length of `self`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'CODE')
+ VERDICT: ID
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of))
+      (OBJ (CODE `self`)))))
+#[ensures(result == self.length())]
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `false`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `index`))
+          (PROP
+            (MVB (VBZ is))
+            (MREL
+              (REL
+                (TJJ (JJR greater))
+                (IN than)
+                (OBJ (CODE `self.len()`))))))))))
+================================================================================
+Sentence: Returns `false` if `index` is greater than `self.len()`
+    Tags: ('RET', 'CODE', 'IF', 'CODE', 'VBZ', 'JJR', 'IN', 'CODE')
+ VERDICT: SBS (++)
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `false`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `index`))
+          (PROP
+            (MVB (VBZ is))
+            (MREL
+              (REL
+                (TJJ (JJR greater))
+                (IN than)
+                (OBJ (CODE `self.len()`))))))))))
+#[ensures(index > self.len() ==> !result)]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN cursor)) (IN at))
+      (OBJ (DT the) (MNN (JJ back) (MNN (NN element)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN cursor)) (IN at) (DT the))
+      (OBJ (MNN (JJ back) (MNN (NN element)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (NN cursor)))
+    (IN at)
+    (OBJ (DT the) (MNN (JJ back) (MNN (NN element))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a cursor at the back element
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN path)) (IN of))
+      (OBJ (DT a) (MNN (JJ temporary) (MNN (NN directory)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN path)) (IN of) (DT a))
+      (OBJ (MNN (JJ temporary) (MNN (NN directory)))))))
+================================================================================
+Sentence: Returns the path of a temporary directory
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN path)) (IN of))
+      (OBJ (DT a) (MNN (JJ temporary) (MNN (NN directory)))))))
+#[ensures(result == temporary_directory.path())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN path)) (IN of) (DT a))
+      (OBJ (MNN (JJ temporary) (MNN (NN directory)))))))
+#[ensures(result == temporary_directory.path())]
+
+(S
+  (ASSIGN
+    (VBZ Extends)
+    (OBJ (CODE `self`))
+    (IN with)
+    (OBJ (CODE `path`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Extends `self` with `path`
+    Tags: ('VBZ', 'CODE', 'IN', 'CODE')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `Ok(true)`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ points))
+            (MREL
+              (REL
+                (IN at)
+                (OBJ (DT an) (VBG existing) (MNN (NN entity)))))))))))
+================================================================================
+Sentence: Returns `Ok(true)` if the path points at an existing entity
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `Ok(true)`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ points))
+            (MREL
+              (REL
+                (IN at)
+                (OBJ (DT an) (VBG existing) (MNN (NN entity)))))))))))
+#[ensures(path < entity.exist() ==> (result == Ok(true)))]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN as))
+      (OBJ (DT a) (MNN (JJ primitive) (MNN (NN type)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN as) (DT a))
+      (OBJ (MNN (JJ primitive) (MNN (NN type)))))))
+================================================================================
+Sentence: Returns the value as a primitive type
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN as))
+      (OBJ (DT a) (MNN (JJ primitive) (MNN (NN type)))))))
+#[ensures(result == primitive_type.value())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN as) (DT a))
+      (OBJ (MNN (JJ primitive) (MNN (NN type)))))))
+#[ensures(result == primitive_type.value())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arcsine)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arcsine)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Computes the arcsine of a number
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arcsine)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.arcsine())]
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arcsine)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.arcsine())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN sine)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the sine of an `f64`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN sine)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.sine())]
+
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `src`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT the) (MJJ (JJ same)) (IN as))
+        (OBJ (CODE `self`))))))
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `src`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (MREL
+        (REL (TJJ (DT the) (JJ same)) (IN as) (OBJ (CODE `self`)))))))
+================================================================================
+Sentence: The length of `src` must be the same as `self`
+    Tags: ('DT', 'NN', 'IN', 'CODE', 'MD', 'VB', 'DT', 'JJ', 'IN', 'CODE')
+================================================================================
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `src`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT the) (MJJ (JJ same)) (IN as))
+        (OBJ (CODE `self`))))))
+#[requires(src.length() == self.same())]
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `src`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (MREL
+        (REL (TJJ (DT the) (JJ same)) (IN as) (OBJ (CODE `self`)))))))
+#[requires(src.length() == self)]
+
+(S
+  (ASSIGN
+    (VBZ Calculates)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN offset)) (IN from))
+      (OBJ (DT a) (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Calculates)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN offset)) (IN from) (DT a))
+      (OBJ (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Calculates)
+    (OBJ (DT the) (MNN (NN offset)))
+    (IN from)
+    (OBJ (DT a) (MNN (NN pointer)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Calculates the offset from a pointer
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ (DT an) (MNN (JJ empty) (MNN (NN reader)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (NN handle)))
+        (IN to)
+        (DT an))
+      (OBJ (MNN (JJ empty) (MNN (NN reader)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ (DT an) (MNN (JJ empty) (MNN (NN reader))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new handle to an empty reader
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (SIDE
+    (OBJ (DT Neither) (MNN (NN value)))
+    (VBZ is)
+    (MVB (VBN dropped))))
+Grammar: (Not supported)
+================================================================================
+Sentence: Neither value is dropped
+    Tags: ('DT', 'NN', 'VBZ', 'VBN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of) (DT this))
+      (OBJ (CODE `OsStr`)))))
+================================================================================
+Sentence: Returns the length of this `OsStr`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN length)) (IN of) (DT this))
+      (OBJ (CODE `OsStr`)))))
+#[ensures(result == OsStr.length())]
+
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (PROP_OF (DT an) (MNN (JJ unnamed) (MNN (NN pair))) (IN of))
+      (OBJ (MNN (JJ connected) (MNN (NNS sockets)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT an) (MNN (JJ unnamed) (MNN (NN pair))))
+    (IN of)
+    (OBJ (MNN (JJ connected) (MNN (NNS sockets))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates an unnamed pair of connected sockets
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'JJ', 'NNS')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cosine)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the cosine of an `f64`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cosine)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.cosine())]
+
+Grammar: (Grammar does not cover some of the input words: "'BOOL_OP'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (JJ next) (MNN (NN element)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (JJ next) (MNN (NN element)))))))
+================================================================================
+Sentence: Returns a reference to the next element
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (JJ next) (MNN (NN element)))))))
+#[ensures(result == next_element.reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (JJ next) (MNN (NN element)))))))
+#[ensures(result == next_element.reference())]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the natural logarithm of an `f32`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.natural_logarithm())]
+
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ new) (MNN (JJ atomic) (MNN (NN integer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (OBJ (MNN (JJ new) (MNN (JJ atomic) (MNN (NN integer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (JJ new)
+    (OBJ (MNN (JJ atomic) (MNN (NN integer))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new atomic integer
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ read) (MNN (NN timeout))) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ read) (MNN (NN timeout)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN socket))))))
+================================================================================
+Sentence: Returns the read timeout of this socket
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ read) (MNN (NN timeout))) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+#[ensures(result == socket.read_timeout())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ read) (MNN (NN timeout)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN socket))))))
+#[ensures(result == socket.read_timeout())]
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `NAN`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN number)))
+          (PROP (MVB (VBZ is)) (OBJ (CODE `NAN`))))))))
+================================================================================
+Sentence: Returns `NAN` if the number is `NAN`
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'CODE')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `NAN`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN number)))
+          (PROP (MVB (VBZ is)) (OBJ (CODE `NAN`))))))))
+#[ensures(number == NAN ==> (result == NAN))]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (HASSERT
+    (OBJ (CODE `transmute`))
+    (MD should)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (DT the)
+        (MNN (JJ absolute) (MNN (JJ last) (MNN (NN resort))))))))
+================================================================================
+Sentence: `transmute` should be the absolute last resort
+    Tags: ('CODE', 'MD', 'VB', 'DT', 'JJ', 'JJ', 'NN')
+================================================================================
+(S
+  (HASSERT
+    (OBJ (CODE `transmute`))
+    (MD should)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (DT the)
+        (MNN (JJ absolute) (MNN (JJ last) (MNN (NN resort))))))))
+#[requires(transmute == absolute_last_resort)]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN delimiter)) (IN of) (DT this))
+      (OBJ (CODE `Group`)))))
+================================================================================
+Sentence: Returns the delimiter of this `Group`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN delimiter)) (IN of) (DT this))
+      (OBJ (CODE `Group`)))))
+#[ensures(result == Group.delimiter())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN number)) (IN of))
+      (OBJ (MNN (VBN used) (MNN (NNS bytes)))))))
+================================================================================
+Sentence: Returns the number of used bytes
+    Tags: ('RET', 'DT', 'NN', 'IN', 'VBN', 'NNS')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN number)) (IN of))
+      (OBJ (MNN (VBN used) (MNN (NNS bytes)))))))
+#[ensures(result == used_byte.number())]
+
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arctangent)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arctangent)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Computes the arctangent of a number
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arctangent)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.arctangent())]
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arctangent)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.arctangent())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ absolute) (MNN (NN value)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the absolute value of an `f32`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ absolute) (MNN (NN value)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.absolute_value())]
+
+(S
+  (HASSERT
+    (OBJ (CODE `i`))
+    (CC and)
+    (HASSERT
+      (OBJ (CODE `j`))
+      (MD may)
+      (PROP (MVB (VB be)) (MJJ (JJ equal))))))
+================================================================================
+Sentence: `i` and `j` may be equal
+    Tags: ('CODE', 'CC', 'CODE', 'MD', 'VB', 'JJ')
+================================================================================
+(S
+  (HASSERT
+    (OBJ (CODE `i`))
+    (CC and)
+    (HASSERT
+      (OBJ (CODE `j`))
+      (MD may)
+      (PROP (MVB (VB be)) (MJJ (JJ equal))))))
+#[requires((j.equal() && i.equal()))]
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN message)) (IN in))
+      (OBJ (CODE `self`)))
+    (TO to)
+    (OBJ (CODE `message`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the message in `self` to `message`
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'CODE', 'TO', 'CODE')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN prefix)) (IN of))
+              (OBJ (DT the) (MNN (NN slice))))))))))
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN prefix)) (IN of) (DT the))
+              (OBJ (MNN (NN slice))))))))))
+================================================================================
+Sentence: Returns `true` if `needle` is a prefix of the slice
+    Tags: ('RET', 'CODE', 'IF', 'CODE', 'VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN prefix)) (IN of))
+              (OBJ (DT the) (MNN (NN slice))))))))))
+#[ensures(needle == slice.prefix() ==> result)]
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN prefix)) (IN of) (DT the))
+              (OBJ (MNN (NN slice))))))))))
+#[ensures(needle == slice.prefix() ==> result)]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from))
+      (OBJ (DT the) (MNN (NN bool))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from) (DT the))
+      (OBJ (MNN (NN bool))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN bool)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Loads a value from the bool
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (VBN shared) (MNN (NNS references)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN value))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (VBN shared) (MNN (NNS references)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN value))))))
+================================================================================
+Sentence: Returns a shared references to the value
+    Tags: ('RET', 'DT', 'VBN', 'NNS', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (VBN shared) (MNN (NNS references)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN value))))))
+#[ensures(result == value.shared_reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (VBN shared) (MNN (NNS references)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN value))))))
+#[ensures(result == value.shared_reference())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ points))
+            (MREL
+              (REL
+                (IN at)
+                (OBJ (DT an) (VBG existing) (MNN (NN entity)))))))))))
+================================================================================
+Sentence: Returns `true` if the path points at an existing entity
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ points))
+            (MREL
+              (REL
+                (IN at)
+                (OBJ (DT an) (VBG existing) (MNN (NN entity)))))))))))
+#[ensures(path < entity.exist() ==> result)]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (HASSERT
+    (OBJ (PRP It))
+    (MD may)
+    (PROP
+      (MVB (VB be))
+      (MREL
+        (REL
+          (TJJ (JJR smaller))
+          (IN than)
+          (OBJ (DT the) (MNN (JJ preferred) (MNN (NN alignment)))))))))
+Grammar: (Object: PRP case not handled.)
+================================================================================
+Sentence: It may be smaller than the preferred alignment
+    Tags: ('PRP', 'MD', 'VB', 'JJR', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cursor)) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ next) (MNN (NN element)))
+          (IN of)
+          (DT the))
+        (OBJ (CODE `LinkedList`))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ (DT the) (MNN (NN cursor)))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ next) (MNN (NN element)))
+        (IN of)
+        (DT the))
+      (OBJ (CODE `LinkedList`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Moves the cursor to the next element of the `LinkedList`
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN pointer)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN pointer)))))))
+================================================================================
+Sentence: Returns a mutable reference to the underlying pointer
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN pointer)))))))
+#[ensures(result == underlying_pointer.mutable_reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN pointer)))))))
+#[ensures(result == underlying_pointer.mutable_reference())]
+
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `other`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT the) (MJJ (JJ same)) (IN as))
+        (OBJ (CODE `self`))))))
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `other`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (MREL
+        (REL (TJJ (DT the) (JJ same)) (IN as) (OBJ (CODE `self`)))))))
+================================================================================
+Sentence: The length of `other` must be the same as `self`
+    Tags: ('DT', 'NN', 'IN', 'CODE', 'MD', 'VB', 'DT', 'JJ', 'IN', 'CODE')
+================================================================================
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `other`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT the) (MJJ (JJ same)) (IN as))
+        (OBJ (CODE `self`))))))
+#[requires(other.length() == self.same())]
+(S
+  (HASSERT
+    (OBJ
+      (PROP_OF (DT The) (MNN (NN length)) (IN of))
+      (OBJ (CODE `other`)))
+    (MD must)
+    (PROP
+      (MVB (VB be))
+      (MREL
+        (REL (TJJ (DT the) (JJ same)) (IN as) (OBJ (CODE `self`)))))))
+#[requires(other.length() == self)]
+
+Grammar: (Grammar does not cover some of the input words: "'PATH'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN address)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ unnamed))))))))
+================================================================================
+Sentence: Returns `true` if the address is unnamed
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'JJ')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN address)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ unnamed))))))))
+#[ensures(address.unnamed() ==> result)]
+
+(S
+  (ASSIGN
+    (VBZ Changes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS permissions)) (IN on))
+      (OBJ (DT the) (VBG underlying) (MNN (NN file))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Changes)
+    (OBJ (DT the) (MNN (NNS permissions)))
+    (IN on)
+    (OBJ (DT the) (VBG underlying) (MNN (NN file)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Changes the permissions on the underlying file
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S (ASSIGN (VBZ Constructs) (DT a) (JJ new) (OBJ (CODE `Rc<T>`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new `Rc<T>`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ
+      (PROP_OF (DT all) (MNN (NNS elements)) (IN from) (DT the))
+      (OBJ (CODE `LinkedList`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Removes all elements from the `LinkedList`
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'DT', 'CODE')
+================================================================================
+
+(S (ASSIGN (VBZ Unwraps) (OBJ (DT the) (MNN (NN value)))))
+No specification found: 'ASSIGN'
+(S (ASSIGN (VBZ Unwraps) (DT the) (OBJ (MNN (NN value)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Unwraps the value
+    Tags: ('VBZ', 'DT', 'NN')
+================================================================================
+
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (NN source)))
+    (CC and)
+    (HASSERT
+      (OBJ (MNN (NN destination)))
+      (MD may)
+      (PROP (MVB (VB overlap))))))
+Grammar: (PROP: unexpected verb in MVB case (overlap))
+================================================================================
+Sentence: The source and destination may overlap
+    Tags: ('DT', 'NN', 'CC', 'NN', 'MD', 'VB')
+================================================================================
+
+(S
+  (QASSERT
+    (HASSERT
+      (OBJ (DT This) (MNN (NN constructor)))
+      (MD will)
+      (PROP (MVB (VB set)) (OBJ (DT the) (MNN (NN span)))))
+    (QUANT_EXPR
+      (QUANT_EXPR (QUANT (FOR for) (DT this) (OBJ (MNN (NN group)))))
+      (MREL (REL (IN to) (OBJ (CODE `Span::call_site()`)))))))
+No specification found: list index out of range
+================================================================================
+Sentence: This constructor will set the span for this group to `Span::call_site()`
+    Tags: ('DT', 'NN', 'MD', 'VB', 'DT', 'NN', 'FOR', 'DT', 'NN', 'IN', 'CODE')
+================================================================================
+
+(S (MRET (RET Returns) (OBJ (CODE `2^(self)`))))
+================================================================================
+Sentence: Returns `2^(self)`
+    Tags: ('RET', 'CODE')
+================================================================================
+(S (MRET (RET Returns) (OBJ (CODE `2^(self)`))))
+#[ensures(result == 2^(self))]
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN value)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN value)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT the) (MNN (NN reference)))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ underlying) (MNN (NN value))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets the reference to the underlying value
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ (MNN (JJ incoming) (MNN (NNS connections)))))))
+================================================================================
+Sentence: Returns an iterator over incoming connections
+    Tags: ('RET', 'DT', 'NN', 'IN', 'JJ', 'NNS')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ (MNN (JJ incoming) (MNN (NNS connections)))))))
+#[ensures(result == incoming_connection.iterator())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ absolute) (MNN (NN value)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the absolute value of an `f64`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ absolute) (MNN (NN value)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.absolute_value())]
+
+(S (ASSIGN (VBZ Creates) (DT a) (OBJ (CODE `PoisonError`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a `PoisonError`
+    Tags: ('VBZ', 'DT', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN on))
+      (OBJ (DT this) (MNN (JJ synchronous) (MNN (NN channel)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN on) (DT this))
+      (OBJ (MNN (JJ synchronous) (MNN (NN channel)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN on)
+    (OBJ (DT this) (MNN (JJ synchronous) (MNN (NN channel))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sends a value on this synchronous channel
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS contents)) (IN of) (DT this))
+        (OBJ (CODE `String`))))))
+================================================================================
+Sentence: Returns a mutable reference to the contents of this `String`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NNS', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS contents)) (IN of) (DT this))
+        (OBJ (CODE `String`))))))
+#[ensures(result == String.content().mutable_reference())]
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `index`))
+          (PROP
+            (MVB (VBZ is))
+            (RANGEMOD
+              (RANGE (IN out) (IN of) (OBJ (MNN (NNS bounds)))))))))))
+Grammar: (Bad range bounds)
+================================================================================
+Sentence: Returns `None` if `index` is out of bounds
+    Tags: ('RET', 'CODE', 'IF', 'CODE', 'VBZ', 'IN', 'IN', 'NNS')
+================================================================================
+
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arccosine)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arccosine)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Computes the arccosine of a number
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arccosine)) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.arccosine())]
+(S
+  (MRET
+    (RET Computes)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN arccosine)) (IN of) (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.arccosine())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING', '_SP', 'ENCODING', 'EX'".)
+(S
+  (SIDE
+    (OBJ (DT This) (MNN (NN function)))
+    (VBZ is)
+    (MVB (VBN deprecated))))
+Grammar: (Not supported)
+================================================================================
+Sentence: This function is deprecated
+    Tags: ('DT', 'NN', 'VBZ', 'VBN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Connects)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to))
+      (OBJ (DT the) (MNN (JJ specified) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Connects)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to) (DT the))
+      (OBJ (MNN (JJ specified) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Connects)
+    (OBJ (DT the) (MNN (NN socket)))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ specified) (MNN (NN address))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Connects the socket to the specified address
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'WP$'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN capacity)) (IN of))
+      (OBJ (DT the) (MNN (NN buffer))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN capacity)) (IN of) (DT the))
+      (OBJ (MNN (NN buffer))))))
+================================================================================
+Sentence: Returns the capacity of the buffer
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN capacity)) (IN of))
+      (OBJ (DT the) (MNN (NN buffer))))))
+#[ensures(result == buffer.capacity())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN capacity)) (IN of) (DT the))
+      (OBJ (MNN (NN buffer))))))
+#[ensures(result == buffer.capacity())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN address)) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN address)) (IN of) (DT this))
+      (OBJ (MNN (NN socket))))))
+================================================================================
+Sentence: Returns the address of this socket
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN address)) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+#[ensures(result == socket.address())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN address)) (IN of) (DT this))
+      (OBJ (MNN (NN socket))))))
+#[ensures(result == socket.address())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN allocator))))))
+================================================================================
+Sentence: Returns a reference to the underlying allocator
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN allocator))))))
+#[ensures(result == allocator.underlie().reference())]
+
+(S
+  (SIDE
+    (OBJ (PRP It))
+    (VBZ is)
+    (MVB (VBN loaded))
+    (IN by)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN compiler)) (IN in))
+      (OBJ (CODE `register_builtin_macros`)))))
+Grammar: (Not supported)
+================================================================================
+Sentence: It is loaded by the compiler in `register_builtin_macros`
+    Tags: ('PRP', 'VBZ', 'VBN', 'IN', 'DT', 'NN', 'IN', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (HASSERT
+    (OBJ (DT This) (MNN (NN function)))
+    (MD will)
+    (PROP
+      (MVB (VB overwrite))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+        (OBJ (CODE `to`))))))
+Grammar: (Unexpected verb in PROPERTY (overwrite))
+================================================================================
+Sentence: This function will overwrite the contents of `to`
+    Tags: ('DT', 'NN', 'MD', 'VB', 'DT', 'NNS', 'IN', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Converts)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN digit)) (IN in))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (VBN given) (MNN (NN radix)))
+          (IN to)
+          (DT a))
+        (OBJ (CODE `char`))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Converts)
+    (OBJ (DT a) (MNN (NN digit)))
+    (IN in)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (VBN given) (MNN (NN radix)))
+        (IN to)
+        (DT a))
+      (OBJ (CODE `char`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Converts a digit in the given radix to a `char`
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'VBN', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ (DT the) (MNN (VBN contained) (MNN (NN value))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (DT the)
+    (OBJ (MNN (VBN contained) (MNN (NN value))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the contained value
+    Tags: ('VBZ', 'DT', 'VBN', 'NN')
+================================================================================
+
+(S
+  (HASSERT
+    (OBJ (DT This) (MNN (NN method)))
+    (MD will)
+    (PROP
+      (MVB (RB never) (VB block))
+      (OBJ (DT the) (MNN (JJ current) (MNN (NN thread)))))))
+Grammar: (Unexpected verb in PROPERTY (block))
+================================================================================
+Sentence: This method will never block the current thread
+    Tags: ('DT', 'NN', 'MD', 'RB', 'VB', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN reader))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ (DT the) (VBG underlying) (MNN (NN reader)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a reference to the underlying reader
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN cell)) (IN to))
+        (OBJ (CODE `value`))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of))
+      (OBJ (DT the) (MNN (NN cell))))
+    (IN to)
+    (OBJ (CODE `value`))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NNS contents)) (IN of) (DT the))
+      (OBJ (MNN (NN cell))))
+    (IN to)
+    (OBJ (CODE `value`))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ (DT the) (MNN (NNS contents)))
+    (IN of)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cell)) (IN to))
+      (OBJ (CODE `value`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the contents of the cell to `value`
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'DT', 'NN', 'IN', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from))
+      (OBJ (DT the) (MNN (JJ atomic) (MNN (NN integer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from) (DT the))
+      (OBJ (MNN (JJ atomic) (MNN (NN integer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN from)
+    (OBJ (DT the) (MNN (JJ atomic) (MNN (NN integer))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Loads a value from the atomic integer
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ terminates))
+            (MREL (REL (IN in) (OBJ (CODE `..`))))))))))
+================================================================================
+Sentence: Returns `None` if the path terminates in `..`
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'IN', 'CODE')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN path)))
+          (PROP
+            (MVB (VBZ terminates))
+            (MREL (REL (IN in) (OBJ (CODE `..`))))))))))
+#[ensures(path < .. ==> (result == None))]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ (DT an) (MNN (JJ empty) (MNN (NN directory))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (DT an)
+    (OBJ (MNN (JJ empty) (MNN (NN directory))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (DT an)
+    (JJ empty)
+    (OBJ (MNN (NN directory)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Removes an empty directory
+    Tags: ('VBZ', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN writer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ (DT the) (VBG underlying) (MNN (NN writer)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a mutable reference to the underlying writer
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'VBG', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'WP$', 'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'.'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN suffix)) (IN of))
+              (OBJ (DT the) (MNN (NN slice))))))))))
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN suffix)) (IN of) (DT the))
+              (OBJ (MNN (NN slice))))))))))
+================================================================================
+Sentence: Returns `true` if `needle` is a suffix of the slice
+    Tags: ('RET', 'CODE', 'IF', 'CODE', 'VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN suffix)) (IN of))
+              (OBJ (DT the) (MNN (NN slice))))))))))
+#[ensures(needle == slice.suffix() ==> result)]
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `needle`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ
+              (PROP_OF (DT a) (MNN (NN suffix)) (IN of) (DT the))
+              (OBJ (MNN (NN slice))))))))))
+#[ensures(needle == slice.suffix() ==> result)]
+
+(S
+  (ASSIGN (VBZ Constructs) (DT a) (JJ new) (OBJ (CODE `Pin<Rc<T>>`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new `Pin<Rc<T>>`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (JJ new) (MNN (NN path))))
+    (MD will)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN sibling)) (IN of))
+        (OBJ (DT the) (MNN (JJ original) (MNN (NN path))))))))
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (JJ new) (MNN (NN path))))
+    (MD will)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN sibling)) (IN of) (DT the))
+        (OBJ (MNN (JJ original) (MNN (NN path))))))))
+================================================================================
+Sentence: The new path will be a sibling of the original path
+    Tags: ('DT', 'JJ', 'NN', 'MD', 'VB', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (JJ new) (MNN (NN path))))
+    (MD will)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN sibling)) (IN of))
+        (OBJ (DT the) (MNN (JJ original) (MNN (NN path))))))))
+#[ensures(new_path == original_path.sibling())]
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (JJ new) (MNN (NN path))))
+    (MD will)
+    (PROP
+      (MVB (VB be))
+      (OBJ
+        (PROP_OF (DT a) (MNN (NN sibling)) (IN of) (DT the))
+        (OBJ (MNN (JJ original) (MNN (NN path))))))))
+#[ensures(new_path == original_path.sibling())]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ current) (MNN (NN value))) (IN of))
+      (OBJ (DT the) (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ current) (MNN (NN value)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN value))))
+    (IN of)
+    (OBJ (DT the) (MNN (NN pointer)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Loads the current value of the pointer
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S (ASSIGN (VBZ Creates) (DT a) (JJ new) (OBJ (CODE `LineWriter`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new `LineWriter`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Aborts)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN execution)) (IN of))
+      (OBJ (DT the) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Aborts)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN execution)) (IN of) (DT the))
+      (OBJ (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Aborts)
+    (OBJ (DT the) (MNN (NN execution)))
+    (IN of)
+    (OBJ (DT the) (MNN (NN process)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Aborts the execution of the process
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (ASSIGN (VBZ Creates) (DT a) (JJ new) (OBJ (CODE `DefaultHasher`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new `DefaultHasher`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (MNN (NN NaN))))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `self`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ (DT a) (MNN (JJ negative) (MNN (NN number))))))))))
+================================================================================
+Sentence: Returns NaN if `self` is a negative number
+    Tags: ('RET', 'NN', 'IF', 'CODE', 'VBZ', 'DT', 'JJ', 'NN')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (MNN (NN NaN))))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (CODE `self`))
+          (PROP
+            (MVB (VBZ is))
+            (OBJ (DT a) (MNN (JJ negative) (MNN (NN number))))))))))
+#[ensures(self == negative_number ==> (result == nan))]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN set)))
+          (PROP (MVB (VBZ contains)) (OBJ (DT a) (MNN (NN value)))))))))
+Grammar: (Unexpected verb in PROPERTY (contains))
+================================================================================
+Sentence: Returns `true` if the set contains a value
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'DT', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN exponential)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the exponential of an `f64`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN exponential)) (IN of) (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.exponential())]
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN cell)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ empty))))))))
+================================================================================
+Sentence: Returns `None` if the cell is empty
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'JJ')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN cell)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ empty))))))))
+#[ensures(cell.empty() ==> (result == None))]
+
+(S (ASSIGN (VBZ Creates) (DT a) (JJ new) (OBJ (CODE `AtomicBool`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new `AtomicBool`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN file)) (IN from))
+      (OBJ (DT the) (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN file)) (IN from) (DT the))
+      (OBJ (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Removes)
+    (OBJ (DT a) (MNN (NN file)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN filesystem)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Removes a file from the filesystem
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN cell)))
+          (PROP (MVB (VBD was)) (MJJ (JJ empty))))))))
+================================================================================
+Sentence: Returns `None` if the cell was empty
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBD', 'JJ')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `None`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN cell)))
+          (PROP (MVB (VBD was)) (MJJ (JJ empty))))))))
+#[ensures(cell.empty() ==> (result == None))]
+
+(S (ASSIGN (VBZ Creates) (DT an) (JJ empty) (OBJ (CODE `HashMap`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates an empty `HashMap`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (DT a)
+    (JJ new)
+    (OBJ (CODE `Pin<Box<T>>`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new `Pin<Box<T>>`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (JJ ancillary) (MNN (NNS data))))
+          (PROP (MVB (VBZ is)) (MJJ (JJ empty))))))))
+================================================================================
+Sentence: Returns `true` if the ancillary data is empty
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'JJ', 'NNS', 'VBZ', 'JJ')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (JJ ancillary) (MNN (NNS data))))
+          (PROP (MVB (VBZ is)) (MJJ (JJ empty))))))))
+#[ensures(ancillary_data.empty() ==> result)]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN exponential)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the exponential of an `f32`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN exponential)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.exponential())]
+
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ (MNN (NNS data)))
+    (IN on)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to))
+      (OBJ (DT the) (MNN (JJ specified) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sends)
+    (OBJ (MNN (NNS data)))
+    (IN on)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN socket)) (IN to) (DT the))
+      (OBJ (MNN (JJ specified) (MNN (NN address)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sends data on the socket to the specified address
+    Tags: ('VBZ', 'NNS', 'IN', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'_SP'".)
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN output)))
+          (IN of))
+        (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN output)))
+          (IN of)
+          (DT the))
+        (OBJ (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ (DT the) (MNN (JJ standard) (MNN (NN output)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (NN handle)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ standard) (MNN (NN output)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ standard) (MNN (NN output)))
+        (IN of))
+      (OBJ (DT the) (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ standard) (MNN (NN output)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new handle to the standard output of the current process
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING', 'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN subslice)) (IN of))
+      (OBJ (CODE `str`)))))
+================================================================================
+Sentence: Returns a subslice of `str`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN subslice)) (IN of))
+      (OBJ (CODE `str`)))))
+#[ensures(result == str.subslice())]
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN option)) (IN for))
+      (OBJ (MNN (JJ write) (MNN (NN access)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ (DT the) (MNN (NN option)))
+    (IN for)
+    (OBJ (MNN (JJ write) (MNN (NN access))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the option for write access
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'JJ', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (HASSERT
+    (OBJ (DT Both) (MNN (NNS types)))
+    (MD must)
+    (PROP
+      (MVB (VB have))
+      (OBJ (DT the) (MNN (JJ same) (MNN (NN size)))))))
+Grammar: (Unexpected verb in PROPERTY (have))
+================================================================================
+Sentence: Both types must have the same size
+    Tags: ('DT', 'NNS', 'MD', 'VB', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN cursor)) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ previous) (MNN (NN element)))
+          (IN of)
+          (DT the))
+        (OBJ (CODE `LinkedList`))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ (DT the) (MNN (NN cursor)))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ previous) (MNN (NN element)))
+        (IN of)
+        (DT the))
+      (OBJ (CODE `LinkedList`)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Moves the cursor to the previous element of the `LinkedList`
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN sine)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the sine of an `f32`
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN sine)) (IN of) (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.sine())]
+
+(S
+  (SIDE
+    (OBJ (DT The) (MNN (VBN matched) (MNN (NN element))))
+    (VBZ is)
+    (MVB (VBN contained))
+    (IN in)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ previous) (MNN (NN subslice)))
+        (IN as))
+      (OBJ (DT a) (MNN (NN terminator))))))
+Grammar: (Not supported)
+================================================================================
+Sentence: The matched element is contained in the previous subslice as a terminator
+    Tags: ('DT', 'VBN', 'NN', 'VBZ', 'VBN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+================================================================================
+Sentence: Returns the integer part of an `f32`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f32`)))))
+#[ensures(result == f32.integer_part())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ write) (MNN (NN timeout))) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ write) (MNN (NN timeout)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN socket))))))
+================================================================================
+Sentence: Returns the write timeout of this socket
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ write) (MNN (NN timeout))) (IN of))
+      (OBJ (DT this) (MNN (NN socket))))))
+#[ensures(result == socket.write_timeout())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ write) (MNN (NN timeout)))
+        (IN of)
+        (DT this))
+      (OBJ (MNN (NN socket))))))
+#[ensures(result == socket.write_timeout())]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (JJ last) (MNN (NN item))) (IN in))
+        (OBJ (DT the) (MNN (NN slice)))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ last) (MNN (NN item)))
+          (IN in)
+          (DT the))
+        (OBJ (MNN (NN slice)))))))
+================================================================================
+Sentence: Returns a mutable pointer to the last item in the slice
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (JJ last) (MNN (NN item))) (IN in))
+        (OBJ (DT the) (MNN (NN slice)))))))
+#[ensures(result == slice.last_item().mutable_pointer())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN pointer))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ last) (MNN (NN item)))
+          (IN in)
+          (DT the))
+        (OBJ (MNN (NN slice)))))))
+#[ensures(result == slice.last_item().mutable_pointer())]
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN subslice))) (IN of))
+      (OBJ (CODE `str`)))))
+================================================================================
+Sentence: Returns a mutable subslice of `str`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ mutable) (MNN (NN subslice))) (IN of))
+      (OBJ (CODE `str`)))))
+#[ensures(result == str.mutable_subslice())]
+
+(S (ASSIGN (VBZ Creates) (DT an) (JJ empty) (OBJ (CODE `VecDeque`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates an empty `VecDeque`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'RBS'".)
+Grammar: (Grammar does not cover some of the input words: "'EX', 'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ new) (MNN (JJ inclusive) (MNN (NN range)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (OBJ (MNN (JJ new) (MNN (JJ inclusive) (MNN (NN range)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (JJ new)
+    (OBJ (MNN (JJ inclusive) (MNN (NN range))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new inclusive range
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN box))) (IN with))
+      (OBJ (MNN (JJ uninitialized) (MNN (NNS contents)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN box))))
+    (IN with)
+    (OBJ (MNN (JJ uninitialized) (MNN (NNS contents))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new box with uninitialized contents
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'JJ', 'NNS')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN (VBZ Creates) (DT an) (JJ empty) (OBJ (CODE `LinkedList`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates an empty `LinkedList`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "','".)
+(S
+  (SIDE
+    (OBJ (DT The) (MNN (VBN matched) (MNN (NN element))))
+    (VBZ is)
+    (MVB (RB not) (VBN contained))
+    (IN in)
+    (OBJ (DT the) (MNN (NNS subslices)))))
+Grammar: (Not supported)
+================================================================================
+Sentence: The matched element is not contained in the subslices
+    Tags: ('DT', 'VBN', 'NN', 'VBZ', 'RB', 'VBN', 'IN', 'DT', 'NNS')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN level)) (IN in))
+      (OBJ (CODE `self`)))
+    (TO to)
+    (OBJ (CODE `level`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the level in `self` to `level`
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'CODE', 'TO', 'CODE')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'_SP'".)
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN value)) (IN in))
+        (OBJ (DT the) (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN value)) (IN in) (DT the))
+        (OBJ (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (NN value))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (NN value))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN in))
+      (OBJ (DT the) (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN in) (DT the))
+      (OBJ (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a reference to the value in the entry
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Accepts)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ incoming) (MNN (NN connection))))
+        (IN to))
+      (OBJ (DT this) (MNN (NN listener))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Accepts)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ incoming) (MNN (NN connection))))
+        (IN to)
+        (DT this))
+      (OBJ (MNN (NN listener))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Accepts)
+    (OBJ
+      (DT a)
+      (MNN (JJ new) (MNN (JJ incoming) (MNN (NN connection)))))
+    (IN to)
+    (OBJ (DT this) (MNN (NN listener)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Accepts a new incoming connection to this listener
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN key)) (IN in))
+        (OBJ (DT the) (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN key)) (IN in) (DT the))
+        (OBJ (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN key))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN key))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN key)) (IN in))
+      (OBJ (DT the) (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN key)) (IN in) (DT the))
+      (OBJ (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a mutable reference to the key in the entry
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ unique) (MNN (NNS references)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN value))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ unique) (MNN (NNS references)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN value))))))
+================================================================================
+Sentence: Returns a unique references to the value
+    Tags: ('RET', 'DT', 'JJ', 'NNS', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ unique) (MNN (NNS references)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN value))))))
+#[ensures(result == value.unique_reference())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ unique) (MNN (NNS references)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN value))))))
+#[ensures(result == value.unique_reference())]
+
+(S
+  (HASSERT
+    (OBJ (DT The) (MNN (NN source)))
+    (CC and)
+    (HASSERT
+      (OBJ (MNN (NN destination)))
+      (MD must)
+      (PROP (MVB (RB not) (VB overlap))))))
+Grammar: (PROP: unexpected verb in MVB case (overlap))
+================================================================================
+Sentence: The source and destination must not overlap
+    Tags: ('DT', 'NN', 'CC', 'NN', 'MD', 'RB', 'VB')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN key)) (IN in))
+        (OBJ (DT the) (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN key)) (IN in) (DT the))
+        (OBJ (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to))
+      (OBJ (DT the) (MNN (NN key))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN reference)) (IN to) (DT the))
+      (OBJ (MNN (NN key))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN key)) (IN in))
+      (OBJ (DT the) (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (NN reference)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN key)) (IN in) (DT the))
+      (OBJ (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a reference to the key in the entry
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (DT a)
+    (JJ new)
+    (OBJ (CODE `Pin<Arc<T>>`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new `Pin<Arc<T>>`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ hard) (MNN (NN link))))
+        (IN on))
+      (OBJ (DT the) (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (JJ hard) (MNN (NN link))))
+        (IN on)
+        (DT the))
+      (OBJ (MNN (NN filesystem))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ new) (MNN (JJ hard) (MNN (NN link)))))
+    (IN on)
+    (OBJ (DT the) (MNN (NN filesystem)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a new hard link on the filesystem
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ forward) (MNN (NN iterator)))
+        (IN with))
+      (OBJ (MNN (JJ mutable) (MNN (NNS references)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Provides)
+    (OBJ (DT a) (MNN (JJ forward) (MNN (NN iterator))))
+    (IN with)
+    (OBJ (MNN (JJ mutable) (MNN (NNS references))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Provides a forward iterator with mutable references
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'JJ', 'NNS')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN pointer)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ null))))))))
+================================================================================
+Sentence: Returns `true` if the pointer is null
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'JJ')
+================================================================================
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN pointer)))
+          (PROP (MVB (VBZ is)) (MJJ (JJ null))))))))
+#[ensures(pointer.null() ==> result)]
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN input)))
+          (IN of))
+        (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN input)))
+          (IN of)
+          (DT the))
+        (OBJ (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ (DT the) (MNN (JJ standard) (MNN (NN input)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (NN handle)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ standard) (MNN (NN input)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ standard) (MNN (NN input))) (IN of))
+      (OBJ (DT the) (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ standard) (MNN (NN input)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new handle to the standard input of the current process
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (RETIF
+    (MRET (RET Returns) (OBJ (CODE `true`)))
+    (COND
+      (IF if)
+      (BOOL_EXPR
+        (ASSERT
+          (OBJ (DT the) (MNN (NN slice)))
+          (PROP
+            (MVB (VBZ contains))
+            (OBJ
+              (PROP_OF (DT an) (MNN (NN element)) (IN with))
+              (OBJ (DT the) (MNN (VBN given) (MNN (NN value)))))))))))
+Grammar: (Unexpected verb in PROPERTY (contains))
+================================================================================
+Sentence: Returns `true` if the slice contains an element with the given value
+    Tags: ('RET', 'CODE', 'IF', 'DT', 'NN', 'VBZ', 'DT', 'NN', 'IN', 'DT', 'VBN', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'EX', 'EX'".)
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN error)))
+          (IN of))
+        (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ
+        (PROP_OF
+          (DT the)
+          (MNN (JJ standard) (MNN (NN error)))
+          (IN of)
+          (DT the))
+        (OBJ (MNN (JJ current) (MNN (NN process))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF (DT a) (MNN (JJ new) (MNN (NN handle))) (IN to))
+      (OBJ (DT the) (MNN (JJ standard) (MNN (NN error)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ new) (MNN (NN handle)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (JJ standard) (MNN (NN error)))))
+    (IN of)
+    (OBJ (DT the) (MNN (JJ current) (MNN (NN process))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ standard) (MNN (NN error))) (IN of))
+      (OBJ (DT the) (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Constructs)
+    (OBJ (DT a) (MNN (JJ new) (MNN (NN handle))))
+    (IN to)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ standard) (MNN (NN error)))
+        (IN of)
+        (DT the))
+      (OBJ (MNN (JJ current) (MNN (NN process)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Constructs a new handle to the standard error of the current process
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (SIDE
+    (VBZ Removes)
+    (TJJ (DT the) (JJ peeked))
+    (OBJ (MNN (NN value)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN heap)))
+    (CC and)
+    (MRET (RET returns) (OBJ (PRP it)))))
+Grammar: (Not supported)
+================================================================================
+Sentence: Removes the peeked value from the heap and returns it
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN', 'CC', 'RET', 'PRP')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ
+      (DT a)
+      (MNN
+        (JJ null)
+        (MNN (JJ mutable) (MNN (JJ raw) (MNN (NN pointer))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (OBJ
+      (MNN
+        (JJ null)
+        (MNN (JJ mutable) (MNN (JJ raw) (MNN (NN pointer))))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (JJ null)
+    (OBJ (MNN (JJ mutable) (MNN (JJ raw) (MNN (NN pointer)))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a null mutable raw pointer
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'JJ', 'NN')
+================================================================================
+
+(S (MRET (RET Returns) (OBJ (CODE `(sin(x), cos(x))`))))
+================================================================================
+Sentence: Returns `(sin(x), cos(x))`
+    Tags: ('RET', 'CODE')
+================================================================================
+(S (MRET (RET Returns) (OBJ (CODE `(sin(x), cos(x))`))))
+#[ensures(result == (sin(x), cos(x)))]
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN value)) (IN in))
+        (OBJ (DT the) (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ
+        (PROP_OF (DT the) (MNN (NN value)) (IN in) (DT the))
+        (OBJ (MNN (NN entry)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (MNN (NN value))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to)
+        (DT the))
+      (OBJ (MNN (NN value))))
+    (IN in)
+    (OBJ (DT the) (MNN (NN entry)))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN in))
+      (OBJ (DT the) (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ (DT a) (MNN (JJ mutable) (MNN (NN reference))))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN value)) (IN in) (DT the))
+      (OBJ (MNN (NN entry))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a mutable reference to the value in the entry
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (OBJ (DT a) (MNN (JJ null) (MNN (JJ raw) (MNN (NN pointer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (OBJ (MNN (JJ null) (MNN (JJ raw) (MNN (NN pointer)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Creates)
+    (DT a)
+    (JJ null)
+    (OBJ (MNN (JJ raw) (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Creates a null raw pointer
+    Tags: ('VBZ', 'DT', 'JJ', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Gets)
+    (OBJ
+      (PROP_OF
+        (DT a)
+        (MNN (JJ mutable) (MNN (NN reference)))
+        (IN to))
+      (OBJ (DT the) (VBG underlying) (MNN (NN value))))
+    (IN in)
+    (OBJ (DT this) (MNN (NN cursor)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Gets a mutable reference to the underlying value in this cursor
+    Tags: ('VBZ', 'DT', 'JJ', 'NN', 'IN', 'DT', 'VBG', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ integer) (MNN (NN part))) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Returns the integer part of a number
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT the) (MNN (JJ integer) (MNN (NN part))) (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.integer_part())]
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.integer_part())]
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Extracts)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN handle)) (IN to))
+      (OBJ (DT the) (MNN (JJ underlying) (MNN (NN thread)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Extracts)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN handle)) (IN to) (DT the))
+      (OBJ (MNN (JJ underlying) (MNN (NN thread)))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Extracts)
+    (OBJ (DT a) (MNN (NN handle)))
+    (IN to)
+    (OBJ (DT the) (MNN (JJ underlying) (MNN (NN thread))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Extracts a handle to the underlying thread
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ
+      (PROP_OF (DT all) (MNN (NNS elements)) (IN from))
+      (OBJ (CODE `other`)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN end)) (IN of))
+      (OBJ (DT the) (MNN (NN list))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Moves)
+    (OBJ
+      (PROP_OF (DT all) (MNN (NNS elements)) (IN from))
+      (OBJ (CODE `other`)))
+    (IN to)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN end)) (IN of) (DT the))
+      (OBJ (MNN (NN list))))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Moves all elements from `other` to the end of the list
+    Tags: ('VBZ', 'DT', 'NNS', 'IN', 'CODE', 'IN', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING', 'EX'".)
+(S
+  (ASSIGN (VBZ Allocates) (DT an) (JJ empty) (OBJ (CODE `PathBuf`))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Allocates an empty `PathBuf`
+    Tags: ('VBZ', 'DT', 'JJ', 'CODE')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ (DT the) (MNN (VBN replaced) (MNN (NN value))))))
+================================================================================
+Sentence: Returns the replaced value
+    Tags: ('RET', 'DT', 'VBN', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ (DT the) (MNN (VBN replaced) (MNN (NN value))))))
+#[ensures(result == replaced_value)] (IDENTITY)
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the integer part of an `f64`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ integer) (MNN (NN part)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.integer_part())] (IDENTITY)
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ (DT the) (MNN (NN slice))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over) (DT the))
+      (OBJ (MNN (NN slice))))))
+================================================================================
+Sentence: Returns an iterator over the slice
+    Tags: ('RET', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over))
+      (OBJ (DT the) (MNN (NN slice))))))
+#[ensures(result == slice.iterator())] (IDENTITY)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF (DT an) (MNN (NN iterator)) (IN over) (DT the))
+      (OBJ (MNN (NN slice))))))
+#[ensures(result == slice.iterator())] (IDENTITY)
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+================================================================================
+Sentence: Returns the natural logarithm of an `f64`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ natural) (MNN (NN logarithm)))
+        (IN of)
+        (DT an))
+      (OBJ (CODE `f64`)))))
+#[ensures(result == f64.natural_logarithm())] (IDENTITY)
+
+Grammar: (Grammar does not cover some of the input words: "'EX'".)
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from))
+      (OBJ (DT the) (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ
+      (PROP_OF (DT a) (MNN (NN value)) (IN from) (DT the))
+      (OBJ (MNN (NN pointer))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Loads)
+    (OBJ (DT a) (MNN (NN value)))
+    (IN from)
+    (OBJ (DT the) (MNN (NN pointer)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Loads a value from the pointer
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT an)
+        (MNN (JJ unchecked) (MNN (NN subslice)))
+        (IN of))
+      (OBJ (CODE `str`)))))
+================================================================================
+Sentence: Returns an unchecked subslice of `str`
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'CODE')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT an)
+        (MNN (JJ unchecked) (MNN (NN subslice)))
+        (IN of))
+      (OBJ (CODE `str`)))))
+#[ensures(result == str.unchecked_subslice())] (IDENTITY)
+
+Grammar: (Grammar does not cover some of the input words: "'ENCODING'".)
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN position)) (IN of))
+      (OBJ (DT this) (MNN (NN cursor))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ
+      (PROP_OF (DT the) (MNN (NN position)) (IN of) (DT this))
+      (OBJ (MNN (NN cursor))))))
+No specification found: 'ASSIGN'
+(S
+  (ASSIGN
+    (VBZ Sets)
+    (OBJ (DT the) (MNN (NN position)))
+    (IN of)
+    (OBJ (DT this) (MNN (NN cursor)))))
+No specification found: 'ASSIGN'
+================================================================================
+Sentence: Sets the position of this cursor
+    Tags: ('VBZ', 'DT', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ fractional) (MNN (NN part)))
+        (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ fractional) (MNN (NN part)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+================================================================================
+Sentence: Returns the fractional part of a number
+    Tags: ('RET', 'DT', 'JJ', 'NN', 'IN', 'DT', 'NN')
+================================================================================
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ fractional) (MNN (NN part)))
+        (IN of))
+      (OBJ (DT a) (MNN (NN number))))))
+#[ensures(result == number.fractional_part())] (IDENTITY)
+(S
+  (MRET
+    (RET Returns)
+    (OBJ
+      (PROP_OF
+        (DT the)
+        (MNN (JJ fractional) (MNN (NN part)))
+        (IN of)
+        (DT a))
+      (OBJ (MNN (NN number))))))
+#[ensures(result == number.fractional_part())] (IDENTITY)
+
+Grammar: (Grammar does not cover some of the input words: "'.', '_SP'".)
+(S
+  (HASSERT
+    (OBJ (CODE `UdpSocket::connect`))
+    (MD will)
+    (PROP
+      (MVB (VB connect))
+      (OBJ
+        (PROP_OF (DT this) (MNN (NN socket)) (IN to))
+        (OBJ (DT a) (MNN (JJ remote) (MNN (NN address))))))))
+Grammar: (Unexpected verb in PROPERTY (connect))
+================================================================================
+Sentence: `UdpSocket::connect` will connect this socket to a remote address
+    Tags: ('CODE', 'MD', 'VB', 'DT', 'NN', 'IN', 'DT', 'JJ', 'NN')
+================================================================================
+(IDENTITY)

@@ -1,12 +1,10 @@
 import itertools
-import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Optional, Union, Tuple
+from typing import List, Dict, Union, Tuple
 from multiprocessing import Pool
 import subprocess
 
-import astx
 from lxml import etree
 from lxml.html import parse
 
