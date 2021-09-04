@@ -811,7 +811,8 @@ class ReturnIf(MReturn):
             else:
                 self.ret_vals.append(Object(tree[3], invoke_factory))
                 self.preds.append(self.preds[-1].negated())
-        elif tree[0].label() == "MRET":
+            return
+        if tree[0].label() == "MRET":
             super().__init__(tree[0], invoke_factory)
             if tree[1].label() == "COMMA":
                 self.preds = []
