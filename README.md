@@ -52,7 +52,7 @@ and Git LFS. All other dependencies for this are set up using [jml_nlp/setup.sh]
 ```bash
 cd ./jml_nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
-After running this script, the SRL service will be available at 127.0.0.1:701, and the NER service will be available at 127.0.0.1:702.
+After running this script, the SRL service will be available at 127.0.0.8:701, and the NER service will be available at 127.0.0.8:702.
 [doc_parser/ner.py](doc_parser/ner.py) provides functions for annotating text using these services. The Parser class in [doc_parser/doc_parser.py](doc_parser/doc_parser.py) transforms these annotations to a format that can be rendered by spaCy's displaCy tool.
 
 The NER and SRL models are sourced from `Combining formal and machine learning techniques for the generation of JML specifications`.
