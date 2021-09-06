@@ -169,8 +169,12 @@ TYPE_DICT = {
     "trait_object": TraitObjectType,
     "slice": SliceType,
     "trait": TraitType,
+# } | {
+#     item: lambda **kwargs: LOGGER.error(f"Type {item} not handled {kwargs}")
+#     for item in ["bare_fn", "impl_trait", "paren"]
+# }
 } | {
-    item: lambda **kwargs: LOGGER.error(f"Type {item} not handled {kwargs}")
+    item: lambda **kwargs: None
     for item in ["bare_fn", "impl_trait", "paren"]
 }
 

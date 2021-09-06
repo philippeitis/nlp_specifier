@@ -127,13 +127,13 @@ class DocStruct(Struct):
     @classmethod
     def from_block(cls, body: etree.ElementBase, scope: Scope = None):
         type_decl = find_with_class(body, "div", "docblock")
-        body.remove(type_decl)
+        type_decl.drop_tree()
 
         parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
             doc = find_with_class(parent, "div", "docblock")
             docs = parse_doc(doc)
-            body.remove(parent)
+            parent.drop_tree()
         else:
             docs = Docs()
 
@@ -150,9 +150,10 @@ class DocStruct(Struct):
                     return items + self.eat_impl(doc, doc_iter)
                 remove_all_spans(item)
                 remove_all_src_links(item)
+                remove_mustuse_div(item)
                 name = stringify(item)
                 next(doc_iter)
-                doc.remove(item)
+                item.drop_tree()
             except StopIteration:
                 break
 
@@ -175,9 +176,12 @@ class DocStruct(Struct):
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "details":
                     return items + self.eat_impls_old(doc, doc_iter)
-                items.append(DocMethod.from_block(item))
+                try:
+                    items.append(DocMethod.from_block(item))
+                except ValueError:
+                    pass
                 next(doc_iter)
-                doc.remove(item)
+                item.drop_tree()
 
             except StopIteration:
                 break
@@ -206,6 +210,7 @@ class DocPrimitive(DocStruct):
         type_decl = find_with_class(body, "h1", "fqn")
         remove_all_spans(type_decl)
         remove_all_src_links(type_decl)
+        remove_mustuse_div(type_decl)
 
         parent = find_with_class(body, "details", "top-doc")
         if parent is not None:
@@ -216,8 +221,7 @@ class DocPrimitive(DocStruct):
             docs = Docs()
 
         tdcl = f"struct {stringify(type_decl).rsplit(' ', 1)[1]} {{}}"
-        body.remove(type_decl)
-
+        type_decl.drop_tree()
         struct = cls.from_str(f"{docs}\n{tdcl}")
         struct.eat_impls(body)
         return struct
@@ -231,7 +235,6 @@ class DocFn(Fn):
         remove_all_spans(fn_decl_block)
         fn_decl = stringify(fn_decl_block) + " {}"
         fn_decl_block.drop_tree()
-
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
             docs = Docs()
@@ -239,7 +242,6 @@ class DocFn(Fn):
             doc = find_with_class(parent, "div", "docblock")
             docs = parse_doc(doc)
 
-        print(f"{docs}\n{fn_decl}")
         return cls.from_str(f"{docs}\n{fn_decl}")
 
 
@@ -250,8 +252,8 @@ class DocMethod(Method):
         remove_all_src_links(name)
         remove_all_spans(name)
         remove_mustuse_div(name)
-
         name = stringify(name)
+
         docs = parse_doc(find_with_class(block, "div", "docblock"))
         return cls.from_str(f"{docs}\n{name} {{}}")
 
@@ -397,6 +399,7 @@ def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
         header = find_with_class(body, "h1", "fqn")
         srcspan = find_with_class(header, "span", "out-of-band")
         srclink = find_with_class(srcspan, "a", "srclink")
+
         try:
             if srclink is not None:
                 src, lines = srclink.attrib["href"].split("#")
@@ -466,7 +469,6 @@ def get_toolchains() -> List[Path]:
     ]
 
 
-if __name__ == '__main__':
-    main(get_toolchains()[0])
-    # mention that documentation is incomplete spec
-    # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)
+# main(get_toolchains()[0])
+# mention that documentation is incomplete spec
+# explain that target is verifier, and not all things are supported (eg. sideeffectful operations)

@@ -22,10 +22,14 @@ class FnArg(QueryField):
             if ty == fn_ty:
                 return True
             elif isinstance(ty, str) and fn_ty is not None:
+                if hasattr(fn_ty, "path"):
+                    return ty == str(fn_ty.path)
                 return ty == str(fn_ty.name())
             return False
         # TODO: Handle tuple types.
         items = fn.inputs if self.is_input else fn.output
+        if not isinstance(items, list):
+            items = [items]
         if self.position is not None:
             if len(items) <= self.position:
                 return False

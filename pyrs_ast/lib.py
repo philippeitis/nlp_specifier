@@ -265,7 +265,6 @@ class Fn(HasParams, HasAttrs):
     @classmethod
     def from_str(cls, s):
         result = astx.parse_fn(s)
-        print(result)
         try:
             return cls(**json.loads(result))
         except json.decoder.JSONDecodeError as e:
