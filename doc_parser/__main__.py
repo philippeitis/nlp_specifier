@@ -8,7 +8,7 @@ from nltk import Tree
 from spacy.tokens import Doc
 import click
 
-from doc_json.parse_html import DocStruct, DocFn, get_toolchains
+from doc_json.parse_html import DocStruct, DocFn, get_toolchains, DocCrate
 from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod, Const
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
@@ -16,6 +16,7 @@ from pyrs_ast import AstFile
 
 DIR_PATH = Path(__file__).parent.resolve()
 
+# This is a bit of a hack for running things in PyCharm
 try:
     from doc_parser import Parser, GRAMMAR_PATH, is_quote
     from fn_calls import InvocationFactory, Invocation
@@ -265,40 +266,55 @@ def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=
     nspecs = 0
     num_sents = len(invocations) + len(invocation_triples)
     successful_sents = 0
+    unsucessful_sents = []
+    specified_sents = 0
     for sentence in chain(invocations, (sentence for _, _, sentence in invocation_triples)):
-        print("=" * 80)
-        print("Sentence:", sentence)
-        print("    Tags:", parser.tokenize(sentence).tags)
-        print("=" * 80)
+        # print("=" * 80)
+        # print("Sentence:", sentence)
+        # print("    Tags:", parser.tokenize(sentence).tags)
+        # print("=" * 80)
         specs = []
         trees = []
         try:
             for tree in parser.parse_tree(sentence, attach_tags=use_invokes):
-                print(tree)
                 tree: Tree = tree
                 trees.append(tree)
                 specs.append(None)
                 try:
                     specs[-1] = Specification(tree, factory).as_spec()
                 except LookupError as e:
-                    print(f"No specification found: {e}")
+                    # print(f"No specification found: {e}")
+                    pass
                 except UnsupportedSpec as s:
-                    print(f"Specification element not supported ({s})")
+                    # print(f"Specification element not supported ({s})")
+                    pass
         except ValueError as e:
-            print(f"Grammar: ({e})")
+            pass
+            # print(f"Grammar: ({e})")
         if specs:
-            # print("=" * 80)
-            # print("Sentence:", sentence)
-            # print("    Tags:", parser.tokenize(sentence).tags)
-            # print("=" * 80)
+            print("=" * 80)
+            print("Sentence:", sentence)
+            print("    Tags:", parser.tokenize(sentence).tags)
+            print("=" * 80)
             for tree, spec in zip(trees, specs):
                 print(tree)
                 print(spec)
             print()
             successful_sents += 1
+        else:
+            unsucessful_sents.append(sentence)
         nspecs += len([spec for spec in specs if spec])
         ntrees += len(trees)
-    return successful_sents, nspecs, ntrees, num_sents
+        if len([spec for spec in specs if spec]) != 0:
+            specified_sents += 1
+    import random
+    # for sentence in random.choices(unsucessful_sents, k=50):
+    # print("=" * 80)
+    # print("Sentence:", sentence)
+    # print("    Tags:", parser.tokenize(sentence).tags)
+    # print("=" * 80)
+
+    return successful_sents, nspecs, ntrees, num_sents, specified_sents
 
 
 def invoke_demo():
@@ -324,6 +340,7 @@ def invoke_demo():
     invoke_helper(invocations, invocation_triples)
 
 
+# query_demo
 def search_demo():
     """Demonstrates searching for functions with multiple keywords."""
 
@@ -341,6 +358,7 @@ def search_demo():
         print(item.sig_str())
 
 
+# query_demo
 def search_demo2():
     """Demonstrates searching for function arguments and phrases with synonyms."""
     ast = Crate.from_root_file("../data/test3.rs")
@@ -350,22 +368,6 @@ def search_demo2():
         FnArg("usize")
     ]
     query = Query(fields, (Fn, Struct))
-    for file in ast.files:
-        for match in file.find_matches(query):
-            print(match)
-
-    print("FULL STDLIB")
-
-    query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
-
-    # doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
-    # for file in doc_ast.files:
-    #     for match in file.find_matches(query):
-    #         print(match)
-
-    query = query_from_sentence("The smallest value", parser, (Fn, Struct, Const))
-
-    # doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
     for file in ast.files:
         for match in file.find_matches(query):
             print(match)
@@ -432,6 +434,19 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
 @click.group()
 def cli():
     pass
+
+
+@cli.command("search-demo")
+def stdlib_search_demo2():
+    """Demonstrates searching for function arguments and phrases with synonyms."""
+    parser = Parser.default()
+
+    query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
+    query.fields.append(FnArg("f32", is_input=False))
+    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
+    for file in doc_ast.files:
+        for match in file.find_matches(query):
+            print(match)
 
 
 @cli.command()
@@ -578,11 +593,6 @@ def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None
         webbrowser.open(str(path))
 
 
-@render.command("entities")
-@click.argument("sentence", nargs=1)
-@click.option('--type', "-t", 'entity_type', type=click.Choice(['ner', 'srl'], case_sensitive=False), default="srl")
-@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
-@click.option('--path', default=Path("./images/srl.html"), help="Output path", type=Path)
 def render_entities(sentence: str, entity_type: str, open_browser: bool, path: Path):
     """Renders the NER or SRL entities in the provided sentence."""
     from spacy import displacy
@@ -590,9 +600,15 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
     import webbrowser
 
     sent = Parser.default().entities(sentence)
+    entity_type = entity_type.lower()
+
+    if entity_type == "ner":
+        entities = sent[entity_type]
+    else:
+        entities = sent[entity_type][0]
 
     html = displacy.render(
-        sent[entity_type.lower()][0],
+        entities,
         style="ent",
         options={"word_spacing": 30, "distance": 120, "colors": ENTITY_COLORS},
         page=True,
