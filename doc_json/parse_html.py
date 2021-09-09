@@ -308,13 +308,15 @@ class DocCrate(Crate):
     }
 
     @classmethod
-    def from_root_dir(cls, path: Path):
+    def from_root_dir(cls, path: Path, pool: Pool=None):
         if path.is_dir() and path.name in DocCrate.IGNORE:
             raise ValueError("Bad path")
         items = []
 
+        pool = pool or Pool(12)
+
         files = {
-            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files(path, 1)
+            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files_with_pool(path, pool)
         }
 
         root_scope = Scope()
@@ -396,16 +398,16 @@ def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
             return None, None, None
         body = soup.find("body/section")
         # print(path)
-        header = find_with_class(body, "h1", "fqn")
-        srcspan = find_with_class(header, "span", "out-of-band")
-        srclink = find_with_class(srcspan, "a", "srclink")
+        # header = find_with_class(body, "h1", "fqn")
+        # srcspan = find_with_class(header, "span", "out-of-band")
+        # srclink = find_with_class(srcspan, "a", "srclink")
 
         try:
-            if srclink is not None:
-                src, lines = srclink.attrib["href"].split("#")
-                srcpath = (path.parent / Path(src)).resolve()
-
-                return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
+            # if srclink is not None:
+            #     src, lines = srclink.attrib["href"].split("#")
+            #     srcpath = (path.parent / Path(src)).resolve()
+            #
+            #     return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
             return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
         except LexError:
             return None, None, None
@@ -420,14 +422,18 @@ def _get_all_files_st(toolchain_root: Path):
 
 
 def get_all_files(toolchain_root: Path, num_processes: int = 12):
-    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
-    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
-
     # For debugging purposes
     if num_processes == 1:
         return _get_all_files_st(toolchain_root)
 
-    with Pool(num_processes) as p:
+    get_all_files_with_pool(toolchain_root, Pool(num_processes))
+
+
+def get_all_files_with_pool(toolchain_root: Path, pool: Pool):
+    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
+    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
+
+    with pool as p:
         targets = files["fn"] + files["struct"] + files["primitive"]
         results = p.map(parse_file, targets)
         return [(file, path, rs_path, lines) for (file, rs_path, lines), path in
@@ -461,14 +467,22 @@ def choose_random_items(toolchain_root: Path):
 
 
 def get_toolchains() -> List[Path]:
-    root = Path(rustup_home()) / Path("toolchains")
-    paths = subprocess.run(["rustup", "toolchain", "list"], capture_output=True).stdout.splitlines()
     return [
-        root / Path(p.removesuffix(b" (default)").strip().decode("utf-8"))
-        for p in paths
+        Path(toolchain) for toolchain in get_toolchainsx()
     ]
 
 
+def profiling(statement: str):
+    import cProfile
+    import pstats
+    cProfile.run(statement, "stats")
+    pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
+
+
+if __name__ == "__main__":
+    print(get_toolchains())
+
+    profiling("get_all_files(get_toolchains()[0])")
 # main(get_toolchains()[0])
 # mention that documentation is incomplete spec
 # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)

@@ -6,6 +6,7 @@ from pyrs_ast.lib import Fn
 from pyrs_ast.query import Query, QueryField
 
 from lemmatizer import is_synonym, lemmatize
+
 try:
     from doc_parser import Parser
 except ImportError:
@@ -46,6 +47,8 @@ def get_regex_for_tag(tag: str) -> str:
 
 
 class Word(QueryField):
+    EVAL_COST = 1e-3
+
     def __init__(self, word: str, tag: str, allow_synonyms: bool, is_optional: bool, lemma: str = None):
         self.allow_synonyms = allow_synonyms
         self.word = word
@@ -67,6 +70,8 @@ class Word(QueryField):
 
 
 class Phrase(QueryField):
+    EVAL_COST = 1.
+
     def __init__(self, phrase: List[Word], parser: Parser):
         self.parser = parser
         self.phrase = phrase
@@ -87,6 +92,7 @@ class Phrase(QueryField):
         To match the phrase, the function must contain all non-optional words, in sequence, with no gaps.
         Words do not need to have matching tenses or forms to be considered equal (using NLTK's lemmatizer).
         """
+
         def split_str(s: str, index: int):
             return s[:index], s[index:]
 
@@ -158,3 +164,35 @@ def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> Query:
             phrases[-1].append(
                 Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
     return Query([Phrase(block, parser) for block in phrases if block], *args, **kwargs)
+
+
+class SimPhrase(QueryField):
+    EVAL_COST = 0.8
+
+    def __init__(self, phrase: str, parser: Parser, cutoff=0.85):
+        self.parser = parser
+        self.phrase = parser.tokenize(phrase).doc
+        self.cutoff = cutoff
+        self.similarity_cache = {}
+
+    def matches(self, item):
+        """Determines whether the phrase matches the provided fn.
+        To match the phrase, the function must contain at least one sentence which is sufficiently
+         similar to the query string."""
+        docs = item.docs.sections()
+        if isinstance(item, Fn):
+            idents = {ty.ident for ty in item.inputs}
+        else:
+            idents = None
+
+        if docs:
+            for sentx in docs[0].sentences:
+                sent = self.parser.tokenize(sentx, idents=idents).doc
+                similarity = sent.similarity(self.phrase)
+                if similarity > self.cutoff:
+                    self.similarity_cache[item] = similarity
+                    return True
+        return False
+
+    def __str__(self):
+        return " ".join(str(x) for x in self.phrase)

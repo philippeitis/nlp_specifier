@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 import logging
 from itertools import chain
@@ -21,7 +22,7 @@ try:
     from doc_parser import Parser, GRAMMAR_PATH, is_quote
     from fn_calls import InvocationFactory, Invocation
     from grammar import Specification, generate_constructor_from_grammar
-    from nlp_query import query_from_sentence, Phrase, Word
+    from nlp_query import query_from_sentence, Phrase, Word, SimPhrase
 except ImportError:
     import sys
 
@@ -29,7 +30,7 @@ except ImportError:
     from doc_parser.doc_parser import Parser, GRAMMAR_PATH, is_quote
     from doc_parser.fn_calls import InvocationFactory, Invocation
     from doc_parser.grammar import Specification, generate_constructor_from_grammar
-    from doc_parser.nlp_query import query_from_sentence, Phrase, Word
+    from doc_parser.nlp_query import query_from_sentence, Phrase, Word, SimPhrase
 
 TESTCASE_PATH = DIR_PATH / "base_grammar_test_cases.txt"
 LOGGER = logging.getLogger(__name__)
@@ -438,16 +439,40 @@ def cli():
 
 @cli.command("search-demo")
 def stdlib_search_demo2():
+    from multiprocessing import Pool
     """Demonstrates searching for function arguments and phrases with synonyms."""
     parser = Parser.default()
 
     query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
-    query.fields.append(FnArg("f32", is_input=False))
-    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
+    query.append_field(FnArg("f32", is_input=False))
+
+    start = time.time()
+    doc_ast = DocCrate.from_root_dir(get_toolchains()[0], Pool(24))
+    end = time.time()
+
+    print(f"Took {end - start}s to read DocCrate")
+    for file in doc_ast.files:
+        for _ in file.find_matches(query):
+            pass
+
+    print("Using synonym based methods")
+    start = time.time()
     for file in doc_ast.files:
         for match in file.find_matches(query):
             print(match)
+    end = time.time()
 
+    print(f"Took {end - start}s")
+    sim = SimPhrase("The minimum of two values", parser)
+    query = Query([sim, FnArg("f32", is_input=False)])
+    start = time.time()
+    print("Using similarity methods")
+    for file in doc_ast.files:
+        for match in file.find_matches(query):
+            print(match, sim.similarity_cache[match])
+    end = time.time()
+
+    print(f"Took {end - start}s")
 
 @cli.command()
 @click.option('--path', "-p", default=DIR_PATH / "../data/test3.rs", help='Source file to specify.', type=Path)
