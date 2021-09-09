@@ -2,22 +2,22 @@ from typing import Optional, Tuple
 
 
 def split_str_on(s: str, c: str):
-    special = "\"`'"
+    special = {"\"": "\"", "`": "`", "'": "'", "(": ")"}
 
     assert len(c) == 1
     assert c not in special
 
-    looking_for = ""
+    looking_for = None
     splits = []
     prev_ind = 0
     for ind, cx in enumerate(s):
         if looking_for:
             if looking_for == cx:
-                looking_for = ""
+                looking_for = None
             else:
                 continue
         elif cx in special:
-            looking_for = cx
+            looking_for = special[cx]
         elif cx == c:
             splits.append(s[prev_ind:ind])
             prev_ind = ind + 1
@@ -86,4 +86,4 @@ if __name__ == '__main__':
     print(split_str_on("hello `there`. general `kenobi`. Hello. ...", "."))
     print("hello `there`. general `kenobi`. Hello. ...".split("."))
     print("hello `the.re`. general `kenobi`. Hello. ...".split("."))
-    print(split_str_on("hello `the.r\"e\"`. general `kenobi`. Hello. ...", "."))
+    print(split_str_on("hello `the.r\"e\"`. general `kenobi`. Hello. (eg. helloooo) ...", "."))
