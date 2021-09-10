@@ -15,16 +15,16 @@ class SelfType:
 
 
 class Binding:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.ident = kwargs["ident"]
-        self.ty = Type(**kwargs["ty"])
+        self.ty = Type(kwargs["ty"])
 
     def __str__(self):
         return f"{self.ident} = {self.ty}"
 
 
 class Segment:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.arguments = kwargs.get("arguments")
         self.ident = kwargs["ident"]
 
@@ -38,27 +38,27 @@ class Segment:
             for arg in args:
                 arg_type, arg_val = next(iter(arg.items()))
                 if arg_type == "type":
-                    res.append(str(Type(**arg_val)))
+                    res.append(str(Type(arg_val)))
                 elif arg_type == "lifetime":
-                    res.append(str(LifetimeParam(**arg)))
+                    res.append(str(LifetimeParam(arg)))
                 elif arg_type == "binding":
-                    res.append(str(Binding(**arg_val)))
+                    res.append(str(Binding(arg_val)))
                 elif arg_type == "constraint":
-                    res.append(str(IdentParam(**arg_val)))
+                    res.append(str(IdentParam(arg_val)))
                 else:
                     raise ValueError(f"{arg_type}, {arg}")
             return f"{self.ident}<{', '.join(res)}>"
         elif arg_type == "parenthesized":
-            inputs = [Type(**t) for t in args["inputs"]]
-            output = "" if args["output"] is None else f" -> {Type(**args['output'])}"
+            inputs = [Type(t) for t in args["inputs"]]
+            output = "" if args["output"] is None else f" -> {Type(args['output'])}"
             return f"{self.ident}({', '.join(str(input) for input in inputs)}){output}"
 
         raise ValueError("Unexpected argument", self.arguments)
 
 
 class Path:
-    def __init__(self, **kwargs):
-        self.segments = [Segment(**segment) for segment in kwargs["segments"]]
+    def __init__(self, kwargs):
+        self.segments = [Segment(segment) for segment in kwargs["segments"]]
 
     def __getitem__(self, i: int):
         return self.segments[i]
@@ -71,16 +71,16 @@ class Path:
 
 
 class SingletonType:
-    def __init__(self, **kwargs):
-        self.path = Path(**kwargs)
+    def __init__(self, kwargs):
+        self.path = Path(kwargs)
 
     def __str__(self):
         return str(self.path)
 
 
 class TupleType:
-    def __init__(self, **kwargs):
-        self.elems = [Type(**elem) for elem in kwargs["elems"]]
+    def __init__(self, kwargs):
+        self.elems = [Type(elem) for elem in kwargs["elems"]]
 
     def __str__(self):
         elems = ", ".join([str(elem) for elem in self.elems])
@@ -88,8 +88,8 @@ class TupleType:
 
 
 class RefType:
-    def __init__(self, **kwargs):
-        self.elem = Type(**kwargs["elem"])
+    def __init__(self, kwargs):
+        self.elem = Type(kwargs["elem"])
         self.mut = kwargs.get("mut", False)
         self.lifetime = kwargs.get("lifetime")
 
@@ -104,8 +104,8 @@ class RefType:
 
 
 class PtrType:
-    def __init__(self, **kwargs):
-        self.elem = Type(**kwargs["elem"])
+    def __init__(self, kwargs):
+        self.elem = Type(kwargs["elem"])
         self.mut = kwargs.get("mut", False)
         self.const = kwargs.get("const", False)
         assert not (self.mut and self.const), "can not be both const and mut"
@@ -122,8 +122,8 @@ class PtrType:
 
 
 class SliceType:
-    def __init__(self, **kwargs):
-        self.elem = Type(**kwargs["elem"])
+    def __init__(self, kwargs):
+        self.elem = Type(kwargs["elem"])
 
     def __str__(self):
         return f"[{self.elem}]"
@@ -134,27 +134,27 @@ class SliceType:
 
 
 class TraitObjectType:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.dyn = kwargs.get("dyn", False)
-        self.bounds = IdentParam(**kwargs)
+        self.bounds = IdentParam(kwargs)
 
     def __str__(self):
         return f"{'dyn ' if self.dyn else ''}{self.bounds.bound_str()}"
 
 
 class TraitType:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.modifier = "modifier" in kwargs and kwargs["modifier"] == "maybe"
-        self.path = Path(**kwargs["path"])
+        self.path = Path(kwargs["path"])
 
     def __str__(self):
         return f"{'?' if self.modifier else ''}{self.path}]"
 
 
 class ArrayType:
-    def __init__(self, **kwargs):
-        self.elem = Type(**kwargs["elem"])
-        self.len = expr.Expr(**kwargs["len"])
+    def __init__(self, kwargs):
+        self.elem = Type(kwargs["elem"])
+        self.len = expr.Expr(kwargs["len"])
 
     def __str__(self):
         return f"[{self.elem}; {self.len}]"
@@ -170,11 +170,11 @@ TYPE_DICT = {
     "slice": SliceType,
     "trait": TraitType,
 # } | {
-#     item: lambda **kwargs: LOGGER.error(f"Type {item} not handled {kwargs}")
+#     item: lambda kwargs: LOGGER.error(f"Type {item} not handled {kwargs}")
 #     for item in ["bare_fn", "impl_trait", "paren"]
 # }
 } | {
-    item: lambda **kwargs: None
+    item: lambda kwargs: None
     for item in ["bare_fn", "impl_trait", "paren"]
 }
 
@@ -190,10 +190,10 @@ class NeverType:
 
 
 class Type:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         try:
             type_key, val = next(iter(kwargs.items()))
-            self.ty = TYPE_DICT[type_key](**val)
+            self.ty = TYPE_DICT[type_key](val)
 
             self.methods = []
         except StopIteration:
@@ -222,7 +222,7 @@ class Type:
 
 
 class LifetimeParam:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.lifetime = kwargs.get("lifetime")
 
     def __str__(self):
@@ -230,24 +230,24 @@ class LifetimeParam:
 
 
 class ConstParam:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.ident = kwargs["ident"]
-        self.ty = Type(**kwargs["ty"])
+        self.ty = Type(kwargs["ty"])
 
     def __str__(self):
         return f"{self.ident}: {self.ty}"
 
 
 class IdentParam:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.ident = kwargs.get("ident")
         self.bounds = []
         for bound in kwargs.get("bounds", []):
             key, val = next(iter(bound.items()))
             if key == "trait":
-                self.bounds.append(Path(**val["path"]))
+                self.bounds.append(Path(val["path"]))
             elif key == "lifetime":
-                self.bounds.append(LifetimeParam(**bound))
+                self.bounds.append(LifetimeParam(bound))
 
     def bound_str(self):
         return " + ".join(str(bound) for bound in self.bounds)
@@ -265,12 +265,12 @@ class TypeParam:
         "const": ConstParam,
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         key, val = next(iter(kwargs.items()))
         constructor = self.DISPATCH.get(key)
         if constructor is None:
             raise ValueError(f"Unexpected type param key: {key} (val: {val})")
-        self.param = constructor(**val)
+        self.param = constructor(val)
 
     def __str__(self):
         return str(self.param)

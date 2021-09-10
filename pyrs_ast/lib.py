@@ -17,7 +17,7 @@ def ast_items_from_json(items: []) -> []:
     for i, item in enumerate(items):
         item: dict = item
         item_kind = next(iter(item.keys()))
-        results.append(KEY_TO_CLASS[item_kind](**item[item_kind]))
+        results.append(KEY_TO_CLASS[item_kind](item[item_kind]))
     return results
 
 
@@ -26,8 +26,10 @@ def indent(block):
 
 
 class Attr:
-    def __init__(self, **kwargs):
-        self.ident = Path(**kwargs["path"])
+    __slots__ = ["ident", "style", "tokens"]
+
+    def __init__(self, kwargs):
+        self.ident = Path(kwargs["path"])
         self.style = kwargs["style"]
         self.tokens = TokenStream(kwargs.get("tokens", []))
 
@@ -47,6 +49,7 @@ class Attr:
 
 
 class LitAttr:
+    __slots__ = ["lit"]
     def __init__(self, lit: str):
         self.lit = lit
 
@@ -58,8 +61,8 @@ class LitAttr:
 
 
 class HasAttrs:
-    def __init__(self, **kwargs):
-        self.attrs: List[Union[Attr, LitAttr]] = [Attr(**attr) for attr in kwargs.get("attrs", [])]
+    def __init__(self, kwargs):
+        self.attrs: List[Union[Attr, LitAttr]] = [Attr(attr) for attr in kwargs.get("attrs", [])]
         self.docs = self._extract_docs()
 
     def _extract_docs(self) -> Docs:
@@ -80,9 +83,9 @@ class HasAttrs:
 
 
 class HasParams:
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.params = [TypeParam(**param) for param in kwargs.get("generics", {}).get("params", [])]
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
+        self.params = [TypeParam(param) for param in kwargs.get("generics", {}).get("params", [])]
         self.where_clause = kwargs.get("where_clause")
 
     def fmt_generics(self) -> str:
@@ -95,8 +98,8 @@ class HasParams:
 
 
 class HasItems:
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.items = ast_items_from_json(kwargs.get("items", []))
         self.import_items = {}
 
@@ -154,10 +157,17 @@ class Delimiter(Enum):
 
 
 class Token:
-    def __init__(self, **kwargs):
+    __slots__ = ["key", "val"]
+
+    def __init__(self, kwargs):
         assert len(kwargs) == 1
         key, val = next(iter(kwargs.items()))
-        self.key = TokenType.from_str(key)
+        self.key = {
+            "punct": TokenType.PUNCT,
+            "lit": TokenType.LIT,
+            "group": TokenType.GROUP,
+            "ident": TokenType.IDENT,
+        }[key]
         self.val = val
 
     def __str__(self):
@@ -167,10 +177,10 @@ class Token:
             return self.val
         if self.key == TokenType.GROUP:
             sym = {
-                Delimiter.PARENTHESIS: "()",
-                Delimiter.BRACKET: "[]",
-                Delimiter.BRACE: "{}"
-            }[Delimiter.from_str(self.val["delimiter"])]
+                "parenthesis": "()",
+                "bracket": "[]",
+                "brace": "{}"
+            }[self.val["delimiter"]]
             return f"{sym[0]} {TokenStream(self.val['stream'])} {sym[1]}"
 
         if self.key == TokenType.IDENT:
@@ -189,7 +199,7 @@ class Token:
 
 class TokenStream:
     def __init__(self, tokens):
-        self.tokens = [Token(**token) for token in tokens]
+        self.tokens = [Token(token) for token in tokens]
 
     def __str__(self):
         if len(self.tokens) == 0:
@@ -224,7 +234,8 @@ class TokenStream:
 
 
 class Receiver:
-    def __init__(self, **kwargs):
+    __slots__ = ["mut", "ref", "lifetime", "ty", "ident"]
+    def __init__(self, kwargs):
         self.mut = kwargs.get("mut", False)
         self.ref = kwargs.get("ref", False)
         self.lifetime = kwargs.get("lifetime")
@@ -243,30 +254,30 @@ class Receiver:
 
 
 class Fn(HasParams, HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.ident = kwargs["ident"]
 
         output = kwargs["output"]
         if output is None:
-            self.output = Type()
+            self.output = Type({})
         elif output == "!":
             self.output = NeverType()
         else:
-            self.output = Type(**output)
+            self.output = Type(output)
 
         self.inputs = kwargs["inputs"]
         for i, inputx in enumerate(self.inputs):
             if "receiver" in inputx:
-                self.inputs[i] = Receiver(**inputx["receiver"])
+                self.inputs[i] = Receiver(inputx["receiver"])
             else:
-                self.inputs[i] = BoundVariable(**inputx["typed"])
+                self.inputs[i] = BoundVariable(inputx["typed"])
 
     @classmethod
     def from_str(cls, s):
         result = astx.parse_fn(s)
         try:
-            return cls(**json.loads(result))
+            return cls(json.loads(result))
         except json.decoder.JSONDecodeError as e:
             raise LexError(f"{result}, {e}\n{s}")
 
@@ -301,8 +312,9 @@ class Fn(HasParams, HasAttrs):
 
 
 class BoundVariable:
-    def __init__(self, **kwargs):
-        self.ty = Type(**kwargs["ty"])
+    __slots__ = ["ty", "ident"]
+    def __init__(self, kwargs):
+        self.ty = Type(kwargs["ty"])
         pat = kwargs["pat"]
         if "ident" in pat:
             self.ident = pat["ident"]["ident"]
@@ -317,11 +329,12 @@ class BoundVariable:
 
 
 class Const(HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    __slots__ = ["ident", "expr", "ty"]
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.ident = kwargs["ident"]
-        self.expr = Expr(**kwargs["expr"])
-        self.ty = Type(**kwargs["ty"])
+        self.expr = Expr(kwargs["expr"])
+        self.ty = Type(kwargs["ty"])
 
     def register_types(self, scope):
         scope.attach_struct(self.ty)
@@ -331,12 +344,12 @@ class Const(HasAttrs):
 
 
 class NamedField(HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         if kwargs["ty"] == "_":
             self.ty = "_"
         else:
-            self.ty = Type(**kwargs["ty"])
+            self.ty = Type(kwargs["ty"])
         self.ident = kwargs["ident"]
 
     def register_types(self, scope: Scope):
@@ -355,12 +368,12 @@ class Fields:
         type_key, fields = next(iter(kwargs.items()))
         self.style = type_key
         if self.named():
-            self.fields = [NamedField(**field) for field in fields]
+            self.fields = [NamedField(field) for field in fields]
         else:
             def dispatch(ty):
                 if ty == "_":
                     return ty
-                return Type(**ty)
+                return Type(ty)
 
             self.fields = [dispatch(field["ty"]) for field in fields]
 
@@ -387,8 +400,8 @@ class Fields:
 
 
 class Struct(HasParams, HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.ident = kwargs["ident"]
         self.fields = Fields(kwargs["fields"])
         self.methods = []
@@ -397,7 +410,7 @@ class Struct(HasParams, HasAttrs):
     def from_str(cls, s):
         result = astx.parse_struct(s)
         try:
-            return cls(**json.loads(result))
+            return cls(json.loads(result))
         except json.decoder.JSONDecodeError as e:
             raise LexError(f"{result}, {e}\n{s}")
 
@@ -422,14 +435,14 @@ class Struct(HasParams, HasAttrs):
 
 
 class Method(Fn):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
 
     @classmethod
-    def from_str(cls, s: str, scope=None, ident: str = None):
+    def from_str(cls, s: str):
         result = astx.parse_impl_method(s)
         try:
-            return cls(**json.loads(result))
+            return cls(json.loads(result))
         except json.decoder.JSONDecodeError as e:
             raise LexError(f"{result}, {e}\n{s}")
 
@@ -443,9 +456,9 @@ class Method(Fn):
 class Impl(HasParams, HasItems, HasAttrs):
     __slots__ = ["path", "ty", "items", "attrs", "params", "where_clause"]
 
-    def __init__(self, **kwargs):
-        self.path = Path(**kwargs["self_ty"]["path"])
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        self.path = Path(kwargs["self_ty"]["path"])
+        super().__init__(kwargs)
         self.ident = str(self.path.ident())
 
     def register_types(self, type_source):
@@ -465,7 +478,7 @@ class Impl(HasParams, HasItems, HasAttrs):
 
 class Mod(Queryable, HasAttrs):
     def __init__(self, ident: str, items: Optional[list], attrs: list[dict]):
-        super().__init__(attrs=attrs)
+        super().__init__({"attrs": attrs})
         self.ident = ident
         if items is not None:
             self.items = {
@@ -561,7 +574,7 @@ class Mod(Queryable, HasAttrs):
         return res
 
     @classmethod
-    def from_kwargs(cls, **kwargs):
+    def from_kwargs(cls, kwargs):
         ident = kwargs["ident"]
         if "content" in kwargs:
             items = ast_items_from_json(kwargs["content"])
@@ -581,8 +594,8 @@ class Mod(Queryable, HasAttrs):
 class Use(HasAttrs):
     """use X;"""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.tree = UseTree(kwargs["tree"])
         self.ident = ""
 
@@ -597,7 +610,7 @@ class Use(HasAttrs):
 
 
 class EnumVariant:
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         self.fields = Fields(kwargs["fields"])
         self.ident = kwargs["ident"]
 
@@ -616,10 +629,10 @@ class EnumVariant:
 
 
 class Enum(HasParams, HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.ident = kwargs["ident"]
-        self.variants = [EnumVariant(**variant) for variant in kwargs["variants"]]
+        self.variants = [EnumVariant(variant) for variant in kwargs["variants"]]
 
     def register_types(self, scope):
         for variant in self.variants:
@@ -633,8 +646,8 @@ class Enum(HasParams, HasAttrs):
 
 
 class ExternCrate(HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
         self.ident = kwargs["ident"]
 
     def __str__(self):
@@ -660,12 +673,12 @@ class LexError(ValueError):
 
 
 class AstFile(HasItems, HasAttrs):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, kwargs, scope, ident=None):
+        super().__init__(kwargs)
         self.shebang: Optional[str] = kwargs.get("shebang")
-        self.scope = kwargs["scope"]
+        self.scope = scope
         self.register_types(self.scope)
-        self.ident = kwargs.get("ident")
+        self.ident = kwargs.get("ident", ident)
         self.items = {
             (type(item), item.ident): item for item in self.items
         }
@@ -716,7 +729,7 @@ class AstFile(HasItems, HasAttrs):
     def from_str(cls, s: str, scope=None, ident: str = None):
         result = astx.ast_from_str(s)
         try:
-            return cls(**json.loads(result), scope=scope or Scope(), ident=ident)
+            return cls(json.loads(result), scope=scope or Scope(), ident=ident)
         except json.decoder.JSONDecodeError as e:
             raise LexError(f"{result}, {e}\n{s}")
 

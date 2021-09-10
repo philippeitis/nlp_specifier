@@ -71,16 +71,16 @@ class ExprMethod:
         self.args = args
 
     @classmethod
-    def from_kwargs(cls, **kwargs):
-        receiver = Expr(**kwargs["receiver"])
+    def from_kwargs(cls, kwargs):
+        receiver = Expr(kwargs["receiver"])
         method = kwargs["method"]
         turbofish = kwargs.get("turbofish")
         if turbofish:
             raise NotImplementedError("Turbofish currently not supported")
             # Need to handle types and const values in tb
-            # tb_args = ', '.join(str(Expr(**item)) for item in turbofish)
+            # tb_args = ', '.join(str(Expr(item)) for item in turbofish)
             # turbofish = f"::<{tb_args}>"
-        args = [Expr(**item) for item in kwargs["args"]]
+        args = [Expr(item) for item in kwargs["args"]]
         return cls(receiver, method, turbofish, args)
 
     def __str__(self):
@@ -104,10 +104,10 @@ class ExprBinary:
         self.right = right
 
     @classmethod
-    def from_kwargs(cls, **kwargs):
-        left = Expr(**kwargs["left"])
+    def from_kwargs(cls, kwargs):
+        left = Expr(kwargs["left"])
         op = BinOp(kwargs["op"])
-        right = Expr(**kwargs["right"])
+        right = Expr(kwargs["right"])
         return cls(left, op, right)
 
     def __str__(self):
@@ -120,7 +120,7 @@ class ExprLit:
     """The ExprLit struct from https://docs.rs/syn/1.0.75/syn/struct.ExprLit.html
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         lit_type, val = next(iter(kwargs.items()))
         if lit_type in {"int", "float", "str"}:
             self.type = lit_type
@@ -136,7 +136,7 @@ class ExprStruct:
     """The ExprStruct struct from https://docs.rs/syn/1.0.75/syn/struct.ExprStruct.html
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         pass
 
     def __str__(self):
@@ -147,8 +147,8 @@ class ExprPath:
     """The ExprPath struct from https://docs.rs/syn/1.0.75/syn/struct.ExprPath.html
     """
 
-    def __init__(self, **kwargs):
-        self.path = ast_types.Path(**kwargs)
+    def __init__(self, kwargs):
+        self.path = ast_types.Path(kwargs)
 
     def __str__(self):
         return str(self.path)
@@ -166,17 +166,17 @@ class Expr:
         "method_call": ExprMethod.from_kwargs,
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, kwargs):
         expr_type, val = next(iter(kwargs.items()))
         constructor = self.DISPATCH.get(expr_type)
         if constructor:
-            self.expr = constructor(**val)
+            self.expr = constructor(val)
         else:
             raise ValueError(f"{expr_type}: {val}")
 
     @classmethod
     def from_str(cls, s: str):
-        return cls(**json.loads(astx.parse_expr(s)))
+        return cls(json.loads(astx.parse_expr(s)))
 
     def __str__(self):
         return str(self.expr)
