@@ -3,13 +3,13 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Union, Tuple
 from multiprocessing import Pool
-import subprocess
+import json
 
 from lxml import etree
 from lxml.html import parse
 
 from pyrs_ast.docs import Docs
-from py_cargo_utils import rustup_home
+from py_cargo_utils import rustup_home, get_toolchains as get_toolchainsx, parse_all_files
 
 from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile, LexError
 from pyrs_ast.scope import Scope
@@ -28,7 +28,7 @@ def peek(it):
 
 def remove_all_spans(item: etree.ElementBase):
     for val in item.findall("span"):
-        if not {"since", "notable-traits-tooltip", "notable-traits", "out-of-band"}.isdisjoint(val.classes):
+        if not {"since", "notable-traits", "out-of-band"}.isdisjoint(val.classes):
             val.drop_tree()
 
 
@@ -123,6 +123,10 @@ def parse_example(doc: etree.ElementBase) -> str:
     return "```CODE```"
 
 
+class DocError(ValueError):
+    pass
+
+
 class DocStruct(Struct):
     @classmethod
     def from_block(cls, body: etree.ElementBase, scope: Scope = None):
@@ -141,13 +145,13 @@ class DocStruct(Struct):
         struct.eat_impls(body)
         return struct
 
-    def eat_impls_old(self, doc: etree.ElementBase, doc_iter) -> List["DocMethod"]:
+    def eat_impls_old(self, doc_iter) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "div":
-                    return items + self.eat_impl(doc, doc_iter)
+                    return items + self.eat_impl(doc_iter)
                 remove_all_spans(item)
                 remove_all_src_links(item)
                 remove_mustuse_div(item)
@@ -169,15 +173,17 @@ class DocStruct(Struct):
 
         return items
 
-    def eat_impl(self, doc: etree.ElementBase, doc_iter) -> List["DocMethod"]:
+    def eat_impl(self, doc_iter) -> List["DocMethod"]:
         items = []
         while True:
             try:
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "details":
-                    return items + self.eat_impls_old(doc, doc_iter)
+                    return items + self.eat_impls_old(doc_iter)
                 try:
                     items.append(DocMethod.from_block(item))
+                except DocError:
+                    raise
                 except ValueError:
                     pass
                 next(doc_iter)
@@ -191,9 +197,8 @@ class DocStruct(Struct):
         try:
             first = next(iter(doc))
             if "method" in first.classes:
-                return self.eat_impls_old(doc, iter(doc))
-            return self.eat_impl(doc, iter(doc))
-
+                return self.eat_impls_old(iter(doc))
+            return self.eat_impl(iter(doc))
         except StopIteration:
             return []
 
@@ -233,7 +238,7 @@ class DocFn(Fn):
         fn_decl_block = find_with_class(body, "pre", "fn")
         remove_all_src_links(fn_decl_block)
         remove_all_spans(fn_decl_block)
-        fn_decl = stringify(fn_decl_block) + " {}"
+        fn_decl = text(fn_decl_block) + " {}"
         fn_decl_block.drop_tree()
         parent = find_with_class(body, "details", "rustdoc-toggle")
         if parent is None:
@@ -285,12 +290,12 @@ class DocMod(Mod):
                     items.append(item)
             else:
                 if child_path in file_hints:
-                    item, imports, lines = file_hints[child_path]
+                    item, _, _ = file_hints[child_path]
 
                     if item is None:
                         continue
                     else:
-                        imports += AstFile.from_str("\n".join(imports)).items
+                        # imports += AstFile.from_str("\n".join(imports)).items
                         items.append(item)
                 else:
                     name = child_path.name
@@ -304,24 +309,21 @@ class DocMod(Mod):
 class DocCrate(Crate):
     IGNORE = {
         "rust-by-example", "reference", "embedded-book", "edition-guide", "arch", "core_arch",
-        "book", "nomicon", "unstable-book", "cargo", "rustc", "implementors", "rustdoc"
+        "book", "nomicon", "unstable-book", "cargo", "rustc", "implementors", "rustdoc", "src"
     }
 
     @classmethod
-    def from_root_dir(cls, path: Path, pool: Pool=None):
+    def from_root_dir(cls, path: Path):
         if path.is_dir() and path.name in DocCrate.IGNORE:
             raise ValueError("Bad path")
         items = []
 
-        pool = pool or Pool(12)
+        target_dir = (path / Path("share/doc/rust/html/")).expanduser()
 
-        files = {
-            fpath: (item, rs_path, lines) for item, rs_path, lines, fpath in get_all_files_with_pool(path, pool)
-        }
+        files = convert_rs_to_py(parse_all_files(str(target_dir)))
 
         root_scope = Scope()
 
-        target_dir = (path / Path("share/doc/rust/html/")).expanduser()
         for child_path in target_dir.iterdir():
             if child_path.is_dir() and child_path.name not in cls.IGNORE:
                 items.append(DocMod.from_doc_path(child_path, files))
@@ -411,6 +413,9 @@ def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
             return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
         except LexError:
             return None, None, None
+        except DocError:
+            print(path)
+            return None, None, None
 
 
 def _get_all_files_st(toolchain_root: Path):
@@ -426,7 +431,7 @@ def get_all_files(toolchain_root: Path, num_processes: int = 12):
     if num_processes == 1:
         return _get_all_files_st(toolchain_root)
 
-    get_all_files_with_pool(toolchain_root, Pool(num_processes))
+    return get_all_files_with_pool(toolchain_root, Pool(num_processes))
 
 
 def get_all_files_with_pool(toolchain_root: Path, pool: Pool):
@@ -479,10 +484,49 @@ def profiling(statement: str):
     pstats.Stats("stats").sort_stats(pstats.SortKey.TIME).print_stats(20)
 
 
-if __name__ == "__main__":
-    print(get_toolchains())
+class Primitive(Struct):
+    pass
 
-    profiling("get_all_files(get_toolchains()[0])")
+
+def load_item(ident, val):
+    dispatch = {"struct": Struct, "method": Method, "fn": Fn, "primitive": Primitive}
+    try:
+        return dispatch[ident](json.loads(val))
+    except json.decoder.JSONDecodeError:
+        return
+    except ValueError:
+        return
+    except KeyError:
+        return
+        # print(val)
+
+
+def convert_rs_to_py(files):
+    new_files = {}
+    for file in files:
+        name, path, base = file[0:3]
+        item = load_item(name, base)
+
+        if item is None:
+            continue
+
+        if name == "struct" or name == "primitive":
+            item.methods = [load_item("method", base) for item in file[3]]
+            item.methods = [method for method in item.methods if method]
+
+        new_files[Path(path)] = (item, None, None)
+    return new_files
+
+
+if __name__ == "__main__":
+
+    target_dir = str((get_toolchains()[0] / Path("share/doc/rust/html/")).expanduser())
+
+    profiling("convert_rs_to_py(parse_all_files(target_dir))")
+    # start = time.time()
+    # _ = convert_rs_to_py(parse_all_files(target_dir))
+    # end = time.time()
+    # print(end - start)
 # main(get_toolchains()[0])
 # mention that documentation is incomplete spec
 # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)
