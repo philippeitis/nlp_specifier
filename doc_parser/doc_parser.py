@@ -1,7 +1,7 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator, Set, Union
+from typing import Iterator, Set, Union, List
 import logging
 from pathlib import Path
 
@@ -117,6 +117,7 @@ class Parser:
 
     def tokens(self) -> Set[str]:
         """Returns the tokens that might appear in the output of parse_tree"""
+        # noinspection PyProtectedMember
         return {str(p._lhs) for p in self.grammar._productions}
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
@@ -131,6 +132,24 @@ class Parser:
         fix_tokens(doc, idents=idents)
 
         return Sentence(doc)
+
+    def stokenize(self, sentences: List[str], idents=None) -> List[Sentence]:
+        """Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items (all unique sentences in stdlib)."""
+        sentences = [unidecode.unidecode(sentence).rstrip(".") for sentence in sentences]
+        sentence_dict = {i: copy(self.token_cache.get(sentence)) for i, sentence in enumerate(sentences)}
+
+        empty_inds = [i for i, val in sentence_dict.items() if val is None]
+        empty_sents = [sentences[i] for i in empty_inds]
+
+        for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
+            sent = sentences[i]
+            self.token_cache[sent] = tokenized
+            sentence_dict[i] = copy(tokenized)
+
+        for doc in sentence_dict.values():
+            fix_tokens(doc, idents=idents)
+
+        return [Sentence(doc) for doc in sentence_dict.values()]
 
     def parse_tree(self, sentence: str, idents=None, attach_tags=True) -> Tree:
         """Parses the sentence, using `idents` to detect values in the text.
