@@ -118,9 +118,10 @@ fn stringify(e: &ElementRef) -> String {
                     s.push_str(&stringify(&ElementRef::wrap(item).unwrap()));
                 }
                 "div" => {
-                    if has_class(child_element, "code-attribute") {
+                    if has_class(child_element, "code-attribute") || has_class(child_element, "example-wrap") {
                         continue;
                     }
+
                     s.push_str(&stringify(&ElementRef::wrap(item).unwrap()));
                 }
                 _ => {
@@ -214,7 +215,7 @@ impl DocStruct {
             Some((_, rhs)) => rhs,
         };
         let mut strukt = DocStruct {
-            s: format!("{}\n{}", docs, decl_str),
+            s: format!("{}\nstruct {} {{}}", docs, decl_str),
             methods: vec![],
         };
         strukt.eat_impls(&block);
@@ -241,7 +242,7 @@ impl DocStruct {
             let mut doc_children = doc.children().filter_map(ElementRef::wrap).peekable();
             while let Some(item) = doc_children.next() {
                 if item.value().name() == "details" {
-                    let name = match item.select(&DIV_DOCBLOCK).next() {
+                    let name = match item.select(&METHOD_NAME).next() {
                         None => continue,
                         Some(name) => name,
                     };
@@ -253,9 +254,7 @@ impl DocStruct {
                     self.methods
                         .push(format!("{}\n{} {{}}", docs, stringify(&name)));
                 } else if has_class(item.value(), "method") {
-                    println!("Method style block")
                 } else {
-                    println!("not detail block");
                 }
             }
         }
@@ -407,7 +406,7 @@ fn parse_struct(s: String) -> Result<ItemStruct, syn::Error> {
     syn::parse_str(&s)
 }
 
-fn ast_from_item(item: DocItem) -> Result<ItemContainer, SpecError> {
+pub fn ast_from_item(item: DocItem) -> Result<ItemContainer, SpecError> {
     Ok(match item {
         DocItem::Fn(f) => ItemContainer::Fn(parse_fn(f.s)?),
         DocItem::Struct(s) => {
@@ -415,7 +414,7 @@ fn ast_from_item(item: DocItem) -> Result<ItemContainer, SpecError> {
                 parse_struct(s.s)?,
                 s.methods
                     .into_iter()
-                    .map(parse_impl_method)
+                    .map(|x| parse_impl_method(x.clone()))
                     .filter_map(Result::ok)
                     .collect(),
             )

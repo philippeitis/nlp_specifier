@@ -7,6 +7,7 @@ use pyo3::exceptions::PyStopIteration;
 mod search_tree;
 mod docs;
 mod parse_html;
+mod type_match;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
@@ -14,8 +15,9 @@ use syn::parse::{Parse, ParseStream};
 use quote::ToTokens;
 
 use docs::Docs;
-use search_tree::{SearchTree, SearchItem, Depth, HasFnArg, FnArgLocation};
-use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
+use search_tree::{SearchTree, SearchItem, Depth};
+use type_match::{HasFnArg, FnArgLocation};
+use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir, DocItem, ItemContainer};
 
 
 #[macro_use]
@@ -256,15 +258,8 @@ fn main() {
         let grammar = Grammar::new(py);
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
-        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Input, fn_arg_type: Box::new("f32")};
-        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match item {
-            SearchItem::Fn(docs, _) | SearchItem::Method(docs, _) => {
-                docs
-                    .sections.iter().take(1)
-                    .any(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false))
-            }
-            _ => false,
-        }, Depth::Infinite));
+        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
+        println!("{:?}", tree.search(&|item| usize_first.item_matches(item), Depth::Infinite).len());
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
         matcher.print_seen();
@@ -273,7 +268,6 @@ fn main() {
     }).unwrap();
 
     let file = &x.file;
-
     std::fs::write("../../data/test_specified.rs", file.to_token_stream().to_string()).unwrap();
     std::process::Command::new("rustfmt").arg("../../data/test_specified.rs").spawn().unwrap();
 }
