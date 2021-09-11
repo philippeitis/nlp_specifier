@@ -1,4 +1,4 @@
-use pyo3::{Python, PyResult, PyObject, ToPyObject, PyErr};
+use pyo3::{Python, PyResult, PyObject, ToPyObject};
 use pyo3::types::{IntoPyDict, PyModule};
 use pyo3::exceptions::PyStopIteration;
 
@@ -6,13 +6,15 @@ mod search_tree;
 mod docs;
 
 use syn::visit_mut::VisitMut;
-use syn::{File, Item, parse_file, Attribute, ImplItemMethod, ItemFn};
+use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
 use std::path::Path;
 
+use syn::parse::{Parse, ParseStream};
 use search_tree::SearchTree;
 use docs::Docs;
 use search_tree::SearchItem;
-use syn::parse::{Parse, ParseStream};
+use crate::search_tree::{Depth, HasFnArg, FnArgLocation};
+use quote::ToTokens;
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -187,26 +189,63 @@ impl<'p> Grammar <'p> {
             Err(e) => Err(e)
         }
     }
-
 }
+
+struct SimMatcher<'p> {
+    sim_matcher: PyObject,
+    cutoff: f32,
+    py: Python<'p>,
+}
+
+impl<'p> SimMatcher <'p> {
+    fn new(py: Python<'p>, sentence: &str, parser: &Parser<'p>, cutoff: f32) -> Self {
+        let locals = [
+            ("nlp_query", py.import("nlp_query").unwrap().to_object(py)),
+            ("sent", sentence.to_object(py)),
+            ("parser", parser.parser.clone()),
+            ("cutoff", cutoff.to_object(py)),
+        ].into_py_dict(py);
+        SimMatcher {
+            sim_matcher: py.eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals)).unwrap().to_object(py),
+            cutoff,
+            py
+        }
+    }
+
+    fn is_similar(&self, sent: &str) -> PyResult<bool> {
+        let sim: f32 = self.sim_matcher.call_method1(self.py, "sent_similarity", (sent, ))?.extract(self.py)?;
+        Ok(sim > self.cutoff)
+    }
+}
+
 
 fn main() {
     let mut x = Specifier::from_path("../../data/test.rs").unwrap();
-    println!("{}", x.searcher.search(|item| match item {
-        SearchItem::Fn(docs, f) => {
-            docs.sections.iter().any(|sect| sect.header.as_deref() == Some(" # Invocation"))
-        }
-        _ => false,
-    }).len());
 
     Python::with_gil(|py| -> PyResult<()> {
         let parser = Parser::new(py);
         let grammar = Grammar::new(py);
+        let matcher = SimMatcher::new(py, "returns true if the index is equal to one", &parser, 0.85);
+        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Input, fn_arg_type: Box::new("usize")};
+        println!("{:?}", x.searcher.search(&|item| usize_first.item_matches(item) && match item {
+            SearchItem::Fn(docs, _) | SearchItem::Method(docs, _) => {
+                docs
+                    .sections.iter()
+                    .map(|sect| &sect.sentences)
+                    .flatten()
+                    .map(|s| matcher.is_similar(s))
+                    .filter_map(Result::ok)
+                    .any(|x| x)
+            }
+            _ => false,
+        }, Depth::Infinite));
+
         x.specify(&parser, &grammar);
         Ok(())
     }).unwrap();
 
     let file = &x.file;
-    std::fs::write("../../data/test_specified.rs", quote::quote!(#file).to_string()).unwrap();
+
+    std::fs::write("../../data/test_specified.rs", file.to_token_stream().to_string()).unwrap();
     std::process::Command::new("rustfmt").arg("../../data/test_specified.rs").spawn().unwrap();
 }

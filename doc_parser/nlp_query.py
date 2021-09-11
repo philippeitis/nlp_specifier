@@ -187,12 +187,20 @@ class SimPhrase(QueryField):
 
         if docs:
             for sentx in docs[0].sentences:
-                sent = self.parser.tokenize(sentx, idents=idents).doc
-                similarity = sent.similarity(self.phrase)
+                similarity = self.sent_similarity(sentx, idents)
                 if similarity > self.cutoff:
                     self.similarity_cache[item] = similarity
                     return True
         return False
+
+    def sent_similarity(self, sent, idents=None):
+        """Determines whether the phrase matches the provided fn.
+        To match the phrase, the function must contain at least one sentence which is sufficiently
+         similar to the query string."""
+        sent = self.parser.tokenize(sent, idents=idents).doc
+        similarity = sent.similarity(self.phrase)
+        print(sent, similarity)
+        return similarity
 
     def __str__(self):
         return " ".join(str(x) for x in self.phrase)
