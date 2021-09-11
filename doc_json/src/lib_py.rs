@@ -11,7 +11,7 @@ use syn::Expr;
 use syn_serde::json;
 
 use crate::{
-    get_toolchains as get_toolchains_,
+    get_toolchain_dirs as get_toolchains_,
     find_all_files_in_root_dir as find_all_files_in_root_dir_,
     DocItem, parse_file,
 };

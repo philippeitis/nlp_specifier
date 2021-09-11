@@ -259,7 +259,13 @@ fn main() {
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
         let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
-        println!("{:?}", tree.search(&|item| usize_first.item_matches(item), Depth::Infinite).len());
+        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match item {
+            SearchItem::Fn(docs, _) | SearchItem::Method(docs, _) => {
+                docs
+                    .sections.first().map(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false)).unwrap_or(false)
+            }
+            _ => false,
+        }, Depth::Infinite));
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
         matcher.print_seen();

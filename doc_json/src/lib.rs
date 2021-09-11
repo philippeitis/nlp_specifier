@@ -1,27 +1,28 @@
 use std::path::{Path, PathBuf};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+use std::process::Command;
+use std::fmt::{Display, Formatter};
 
 use scraper::{ElementRef, Html, Node, Selector};
 use scraper::node::Element;
 use selectors::attr::CaseSensitivity;
+use home::rustup_home;
+
+mod docs;
+mod lib_py;
+
+use docs::{RawDocs, Docs};
+use std::convert::TryFrom;
 
 #[macro_use]
 extern crate lazy_static;
-
-mod lib_py;
-mod docs;
-
-use docs::{Docs, RawDocs};
-use home::rustup_home;
-use std::process::Command;
-use std::fmt::{Display, Formatter};
-
 
 #[derive(Debug)]
 pub enum ParseError {
     Io(std::io::Error),
     RustDoc(&'static str),
     RustUp(String),
+    Syn(syn::Error),
 }
 
 impl Display for ParseError {
@@ -30,6 +31,7 @@ impl Display for ParseError {
             ParseError::Io(e) => write!(f, "Io: {}", e),
             ParseError::RustDoc(s) => write!(f, "RustDoc: {}", s),
             ParseError::RustUp(s) => write!(f, "RustUp: {}", s),
+            ParseError::Syn(s) => write!(f, "Syn: {}", s),
         }
     }
 }
@@ -115,9 +117,10 @@ fn stringify(e: &ElementRef) -> String {
                     s.push_str(&stringify(&ElementRef::wrap(item).unwrap()));
                 }
                 "div" => {
-                    if has_class(child_element, "code-attribute") {
+                    if has_class(child_element, "code-attribute") || has_class(child_element, "example-wrap") {
                         continue;
                     }
+
                     s.push_str(&stringify(&ElementRef::wrap(item).unwrap()));
                 }
                 _ => {
@@ -211,7 +214,7 @@ impl DocStruct {
             Some((_, rhs)) => rhs,
         };
         let mut strukt = DocStruct {
-            s: format!("{}\n{}", docs, decl_str),
+            s: format!("{}\nstruct {} {{}}", docs, decl_str),
             methods: vec![],
         };
         strukt.eat_impls(&block);
@@ -238,7 +241,7 @@ impl DocStruct {
             let mut doc_children = doc.children().filter_map(ElementRef::wrap).peekable();
             while let Some(item) = doc_children.next() {
                 if item.value().name() == "details" {
-                    let name = match item.select(&DIV_DOCBLOCK).next() {
+                    let name = match item.select(&METHOD_NAME).next() {
                         None => continue,
                         Some(name) => name,
                     };
@@ -250,9 +253,7 @@ impl DocStruct {
                     self.methods
                         .push(format!("{}\n{} {{}}", docs, stringify(&name)));
                 } else if has_class(item.value(), "method") {
-                    println!("Method style block")
                 } else {
-                    println!("not detail block");
                 }
             }
         }
@@ -338,7 +339,7 @@ fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(dir: P, paths: &mut Vec<Pat
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            find_all_files_in_root_dir_helper(path, paths);
+            let _ = find_all_files_in_root_dir_helper(path, paths);
         } else if let Some(file_name) = path.file_name() {
             match file_name.to_str() {
                 None => continue,
@@ -352,7 +353,7 @@ fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(dir: P, paths: &mut Vec<Pat
     Ok(())
 }
 
-pub fn get_toolchains() -> Result<Vec<PathBuf>, ParseError> {
+pub fn get_toolchain_dirs() -> Result<Vec<PathBuf>, ParseError> {
     let path = rustup_home()?.join("toolchains");
 
     match String::from_utf8(Command::new("rustup").args(&["toolchain", "list"]).output()?.stdout) {
@@ -360,8 +361,9 @@ pub fn get_toolchains() -> Result<Vec<PathBuf>, ParseError> {
             Ok(s
                 .lines()
                 .map(|line|
-                    line.strip_suffix(" (default)")
-                        .map(|s| s)
+                    line.strip_suffix(" (override)")
+                        .unwrap_or(line)
+                        .strip_suffix(" (default)")
                         .unwrap_or(line)
                         .trim()
                 )
@@ -372,6 +374,10 @@ pub fn get_toolchains() -> Result<Vec<PathBuf>, ParseError> {
             Err(ParseError::RustUp(e.to_string()))
         }
     }
+}
+
+pub fn toolchain_path_to_html_root<P: AsRef<Path>>(p: P) -> PathBuf {
+    p.as_ref().join("share/doc/rust/html/")
 }
 
 pub fn find_all_files_in_root_dir<P: AsRef<Path>>(dir: P) -> std::io::Result<Vec<PathBuf>> {

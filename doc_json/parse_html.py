@@ -519,9 +519,12 @@ def convert_rs_to_py(files):
 
 
 if __name__ == "__main__":
-
+    import time
     target_dir = str((get_toolchains()[0] / Path("share/doc/rust/html/")).expanduser())
-
+    start = time.time()
+    print(len(convert_rs_to_py(parse_all_files(target_dir))))
+    end = time.time()
+    print(end - start)
     profiling("convert_rs_to_py(parse_all_files(target_dir))")
     # start = time.time()
     # _ = convert_rs_to_py(parse_all_files(target_dir))
