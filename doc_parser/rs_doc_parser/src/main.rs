@@ -1,20 +1,27 @@
+use std::path::Path;
+
 use pyo3::{Python, PyResult, PyObject, ToPyObject};
 use pyo3::types::{IntoPyDict, PyModule};
 use pyo3::exceptions::PyStopIteration;
 
 mod search_tree;
 mod docs;
+mod parse_html;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
-use std::path::Path;
-
 use syn::parse::{Parse, ParseStream};
-use search_tree::SearchTree;
-use docs::Docs;
-use search_tree::SearchItem;
-use crate::search_tree::{Depth, HasFnArg, FnArgLocation};
 use quote::ToTokens;
+
+use docs::Docs;
+use search_tree::{SearchTree, SearchItem, Depth, HasFnArg, FnArgLocation};
+use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
+
+
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate syn;
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -216,31 +223,52 @@ impl<'p> SimMatcher <'p> {
         let sim: f32 = self.sim_matcher.call_method1(self.py, "sent_similarity", (sent, ))?.extract(self.py)?;
         Ok(sim > self.cutoff)
     }
+
+    fn any_similar(&self, sents: &[String]) -> PyResult<bool> {
+        self
+            .sim_matcher
+            .call_method(
+                self.py,
+                "any_similar",
+                (sents.to_object(self.py),
+                 self.cutoff.to_object(self.py)),
+                None
+            )?.extract(self.py)
+    }
+    fn print_seen(&self) {
+        let sents_seen: usize = self.sim_matcher.getattr(self.py, "sents_seen").unwrap().extract(self.py).unwrap();
+        println!("{}", sents_seen);
+    }
+
 }
 
 
 fn main() {
     let mut x = Specifier::from_path("../../data/test.rs").unwrap();
 
+    let start = std::time::Instant::now();
+    let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
+    let tree = file_from_root_dir(&path).unwrap();
+    let end = std::time::Instant::now();
+    println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
     Python::with_gil(|py| -> PyResult<()> {
         let parser = Parser::new(py);
         let grammar = Grammar::new(py);
-        let matcher = SimMatcher::new(py, "returns true if the index is equal to one", &parser, 0.85);
-        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Input, fn_arg_type: Box::new("usize")};
-        println!("{:?}", x.searcher.search(&|item| usize_first.item_matches(item) && match item {
+        let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
+        let start = std::time::Instant::now();
+        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Input, fn_arg_type: Box::new("f32")};
+        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match item {
             SearchItem::Fn(docs, _) | SearchItem::Method(docs, _) => {
                 docs
-                    .sections.iter()
-                    .map(|sect| &sect.sentences)
-                    .flatten()
-                    .map(|s| matcher.is_similar(s))
-                    .filter_map(Result::ok)
-                    .any(|x| x)
+                    .sections.iter().take(1)
+                    .any(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false))
             }
             _ => false,
         }, Depth::Infinite));
-
-        x.specify(&parser, &grammar);
+        let end = std::time::Instant::now();
+        println!("Search took {}s", (end - start).as_secs_f32());
+        matcher.print_seen();
+        // x.specify(&parser, &grammar);
         Ok(())
     }).unwrap();
 

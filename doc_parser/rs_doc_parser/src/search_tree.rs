@@ -109,9 +109,50 @@ impl TryFrom<&Item> for SearchItem {
     }
 }
 
+impl TryFrom<Item> for SearchItem {
+    type Error = ();
+
+    fn try_from(item: Item) -> Result<Self, Self::Error> {
+        match item {
+            Item::Const(item) => {
+                Ok(SearchItem::Const(Docs::from(&item.attrs), item))
+            }
+            Item::Enum(item) => {
+                Ok(SearchItem::Enum(Docs::from(&item.attrs), item))
+            }
+            // Item::ExternCrate(_) => {}
+            Item::Fn(item) => {
+                Ok(SearchItem::Fn(Docs::from(&item.attrs), item))
+            }
+            // Item::ForeignMod(_) => {}
+            Item::Impl(item) => {
+                Ok(SearchItem::Impl(Docs::from(&item.attrs), SearchItemImpl::from(&item)))
+                // Ok(SearchItem::Impl(Docs::from(&item.attrs), item.clone()))
+            }
+            // Item::Macro(_) => {}
+            // Item::Macro2(_) => {}
+            Item::Mod(item) => {
+                Ok(SearchItem::Mod(Docs::from(&item.attrs), SearchItemMod::from(&item)))
+            }
+            // Item::Static(_) => {}
+            Item::Struct(item) => {
+                Ok(SearchItem::Struct(Docs::from(&item.attrs), item))
+            }
+            // Item::Trait(_) => {}
+            // Item::TraitAlias(_) => {}
+            // Item::Type(_) => {}
+            // Item::Union(_) => {}
+            // Item::Use(_) => {}
+            // Item::Verbatim(_) => {}
+            // Item::__TestExhaustive(_) => {}
+            _ => Err(())
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub struct SearchItemImpl {
-    pub docs: Docs,
     pub attrs: Vec<Attribute>,
     pub defaultness: bool,
     pub unsafety: bool,
@@ -137,12 +178,27 @@ impl TryFrom<&ImplItem> for SearchItem {
     }
 }
 
+impl TryFrom<ImplItem> for SearchItem {
+    type Error = ();
+
+    fn try_from(item: ImplItem) -> Result<Self, Self::Error> {
+        match item {
+            ImplItem::Const(item) => {
+                Ok(SearchItem::ImplConst(Docs::from(&item.attrs), item))
+            }
+            ImplItem::Method(item) => {
+                Ok(SearchItem::Method(Docs::from(&item.attrs), item))
+            }
+            _ => Err(())
+        }
+    }
+}
+
+
 
 impl From<&ItemImpl> for SearchItemImpl {
     fn from(impl_item: &ItemImpl) -> Self {
-        let docs = Docs::from(&impl_item.attrs);
         SearchItemImpl {
-            docs,
             attrs: impl_item.attrs.clone(),
             defaultness: impl_item.defaultness.is_some(),
             unsafety: impl_item.unsafety.is_some(),

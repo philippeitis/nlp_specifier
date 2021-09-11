@@ -10,7 +10,7 @@ from spacy.tokens import Doc
 import click
 
 from doc_json.parse_html import DocStruct, DocFn, get_toolchains, DocCrate
-from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod, Const
+from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
@@ -354,7 +354,7 @@ def search_demo():
         Phrase([Word("vector", "NN", True, False)], parser)
     ]
     print("Finding documentation matches.")
-    items = ast.scope.find_fn_matches(Query(words))
+    items = ast.find_fn_matches(Query(words))
     for item in items:
         print(item.sig_str())
 
@@ -439,7 +439,6 @@ def cli():
 
 @cli.command("search-demo")
 def stdlib_search_demo2():
-    from multiprocessing import Pool
     """Demonstrates searching for function arguments and phrases with synonyms."""
     parser = Parser.default()
 
@@ -447,31 +446,20 @@ def stdlib_search_demo2():
     query.append_field(FnArg("f32", is_input=False))
 
     start = time.time()
-    doc_ast = DocCrate.from_root_dir(get_toolchains()[0], Pool(24))
+    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
     end = time.time()
 
     print(f"Took {end - start}s to read DocCrate")
-    for file in doc_ast.files:
-        for _ in file.find_matches(query):
-            pass
-
-    print("Using synonym based methods")
-    start = time.time()
-    for file in doc_ast.files:
-        for match in file.find_matches(query):
-            print(match)
-    end = time.time()
-
-    print(f"Took {end - start}s")
     sim = SimPhrase("The minimum of two values", parser)
     query = Query([sim, FnArg("f32", is_input=False)])
     start = time.time()
     print("Using similarity methods")
     for file in doc_ast.files:
         for match in file.find_matches(query):
-            print(match, sim.similarity_cache[match])
+            pass
+            # print(match, sim.similarity_cache[match])
     end = time.time()
-
+    print(sim.sents_seen)
     print(f"Took {end - start}s")
 
 @cli.command()
@@ -670,8 +658,8 @@ if __name__ == '__main__':
     sh.setFormatter(formatter)
     sh.setLevel(logging.INFO)
     logging.getLogger().addHandler(sh)
-    logging.getLogger().setLevel(logging.INFO)
-
+    logging.getLogger().setLevel(logging.WARNING)
+    #
     cli()
 
     # design writeup
