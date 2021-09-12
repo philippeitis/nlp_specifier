@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet};
 use std::process::Command;
 use std::fmt::{Display, Formatter};
 
@@ -12,7 +12,6 @@ mod docs;
 mod lib_py;
 
 use docs::{RawDocs, Docs};
-use std::convert::TryFrom;
 
 #[macro_use]
 extern crate lazy_static;
@@ -155,7 +154,7 @@ fn parse_list(e: &ElementRef) -> Vec<String> {
         .collect()
 }
 
-fn parse_example(e: &ElementRef) -> String {
+fn parse_example(_e: &ElementRef) -> String {
     "```CODE```".to_string()
 }
 
@@ -252,9 +251,7 @@ impl DocStruct {
                     };
                     self.methods
                         .push(format!("{}\n{} {{}}", docs, stringify(&name)));
-                } else if has_class(item.value(), "method") {
-                } else {
-                }
+                } else if has_class(item.value(), "method") {} else {}
             }
         }
     }

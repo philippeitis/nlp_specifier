@@ -1,4 +1,4 @@
 pip install lxml
 pip install maturin
-maturin build --release -m ./py_cargo_utils/Cargo.toml
+maturin build --release -m ./Cargo.toml
 pip install .

@@ -6,7 +6,6 @@ use rayon::prelude::*;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use syn::{ImplItemMethod, ItemFn, ItemStruct};
-use syn::Expr;
 
 use syn_serde::json;
 
@@ -110,7 +109,7 @@ fn parse_all_files(path: String) -> PyResult<PyObject> {
 
 #[pymodule]
 #[pyo3(name = "py_cargo_utils")]
-fn py_cargo_utils(py: Python, m: &PyModule) -> PyResult<()> {
+fn py_cargo_utils(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rustup_home, m)?)?;
     m.add_function(wrap_pyfunction!(get_toolchains, m)?)?;
     m.add_function(wrap_pyfunction!(find_all_files_in_root_dir, m)?)?;
