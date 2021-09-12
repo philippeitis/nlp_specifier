@@ -89,10 +89,10 @@ impl Parse for AttrHelper {
     }
 }
 
-impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
-    fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
-        if should_specify(&i.attrs) {
-            let docs = Docs::from(&i.attrs);
+impl <'a, 'p> SpecifierX<'a, 'p> {
+    fn specify_docs(&self, attrs: &mut Vec<Attribute>) {
+        if should_specify(&attrs) {
+            let docs = Docs::from(&attrs);
             if let Some(section) = docs.sections.first() {
                 for sentence in &section.sentences {
                     if let Some(Ok(tree)) = self.parser.parse_trees(sentence).next() {
@@ -101,7 +101,7 @@ impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
                                 let attr = spec.trim_matches('"');
                                 // let e: Result<Vec<Attribute>, syn::Error> = Attribute::parse_inner::parse(&tokens).unwrap();
                                 let e: Result<AttrHelper, syn::Error> = syn::parse_str(attr);
-                                i.attrs.extend(e.unwrap().attrs);
+                                attrs.extend(e.unwrap().attrs);
                             }
                             Err(_) => {}
                         }
@@ -109,27 +109,17 @@ impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
                 }
             }
         }
+
+    }
+
+}
+impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
+    fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
+        self.specify_docs(&mut i.attrs)
     }
 
     fn visit_item_fn_mut(&mut self, i: &mut ItemFn) {
-        if should_specify(&i.attrs) {
-            let docs = Docs::from(&i.attrs);
-            if let Some(section) = docs.sections.first() {
-                for sentence in &section.sentences {
-                    if let Some(Ok(tree)) = self.parser.parse_trees(sentence).next() {
-                        match self.grammar.specify_tree(&tree) {
-                            Ok(spec) => {
-                                let attr = spec.trim_matches('"');
-                                // let e: Result<Vec<Attribute>, syn::Error> = Attribute::parse_inner::parse(&tokens).unwrap();
-                                let e: Result<AttrHelper, syn::Error> = syn::parse_str(attr);
-                                i.attrs.extend(e.unwrap().attrs);
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                }
-            }
-        }
+        self.specify_docs(&mut i.attrs)
     }
 }
 
