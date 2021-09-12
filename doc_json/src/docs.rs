@@ -14,7 +14,7 @@ pub struct Section {
     pub sentences: Vec<String>,
 }
 
-fn split_string_on(s: &str, c: char) -> Vec<&str> {
+pub fn split_string_on(s: &str, c: char) -> Vec<&str> {
     match c {
         '"' | '`' | '\'' => panic!("Bad char"),
         _ => {}
@@ -23,9 +23,22 @@ fn split_string_on(s: &str, c: char) -> Vec<&str> {
     let mut looking_for = None;
     let mut splits = vec![];
     let mut prev_ind = 0;
-    for (ind, cx) in s.char_indices() {
+
+    let mut char_inds = s.char_indices().peekable();
+    while let Some((ind, cx)) = char_inds.next() {
         match looking_for {
-            Some(x) if x == cx => looking_for = None,
+            Some(')') => match cx {
+                '"' | '`' | '\''  => while let Some((_, cx_)) = char_inds.next() {
+                    if cx_ == cx {
+                        break;
+                    }
+                },
+                ')' => looking_for = None,
+                _ => continue,
+            },
+            Some(x) if x == cx => {
+                looking_for = None
+            },
             Some(_) => continue,
             None => match cx {
                 '"' | '`' | '\'' => looking_for = Some(cx),
@@ -54,10 +67,6 @@ impl RawSection {
 
     pub(crate) fn push_line(&mut self, line: String) {
         self.lines.push(line);
-    }
-
-    pub(crate) fn consolidate(self) -> Section {
-        Section::from(self)
     }
 }
 
