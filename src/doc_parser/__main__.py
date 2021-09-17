@@ -697,12 +697,8 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.WARNING)
     #
-    # cli()
-    tokenize_all_sents()
-    # parser = Parser.default()
-    # print(
-    #     parser.tokenize("Computes `self + rhs`, returning `None` if overflow occurred").tags
-    # )
+    cli()
+
     # bert library
     # search around
 

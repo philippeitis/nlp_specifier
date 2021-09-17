@@ -10,6 +10,7 @@ mod parse_html;
 mod type_match;
 mod tokens;
 mod tree;
+mod jsonl;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
@@ -23,6 +24,8 @@ use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolch
 use std::io::{BufWriter, Write};
 use std::fs::OpenOptions;
 use crate::docs::{RawDocs, Section};
+use crate::jsonl::JsonLValues;
+use syn::visit::Visit;
 
 #[macro_use]
 extern crate lazy_static;
@@ -254,6 +257,7 @@ fn main() {
     let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
     let tree = file_from_root_dir(&path).unwrap();
     let end = std::time::Instant::now();
+
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
     Python::with_gil(|py| -> PyResult<()> {
         let parser = Parser::new(py);
@@ -270,8 +274,8 @@ fn main() {
         }, Depth::Infinite).len());
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
+
         let start = std::time::Instant::now();
-        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
         let sents = tree.search(&|x| true, Depth::Infinite).iter().map(|x| match x {
             SearchItem::Const(docs, _) => docs.sections.first(),
             SearchItem::Enum(docs, _) => docs.sections.first(),
@@ -282,18 +286,23 @@ fn main() {
             SearchItem::ImplConst(docs, _) => docs.sections.first(),
             SearchItem::Method(docs, _) => docs.sections.first(),
         }).flatten().map(|s| &s.sentences).flatten().collect::<Vec<_>>();
+        let end = std::time::Instant::now();
+        println!("Search took {}s", (end - start).as_secs_f32());
+        println!("{:?}", sents.len());
         let mut writer = BufWriter::new(OpenOptions::new().write(true).truncate(true).create(true).open("sents.txt").unwrap());
         for sent in &sents {
             writer.write(format!("{}\n", sent).as_bytes());
         }
-        println!("{:?}", sents.len());
-        let end = std::time::Instant::now();
-        println!("Search took {}s", (end - start).as_secs_f32());
 
         matcher.print_seen();
         // x.specify(&parser, &grammar);
         Ok(())
     }).unwrap();
+
+    let mut jsonl = JsonLValues::new();
+
+    jsonl.visit_file(&x.file);
+    jsonl.write_to_path("./jsonl.txt");
 
     let file = &x.file;
     std::fs::write("../../data/test_specified.rs", file.to_token_stream().to_string()).unwrap();
