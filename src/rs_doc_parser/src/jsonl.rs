@@ -1,12 +1,13 @@
-use syn::visit::Visit;
-use syn::{ItemFn, ImplItemMethod};
-use crate::docs::{Docs, Section};
 use std::io::{Write, BufWriter};
 use std::path::Path;
 use std::fs::OpenOptions;
-
-use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
+
+use syn::visit::Visit;
+use syn::{ItemFn, ImplItemMethod};
+use serde::{Serialize, Deserialize};
+
+use crate::docs::Docs;
 
 #[derive(Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 struct JsonL {
