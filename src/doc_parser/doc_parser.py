@@ -97,7 +97,9 @@ class Parser:
     def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_LG):
         if model not in Parser.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
-            Parser.TAGGER_CACHE[model] = spacy.load(str(model))
+            nlp = spacy.load(str(model))
+            nlp.add_pipe("doc_tokens")
+            Parser.TAGGER_CACHE[model] = nlp
 
         self.token_cache = Parser.TOKEN_CACHE[model]
         self.entity_cache = Parser.ENTITY_CACHE[model]
@@ -129,7 +131,6 @@ class Parser:
             self.token_cache[sentence] = doc
 
         doc = copy(self.token_cache[sentence])
-        fix_tokens(doc, idents=idents)
 
         return Sentence(doc)
 
@@ -143,11 +144,9 @@ class Parser:
 
         for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
             sent = sentences[i]
+            # fix_tokens(tokenized)
             self.token_cache[sent] = tokenized
-            sentence_dict[i] = copy(tokenized)
-
-        for doc in sentence_dict.values():
-            fix_tokens(doc, idents=idents)
+            sentence_dict[i] = tokenized
 
         return [Sentence(doc) for doc in sentence_dict.values()]
 

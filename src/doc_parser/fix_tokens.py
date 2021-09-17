@@ -9,6 +9,7 @@ from typing import Optional
 import spacy
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
+from spacy.lang.en import English
 
 nlp = spacy.blank('en')
 
@@ -122,9 +123,9 @@ BOOL_OPS = [
 ]
 
 
-WORD_MATCHERS_0 = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
-    (0, {"tag_": "PATH"}, [{"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$"}}]),
-]]
+# WORD_MATCHERS_0 = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
+#     (0, {"tag_": "PATH"}, [{"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$"}}]),
+# ]]
 
 MERGE_MATCHERS = BOOL_OPS + [
     ({"POS": "NOUN", "TAG": "CODE"}, CODE_MATCHER),
@@ -158,7 +159,7 @@ WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, 
 ]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
 
 
-def get_literal_tag(word: str, idents=None) -> Optional[str]:
+def get_literal_tag(word: str) -> Optional[str]:
     """Determines whether `word` matches the pattern for a code literal - specifically,
      if the word is a Rust literal or a function argument.
 
@@ -167,8 +168,8 @@ def get_literal_tag(word: str, idents=None) -> Optional[str]:
     :return:
     """
     # detect bool literals
-    if idents and word in idents:
-        return "IDENT"
+    # if idents and word in idents:
+    #     return "IDENT"
 
     # detect numbers
     if word.endswith(("u8", "u16", "u32", "u64", "usize")):
@@ -177,7 +178,7 @@ def get_literal_tag(word: str, idents=None) -> Optional[str]:
     if word.endswith(("i8", "i16", "i32", "i64", "isize")):
         return "LIT_INUM"
 
-    if word.endswith(("f32", "f64")):
+    if word.endswith(("f32", "f64")) or word.lower() == "nan":
         return "LIT_FNUM"
 
     if word.isnumeric():
@@ -186,15 +187,16 @@ def get_literal_tag(word: str, idents=None) -> Optional[str]:
     return None
 
 
-def fix_tokens(doc: Doc, idents=None):
+@English.component("doc_tokens")
+def fix_tokens(doc: Doc):
     for i, token in enumerate(doc):
-        if get_literal_tag(token.text, idents):
+        if get_literal_tag(token.text):
             token.tag_ = "LIT"
 
-    for idx, substitute, matcher in WORD_MATCHERS_0:
-        for _, start, end in matcher(doc):
-            for attr, val in substitute.items():
-                setattr(doc[start + idx], attr, val)
+    # for idx, substitute, matcher in WORD_MATCHERS_0:
+    #     for _, start, end in matcher(doc):
+    #         for attr, val in substitute.items():
+    #             setattr(doc[start + idx], attr, val)
 
     for attrs, matcher in MERGE_MATCHERS:
         while True:
@@ -209,3 +211,5 @@ def fix_tokens(doc: Doc, idents=None):
         for _, start, end in matcher(doc):
             for attr, val in substitute.items():
                 setattr(doc[start + idx], attr, val)
+
+    return doc

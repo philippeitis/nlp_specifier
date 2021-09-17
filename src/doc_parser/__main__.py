@@ -454,13 +454,15 @@ def stdlib_search_demo2():
     query = Query([sim, FnArg("f32", is_input=False)])
     start = time.time()
     print("Using similarity methods")
+    num = 0
     for file in doc_ast.files:
         for match in file.find_matches(query):
-            pass
-            # print(match, sim.similarity_cache[match])
+            num += 1
+            print(match, sim.similarity_cache[match])
     end = time.time()
-    print(sim.sents_seen)
+    print(num, sim.sents_seen)
     print(f"Took {end - start}s")
+
 
 @cli.command()
 @click.option('--path', "-p", default=DIR_PATH / "../data/test3.rs", help='Source file to specify.', type=Path)
@@ -652,6 +654,41 @@ def render_ner(sentence: str, open_browser: bool, path: Path):
     render_entities(sentence, "NER", open_browser, path)
 
 
+def tokenize_all_sents():
+    parser = Parser.default()
+    sentences = list(
+        set([line.strip() for line in Path("./doc_parser/rs_doc_parser/sents.txt").read_text().splitlines()]))
+    start = time.time()
+    # tokens = [parser.tokenize(sentence) for sentence in sentences]
+    sents = parser.stokenize(sentences)
+    end = time.time()
+    for sent in sents[0:250]:
+        print('"' + " ".join(sent.tags) + '",')
+    exit()
+    # print([(sent.tags, sent.words) for sent in sents[0:20]])
+    # print(set(item for sent in sents for item in sent.tags))
+    unique_lits = []
+    for sent in sents:
+
+        for tag, word in zip(sent.tags, sent.words):
+            if tag == "LIT":
+                print(" ".join(sent.words))
+                print(word)
+                break
+
+    print(unique_lits)
+    # print("\n".join(str(x.tags) for x in tokens))
+    print(end - start)
+
+    start = time.time()
+    tokens = parser.stokenize(sentences)
+    # tokens = [parser.tokenize(sentence) for sentence in sentences]
+    end = time.time()
+
+    # print("\n".join(str(x.tags) for x in tokens))
+    print(end - start)
+
+
 if __name__ == '__main__':
     formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
     sh = logging.StreamHandler()
@@ -660,9 +697,12 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.WARNING)
     #
-    cli()
-
-    # design writeup
+    # cli()
+    tokenize_all_sents()
+    # parser = Parser.default()
+    # print(
+    #     parser.tokenize("Computes `self + rhs`, returning `None` if overflow occurred").tags
+    # )
     # bert library
     # search around
 

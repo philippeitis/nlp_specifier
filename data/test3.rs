@@ -1,65 +1,36 @@
-mod test4;
-
-use test4::{a as c, b};
-
-struct u32;
 struct usize;
-struct Vec;
-struct bool;
 
-const X: u32 = 0;
-
-/// Prints obj.
-fn print(obj: u32) {}
-
-/// Really prints obj.
-fn print2(obj: u32) {}
-
-struct PVec {
-    v: Vec<u32>
-}
 struct PInt {}
 
-impl PVec {
-    /// Removes and returns the element at position `index` within the vector,
-    /// shifting all elements after it to the left.
-    fn remove(&mut self, index: usize) -> u32 {
-        self.v.remove(index).unwrap()
+impl PInt {
+    #[specify]
+    #[invoke = "the reciprocal of {OBJ:self}"]
+    /// Returns the reciprocal of `self`.
+    fn reciprocal(&self) -> Self {
+        unimplemented!()
     }
 
     #[specify]
-    /// Removes the last element from a vector and returns it, or `None` if it
-    /// is empty.
-    fn pop(&mut self) -> u32 {
-        self.remove(self.len() - 1)
+    /// Returns `true` if `self` is equal to `0` or `1`
+    fn boolish(&self) -> Self {
+        unimplemented!()
     }
-
-    /// Returns `true` if `self` contains 0u32
-    fn contains(&self, val: u32) -> bool {
-        self.v.contains(val)
-    }
-}
-
-impl PInt {
-    fn output_tuple(&self) -> (Self, Self) {}
-    #[invoke = "the reciprocal of {OBJ:self}"]
-    /// Returns the reciprocal of `self`.
-    fn reciprocal(&self) -> Self {}
 
     #[specify]
     /// Returns the reciprocal of `self` plus 1
-    fn reciprocal_p(&self) -> Self {}
+    fn reciprocal_p(&self) -> Self {
+        unimplemented!()
+    }
 
     #[specify]
     /// Returns `self` plus `arg1` plus `arg3` plus `arg2`
-    fn fn_with_three_args(&self, arg1: usize, arg2: usize, arg3: usize) -> Self {}
+    fn fn_with_three_args(&self, arg1: usize, arg2: usize, arg3: usize) -> Self {
+        unimplemented!()
+    }
 
     #[specify]
     /// Returns `self` plus `agh` plus `aghh` plus `aghhh`
-    fn three_arg_fn(&self, agh: usize, aghh: usize, aghhh: usize) -> Self {}
-
-    #[specify]
-    /// Returns the frobinical of `self`
-    fn frobinical(&self) -> Self {}
-
+    fn three_arg_fn(&self, agh: usize, aghh: usize, aghhh: usize) -> Self {
+        unimplemented!()
+    }
 }

@@ -8,6 +8,8 @@ mod search_tree;
 mod docs;
 mod parse_html;
 mod type_match;
+mod tokens;
+mod tree;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
@@ -17,13 +19,23 @@ use quote::ToTokens;
 use docs::Docs;
 use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
-use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir, DocItem, ItemContainer};
-
+use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir, DocItem, ItemContainer, ParseError};
+use std::io::{BufWriter, Write};
+use std::fs::OpenOptions;
+use crate::docs::{RawDocs, Section};
 
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate syn;
+
+static DOC_PARSER: &str = include_str!("../../doc_parser/doc_parser.py");
+static FIX_TOKENS: &str = include_str!("../../doc_parser/fix_tokens.py");
+static NER: &str = include_str!("../../doc_parser/ner.py");
+static FN_CALLS: &str = include_str!("../../doc_parser/fn_calls.py");
+static GRAMMAR: &str = include_str!("../../doc_parser/grammar.py");
+static CFG: &str = include_str!("../../doc_parser/codegrammar.cfg");
+static LEMMATIZER: &str = include_str!("../../doc_parser/lemmatizer.py");
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -137,7 +149,7 @@ impl<'p> Parser<'p> {
             ("root_dir", path.to_object(py))
         ].into_py_dict(py);
         // TODO: Make sure we fix path handling for the general case.
-        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent), str(pathlib.Path(root_dir).parent.parent)])";
+        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'doc_parser'), str(pathlib.Path(root_dir).parent)])";
         py.eval(code, None, Some(locals)).unwrap();
 
         let locals = [("doc_parser", py.import("doc_parser").unwrap())].into_py_dict(py);
@@ -255,9 +267,29 @@ fn main() {
                     .sections.first().map(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false)).unwrap_or(false)
             }
             _ => false,
-        }, Depth::Infinite));
+        }, Depth::Infinite).len());
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
+        let start = std::time::Instant::now();
+        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
+        let sents = tree.search(&|x| true, Depth::Infinite).iter().map(|x| match x {
+            SearchItem::Const(docs, _) => docs.sections.first(),
+            SearchItem::Enum(docs, _) => docs.sections.first(),
+            SearchItem::Fn(docs, _) => docs.sections.first(),
+            SearchItem::Impl(docs, _) => docs.sections.first(),
+            SearchItem::Mod(docs, _) => docs.sections.first(),
+            SearchItem::Struct(docs, _) => docs.sections.first(),
+            SearchItem::ImplConst(docs, _) => docs.sections.first(),
+            SearchItem::Method(docs, _) => docs.sections.first(),
+        }).flatten().map(|s| &s.sentences).flatten().collect::<Vec<_>>();
+        let mut writer = BufWriter::new(OpenOptions::new().write(true).truncate(true).create(true).open("sents.txt").unwrap());
+        for sent in &sents {
+            writer.write(format!("{}\n", sent).as_bytes());
+        }
+        println!("{:?}", sents.len());
+        let end = std::time::Instant::now();
+        println!("Search took {}s", (end - start).as_secs_f32());
+
         matcher.print_seen();
         // x.specify(&parser, &grammar);
         Ok(())

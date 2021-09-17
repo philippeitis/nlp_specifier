@@ -1,5 +1,4 @@
-from doc_parser import Parser
-from pyrs_ast import AstFile
+from doc_parser import Parser, SpacyModel, GRAMMAR_PATH
 
 
 class NaiveSimilarity:
@@ -38,14 +37,30 @@ class SimilarityNouns(SimilarityFilter):
         super().__init__(parser, lambda t: t.pos_ in {'NOUN', 'PROPN', "VERB"})
 
 
-if __name__ == '__main__':
-    a = AstFile.from_path("../data/test5.rs")
-    ty = a.scope.find_type("PVec")
-    fn_rm = ty.methods[0].docs.sections()[0].sentences[0]
-    fn_pop = ty.methods[1].docs.sections()[0].sentences[0]
-    fn_contains = ty.methods[2].docs.sections()[0].sentences[0]
+def transformers_similarity():
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    import torch
 
-    p = Parser.default()
+    model_name = "bert-base-cased-finetuned-mrpc"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+    sequence_0 = "Returns the maximum of two `f32` values."
+    sequence_1 = "Returns the minimum of two values."
+
+    tokens = tokenizer(sequence_0, sequence_1, return_tensors="pt")
+    print(tokens)
+    print(tokenizer(sequence_0, return_tensors="pt"))
+    classification_logits = model(**tokens)
+    print(classification_logits)
+    classification_logits = classification_logits[0]
+    results = torch.softmax(classification_logits, dim=1).tolist()[0]
+    print(torch.softmax(classification_logits, dim=1))
+    print(results[1], sum(results))
+
+
+def spacy_similarity():
+    p = Parser.from_path(GRAMMAR_PATH, model=SpacyModel.EN_LG)
     s_naive = NaiveSimilarity(p)
     s_nostop = SimilarityNoStop(p)
     s_nouns = SimilarityNouns(p)
@@ -58,9 +73,9 @@ if __name__ == '__main__':
 
     sents = [
         ("hello world", "hello_globe"),
-        (fn_rm, fn_pop),
-        (fn_rm, fn_contains),
-        (fn_pop, fn_contains),
+        # (fn_rm, fn_pop),
+        # (fn_rm, fn_contains),
+        # (fn_pop, fn_contains),
 
     ]
     for sent1, sent2 in sents:
@@ -70,3 +85,14 @@ if __name__ == '__main__':
 
         for name, sim_metric in sims:
             print(f"{name}: {sim_metric(sent1, sent2)}")
+
+    s1 = "Delete the last element of self."
+    s2 = "Remove the last element of self."
+    s1d = p.tokenize(s1).doc
+    s2d = p.tokenize(s2).doc
+    print(s1d.similarity(s2d))
+    print(s1d[0].similarity(s2d[0]))
+
+
+if __name__ == '__main__':
+    transformers_similarity()

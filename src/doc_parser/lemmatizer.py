@@ -39,3 +39,17 @@ def is_synonym(word1: str, word2: str, pos: str = None) -> bool:
             if lemma == word2 and lemma != word1:
                 return True
     return False
+
+
+if __name__ == '__main__':
+    print(is_synonym("smallest", "minimum", ADJ))
+    print(is_synonym("smallest", "minimum", ADV))
+    minimum_noun = wordnet.synset(f'minimum.{NOUN}.01')
+    minimum_adj = wordnet.synset(f'minimum.{ADJ}.01')
+    smallest_adj = wordnet.synset(f'small.{ADJ}.01')
+
+    print(minimum_adj.path_similarity(smallest_adj))
+    print(minimum_adj.lch_similarity(smallest_adj))
+    print(minimum_adj.wup_similarity(smallest_adj))
+
+    print(is_synonym("small", "minimum", NOUN))

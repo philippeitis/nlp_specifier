@@ -32,9 +32,19 @@ def print_ner_and_srl(text: str, srl_url=SRL_URL, ner_url=NER_URL):
 
 
 if __name__ == "__main__":
-    print_ner_and_srl("Converts an integer from big endian to the target’s endianness.")
+    sentences = [
+        "Removes and returns the element at position index within the vector, shifting all elements after it to the left.",
+        "Removes the last element from a vector and returns it, or None if it is empty.",
+        "whichptr indicates which xbuffer holds the final iMCU row.",
+    ]
+    # "Removes [element index] vector"
+    # Remove `index` `self`
+    # "Removes [last element] vector" <- last element?
+
+    # "shifting all elements after it to the left.",
+    for sentence in sentences:
+        print_ner_and_srl(sentence)
 
     # Passes:
-    # Identity resolution (eg. find instances of matching ident)
     # Type inference (identify possible blobs in things like Ret)
     # Function resolution (eg. find functions with matching signatures, find functions with overlapping keywords)

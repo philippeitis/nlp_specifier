@@ -8,6 +8,12 @@ struct PrustiVec {
 struct A;
 
 impl PrustiVec {
+    /// a and b must be equal to 0 or `self.len()`.
+    /// `self.len()` will not change.
+    /// `self.lookup(a)` will be equal to `old(self.lookup(b))`.
+    /// `self.lookup(b)` is equal to `old(self.lookup(a))`.
+    /// For all indices between `0` and `self.len()`, not equal to `a`, not equal to `b`,
+    /// `self.lookup(i)` will not change.
     /// # Invocation
     /// Swaps {a:IDENT}, {b:IDENT}
     /// {a:IDENT}, {b:IDENT} are swapped.
@@ -20,6 +26,7 @@ impl PrustiVec {
     /// `self.lookup(b)` is equal to `old(self.lookup(a))`.
     /// For all indices between `0` and `self.len()`, not equal to `a`, not equal to `b`,
     /// `self.lookup(i)` will not change.
+    #[specify]
     fn swap(&mut self, a: usize, b: usize) {
         let va = self.lookup(a);
         let vb = self.lookup(b);
@@ -34,14 +41,15 @@ impl PrustiVec {
     }
 }
 
+/// # Invocation
 /// Mention ambiguous definitions, mention stored definitions
 /// Support for traits - eg. swap() for index
 /// eg. #[derive(Swap)]
 /// Support core operations (eg. Trait / generic fns). (make sure to support reference types)
 /// Check if "." occurs commonly.
 /// VSCode extension
-
 /// Returns true if the index is equal to 1
+#[specify]
 fn check_index_equals(index: usize) -> bool {
     index == 1
 }
