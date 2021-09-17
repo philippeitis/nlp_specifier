@@ -2,28 +2,25 @@ use std::path::{Path, PathBuf};
 use std::collections::{HashSet, HashMap};
 use std::process::Command;
 use std::fmt::{Display, Formatter};
+use std::convert::TryFrom;
 
 use scraper::{ElementRef, Html, Node, Selector};
 use scraper::node::Element;
 use selectors::attr::CaseSensitivity;
 use home::rustup_home;
-use syn::{ItemStruct, ItemFn, ImplItemMethod, File, ItemMod, Visibility, Item, ItemImpl, Type, TypePath, ImplItem};
+use syn::{ItemStruct, ItemFn, ImplItemMethod, Visibility, Type, TypePath, ImplItem};
+use syn::Path as SynPath;
 use rayon::prelude::*;
 
 use crate::docs::{RawDocs, Docs};
 use crate::SpecError;
-use syn::__private::{Span, TokenStream};
-use syn::Ident;
-use syn::Path as SynPath;
-use crate::search_tree::{SearchItemMod, SearchItem, SearchTree, SearchItemImpl};
-use std::convert::TryFrom;
+use crate::search_tree::{SearchItemMod, SearchItem, SearchTree, SearchItemImpl, SearchValue};
 
 #[derive(Debug)]
 pub enum ParseError {
     Io(std::io::Error),
     RustDoc(&'static str),
     RustUp(String),
-    Syn(syn::Error),
 }
 
 impl Display for ParseError {
@@ -32,7 +29,6 @@ impl Display for ParseError {
             ParseError::Io(e) => write!(f, "Io: {}", e),
             ParseError::RustDoc(s) => write!(f, "RustDoc: {}", s),
             ParseError::RustUp(s) => write!(f, "RustUp: {}", s),
-            ParseError::Syn(s) => write!(f, "Syn: {}", s),
         }
     }
 }
@@ -449,19 +445,19 @@ pub fn parse_all_files<P: AsRef<Path>>(path: P) -> Result<Vec<(PathBuf, ItemCont
 }
 
 fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContainer>) -> Result<SearchItemMod, ParseError> {
-    let mut mod_items: Vec<SearchItem> = Vec::new();
+    let mut mod_items: Vec<SearchValue> = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
             if let Ok(mod_item) = mod_from_dir(&path, items) {
-                mod_items.push(SearchItem::Mod(RawDocs::default().consolidate(), mod_item));
+                mod_items.push(SearchItem::Mod(mod_item).into());
             }
         } else {
             if let Some(val) = items.remove(&path) {
                 match val {
                     ItemContainer::Fn(f) => {
-                        mod_items.push(SearchItem::Fn(Docs::from(&f.attrs), f));
+                        mod_items.push(SearchItem::Fn(f).into());
                     }
                     ItemContainer::Struct(s, methods) => {
                         let impl_item = SearchItemImpl {
@@ -474,10 +470,10 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                                 qself: None,
                                 path: parse_path(s.ident.to_string()).unwrap()
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchItem::try_from).filter_map(Result::ok).collect()
+                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect()
                         };
-                        mod_items.push(SearchItem::Struct(Docs::from(&s.attrs), s));
-                        mod_items.push(SearchItem::Impl(RawDocs::default().consolidate(), impl_item));
+                        mod_items.push(SearchItem::Struct(s).into());
+                        mod_items.push(SearchItem::Impl(impl_item).into());
 
                     }
                     ItemContainer::Primitive(s, methods) => {
@@ -491,10 +487,10 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                                 qself: None,
                                 path: parse_path(s.ident.to_string()).unwrap()
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchItem::try_from).filter_map(Result::ok).collect()
+                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect()
                         };
-                        mod_items.push(SearchItem::Struct(Docs::from(&s.attrs), s));
-                        mod_items.push(SearchItem::Impl(RawDocs::default().consolidate(), impl_item));
+                        mod_items.push(SearchItem::Struct(s).into());
+                        mod_items.push(SearchItem::Impl(impl_item).into());
                     }
                 }
             }
@@ -530,7 +526,7 @@ pub fn file_from_root_dir<P: AsRef<Path>>(dir: P) -> Result<SearchTree, ParseErr
         let path = entry.path();
         if path.is_dir() {
             if let Ok(mod_item) = mod_from_dir(&path, &mut files) {
-                items.push(SearchItem::Mod(RawDocs::default().consolidate(), mod_item));
+                items.push(SearchItem::Mod(mod_item).into());
             }
         }
     }

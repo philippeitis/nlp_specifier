@@ -1,6 +1,5 @@
 use syn::{Type, FnArg, ReturnType};
-use crate::search_tree::SearchItem;
-use quote::ToTokens;
+use crate::search_tree::{SearchItem, SearchValue};
 
 pub enum FnArgLocation {
     OutputIndex(usize),
@@ -37,9 +36,9 @@ pub struct HasFnArg {
 }
 
 impl HasFnArg {
-    pub(crate) fn item_matches(&self, item: &SearchItem) -> bool {
-        match item {
-            SearchItem::Fn(_, item) => match self.fn_arg_location {
+    pub(crate) fn item_matches(&self, item: &SearchValue) -> bool {
+        match &item.item {
+            SearchItem::Fn(item) => match self.fn_arg_location {
                 FnArgLocation::OutputIndex(i) => {}
                 FnArgLocation::InputIndex(i) => {
                     if i >= item.sig.inputs.len() {
@@ -71,7 +70,7 @@ impl HasFnArg {
                     }
                 }
             }
-            SearchItem::Method(_, item) => match self.fn_arg_location {
+            SearchItem::Method(item) => match self.fn_arg_location {
                 FnArgLocation::OutputIndex(i) => {}
                 FnArgLocation::InputIndex(i) => {
                     if i >= item.sig.inputs.len() {

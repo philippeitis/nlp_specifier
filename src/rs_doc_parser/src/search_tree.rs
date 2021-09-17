@@ -2,61 +2,90 @@ use crate::docs::Docs;
 use std::convert::TryFrom;
 
 use std::num::NonZeroUsize;
-use syn::{ItemConst, ItemEnum, ItemFn, ItemStruct, ImplItemConst, ImplItemMethod, Item, Attribute, Generics, Path, Type, ImplItem, ItemImpl, Visibility, ItemMod, File, FnArg};
+use syn::{ItemConst, ItemEnum, ItemFn, ItemStruct, ImplItemConst, ImplItemMethod, Item, Attribute, Generics, Path, Type, ImplItem, ItemImpl, Visibility, ItemMod, File};
 use std::fmt::{Display, Formatter, Debug};
 use quote::ToTokens;
 
 pub enum SearchItem {
-    Const(Docs, ItemConst),
-    Enum(Docs, ItemEnum),
+    Const(ItemConst),
+    Enum(ItemEnum),
     // ExternCrate(ItemExternCrate),
-    Fn(Docs, ItemFn),
+    Fn(ItemFn),
     // ForeignMod(Doc, ItemForeignMod),
-    Impl(Docs, SearchItemImpl),
+    Impl(SearchItemImpl),
     // Macro(ItemMacro),
     // Macro2(ItemMacro2),
-    Mod(Docs, SearchItemMod),
+    Mod(SearchItemMod),
     // Static(ItemStatic),
-    Struct(Docs, ItemStruct),
+    Struct(ItemStruct),
     // Trait(ItemTrait),
     // TraitAlias(ItemTraitAlias),
     // Type(ItemType),
     // Union(ItemUnion),
     // Use(ItemUse),
     // Verbatim(TokenStream),
-    ImplConst(Docs, ImplItemConst),
-    Method(Docs, ImplItemMethod),
+    ImplConst(ImplItemConst),
+    Method(ImplItemMethod),
     // ImplType(Docs, ImplItemType),
     // ImplMacro(Docs, ImplItemMacro),
     // ImplVerbatim(Docs, TokenStream),
     // some variants omitted
 }
 
+impl SearchItem {
+    fn attrs(&self) -> &[Attribute] {
+        match self {
+            SearchItem::Const(i) => &i.attrs,
+            SearchItem::Enum(i) => &i.attrs,
+            SearchItem::Fn(i) => &i.attrs,
+            SearchItem::Impl(i) => &i.attrs,
+            SearchItem::Mod(i) => &i.attrs,
+            SearchItem::Struct(i) => &i.attrs,
+            SearchItem::ImplConst(i) => &i.attrs,
+            SearchItem::Method(i) => &i.attrs,
+        }
+    }
+}
+
+pub struct SearchValue {
+    pub(crate) docs: Docs,
+    pub(crate) item: SearchItem,
+}
+
+impl From<SearchItem> for SearchValue {
+    fn from(item: SearchItem) -> Self {
+        Self {
+            docs: Docs::from(item.attrs()),
+            item
+        }
+    }
+}
+
 impl Display for SearchItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SearchItem::Const(_, item) => {
+        match &self {
+            SearchItem::Const(item) => {
                 write!(f, "{}", item.ident)
             }
-            SearchItem::Enum(_, item) => {
+            SearchItem::Enum(item) => {
                 write!(f, "{}", item.ident)
             }
-            SearchItem::Fn(_, item) => {
+            SearchItem::Fn(item) => {
                 write!(f, "{}", item.sig.to_token_stream().to_string())
             }
-            SearchItem::Impl(_, item) => {
+            SearchItem::Impl(item) => {
                 write!(f, "{}", item.self_ty.to_token_stream().to_string())
             }
-            SearchItem::Mod(_, item) => {
+            SearchItem::Mod(item) => {
                 write!(f, "{}", item.ident.to_string())
             }
-            SearchItem::Struct(_, item) => {
+            SearchItem::Struct(item) => {
                 write!(f, "{}", item.ident.to_string())
             }
-            SearchItem::ImplConst(_, item) => {
+            SearchItem::ImplConst(item) => {
                 write!(f, "{}", item.ident.to_string())
             }
-            SearchItem::Method(_, item) => {
+            SearchItem::Method(item) => {
                 write!(f, "{}", item.sig.to_token_stream().to_string())
             }
         }
@@ -68,76 +97,35 @@ impl Debug for SearchItem {
         std::fmt::Display::fmt(self, f)
     }
 }
-impl TryFrom<&Item> for SearchItem {
-    type Error = ();
 
-    fn try_from(item: &Item) -> Result<Self, Self::Error> {
-        match item {
-            Item::Const(item) => {
-                Ok(SearchItem::Const(Docs::from(&item.attrs), item.clone()))
-            }
-            Item::Enum(item) => {
-                Ok(SearchItem::Enum(Docs::from(&item.attrs), item.clone()))
-            }
-            // Item::ExternCrate(_) => {}
-            Item::Fn(item) => {
-                Ok(SearchItem::Fn(Docs::from(&item.attrs), item.clone()))
-            }
-            // Item::ForeignMod(_) => {}
-            Item::Impl(item) => {
-                Ok(SearchItem::Impl(Docs::from(&item.attrs), SearchItemImpl::from(item)))
-                // Ok(SearchItem::Impl(Docs::from(&item.attrs), item.clone()))
-            }
-            // Item::Macro(_) => {}
-            // Item::Macro2(_) => {}
-            Item::Mod(item) => {
-                Ok(SearchItem::Mod(Docs::from(&item.attrs), SearchItemMod::from(item)))
-            }
-            // Item::Static(_) => {}
-            Item::Struct(item) => {
-                Ok(SearchItem::Struct(Docs::from(&item.attrs), item.clone()))
-            }
-            // Item::Trait(_) => {}
-            // Item::TraitAlias(_) => {}
-            // Item::Type(_) => {}
-            // Item::Union(_) => {}
-            // Item::Use(_) => {}
-            // Item::Verbatim(_) => {}
-            // Item::__TestExhaustive(_) => {}
-            _ => Err(())
-        }
+impl Debug for SearchValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.item, f)
     }
 }
 
-impl TryFrom<Item> for SearchItem {
+impl Display for SearchValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.item, f)
+    }
+}
+
+impl TryFrom<&Item> for SearchValue {
     type Error = ();
 
-    fn try_from(item: Item) -> Result<Self, Self::Error> {
-        match item {
-            Item::Const(item) => {
-                Ok(SearchItem::Const(Docs::from(&item.attrs), item))
-            }
-            Item::Enum(item) => {
-                Ok(SearchItem::Enum(Docs::from(&item.attrs), item))
-            }
+    fn try_from(item: &Item) -> Result<Self, Self::Error> {
+        Ok(match item {
+            Item::Const(item) => SearchItem::Const(item.clone()),
+            Item::Enum(item) => SearchItem::Enum(item.clone()),
             // Item::ExternCrate(_) => {}
-            Item::Fn(item) => {
-                Ok(SearchItem::Fn(Docs::from(&item.attrs), item))
-            }
+            Item::Fn(item) => SearchItem::Fn(item.clone()),
             // Item::ForeignMod(_) => {}
-            Item::Impl(item) => {
-                Ok(SearchItem::Impl(Docs::from(&item.attrs), SearchItemImpl::from(&item)))
-                // Ok(SearchItem::Impl(Docs::from(&item.attrs), item.clone()))
-            }
+            Item::Impl(item) => SearchItem::Impl(SearchItemImpl::from(item)),
             // Item::Macro(_) => {}
             // Item::Macro2(_) => {}
-            Item::Mod(item) => {
-                Ok(SearchItem::Mod(Docs::from(&item.attrs), SearchItemMod::from(&item)))
-            }
+            Item::Mod(item) => SearchItem::Mod(SearchItemMod::from(item)),
             // Item::Static(_) => {}
-            Item::Struct(item) => {
-                Ok(SearchItem::Struct(Docs::from(&item.attrs), item))
-            }
+            Item::Struct(item) => SearchItem::Struct(item.clone()),
             // Item::Trait(_) => {}
             // Item::TraitAlias(_) => {}
             // Item::Type(_) => {}
@@ -145,8 +133,37 @@ impl TryFrom<Item> for SearchItem {
             // Item::Use(_) => {}
             // Item::Verbatim(_) => {}
             // Item::__TestExhaustive(_) => {}
-            _ => Err(())
-        }
+            _ => return Err(())
+        }.into())
+    }
+}
+
+impl TryFrom<Item> for SearchValue {
+    type Error = ();
+
+    fn try_from(item: Item) -> Result<Self, Self::Error> {
+        Ok(match item {
+            Item::Const(item) => SearchItem::Const(item),
+            Item::Enum(item) => SearchItem::Enum(item),
+
+            // Item::ExternCrate(_) => {}
+            Item::Fn(item) => SearchItem::Fn(item),
+            // Item::ForeignMod(_) => {}
+            Item::Impl(item) => SearchItem::Impl(SearchItemImpl::from(&item)),
+            // Item::Macro(_) => {}
+            // Item::Macro2(_) => {}
+            Item::Mod(item) => SearchItem::Mod(SearchItemMod::from(&item)),
+            // Item::Static(_) => {}
+            Item::Struct(item) => SearchItem::Struct(item),
+            // Item::Trait(_) => {}
+            // Item::TraitAlias(_) => {}
+            // Item::Type(_) => {}
+            // Item::Union(_) => {}
+            // Item::Use(_) => {}
+            // Item::Verbatim(_) => {}
+            // Item::__TestExhaustive(_) => {}
+            _ => return Err(())
+        }.into())
     }
 }
 
@@ -159,42 +176,32 @@ pub struct SearchItemImpl {
     pub generics: Generics,
     pub trait_: Option<Path>,
     pub self_ty: Box<Type>,
-    pub items: Vec<SearchItem>,
+    pub items: Vec<SearchValue>,
 }
 
-impl TryFrom<&ImplItem> for SearchItem {
+impl TryFrom<&ImplItem> for SearchValue {
     type Error = ();
 
     fn try_from(item: &ImplItem) -> Result<Self, Self::Error> {
-        match item {
-            ImplItem::Const(item) => {
-                Ok(SearchItem::ImplConst(Docs::from(&item.attrs), item.clone()))
-            }
-            ImplItem::Method(item) => {
-                Ok(SearchItem::Method(Docs::from(&item.attrs), item.clone()))
-            }
-            _ => Err(())
-        }
+        Ok(match item {
+            ImplItem::Const(item) => SearchItem::ImplConst(item.clone()),
+            ImplItem::Method(item) => SearchItem::Method(item.clone()),
+            _ => return Err(()),
+        }.into())
     }
 }
 
-impl TryFrom<ImplItem> for SearchItem {
+impl TryFrom<ImplItem> for SearchValue {
     type Error = ();
 
     fn try_from(item: ImplItem) -> Result<Self, Self::Error> {
-        match item {
-            ImplItem::Const(item) => {
-                Ok(SearchItem::ImplConst(Docs::from(&item.attrs), item))
-            }
-            ImplItem::Method(item) => {
-                Ok(SearchItem::Method(Docs::from(&item.attrs), item))
-            }
-            _ => Err(())
-        }
+        Ok(match item {
+            ImplItem::Const(item) => SearchItem::ImplConst(item),
+            ImplItem::Method(item) => SearchItem::Method(item),
+            _ => return Err(()),
+        }.into())
     }
 }
-
-
 
 impl From<&ItemImpl> for SearchItemImpl {
     fn from(impl_item: &ItemImpl) -> Self {
@@ -205,7 +212,7 @@ impl From<&ItemImpl> for SearchItemImpl {
             generics: impl_item.generics.clone(),
             trait_: impl_item.trait_.as_ref().map(|(_, path, _)| path.clone()),
             self_ty: impl_item.self_ty.clone(),
-            items: impl_item.items.iter().map(SearchItem::try_from).filter_map(Result::ok).collect(),
+            items: impl_item.items.iter().map(SearchValue::try_from).filter_map(Result::ok).collect(),
         }
     }
 }
@@ -216,7 +223,7 @@ pub struct SearchItemMod {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: String,
-    pub content: Option<Vec<SearchItem>>,
+    pub content: Option<Vec<SearchValue>>,
     pub semi: bool,
 }
 
@@ -224,7 +231,7 @@ impl From<&ItemMod> for SearchItemMod {
     fn from(mod_item: &ItemMod) -> Self {
         let docs = Docs::from(&mod_item.attrs);
         let content = mod_item.content.as_ref().map(
-            |(_, content)| content.iter().map(SearchItem::try_from).filter_map(Result::ok).collect()
+            |(_, content)| content.iter().map(SearchValue::try_from).filter_map(Result::ok).collect()
         );
         SearchItemMod {
             docs,
@@ -240,7 +247,7 @@ impl From<&ItemMod> for SearchItemMod {
 pub struct SearchTree {
     pub docs: Docs,
     pub attrs: Vec<Attribute>,
-    pub items: Vec<SearchItem>,
+    pub items: Vec<SearchValue>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -268,28 +275,28 @@ impl SearchTree {
         SearchTree {
             docs: Docs::from(&file.attrs),
             attrs: file.attrs.clone(),
-            items: file.items.iter().map(SearchItem::try_from).filter_map(Result::ok).collect(),
+            items: file.items.iter().map(SearchValue::try_from).filter_map(Result::ok).collect(),
         }
     }
 
-    pub fn search<Q: Fn(&SearchItem) -> bool>(&self, query: &Q, depth: Depth) -> Vec<&SearchItem> {
+    pub fn search<Q: Fn(&SearchValue) -> bool>(&self, query: &Q, depth: Depth) -> Vec<&SearchValue> {
         let mut values = Vec::new();
         search(&self.items, query, depth, &mut values);
         values
     }
 }
 
-pub fn search<'a, Q: Fn(&SearchItem) -> bool>(items: &'a [SearchItem], query: &Q, depth: Depth, values: &mut Vec<&'a SearchItem>) {
+pub fn search<'a, Q: Fn(&SearchValue) -> bool>(items: &'a [SearchValue], query: &Q, depth: Depth, values: &mut Vec<&'a SearchValue>) {
     if depth == Depth::Done {
         return;
     }
 
     for item in items.iter() {
-        match item {
-            SearchItem::Impl(_, item) => {
+        match &item.item {
+            SearchItem::Impl(item) => {
                 search(&item.items, query, depth.enter(), values);
             }
-            SearchItem::Mod(_, item) => match item.content.as_deref() {
+            SearchItem::Mod(item) => match item.content.as_deref() {
                 None => {}
                 Some(mod_items) => {
                     search(mod_items, query, depth.enter(), values);

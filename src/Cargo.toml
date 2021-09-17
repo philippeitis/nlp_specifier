@@ -3,5 +3,6 @@
 members = [
     "rs_doc_parser",
     "doc_json",
-    "wordnet"
+    "wordnet",
+    "compiler_plugin"
 ]

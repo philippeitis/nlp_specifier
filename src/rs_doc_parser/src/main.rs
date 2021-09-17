@@ -1,4 +1,6 @@
 use std::path::Path;
+use std::io::{BufWriter, Write};
+use std::fs::OpenOptions;
 
 use pyo3::{Python, PyResult, PyObject, ToPyObject};
 use pyo3::types::{IntoPyDict, PyModule};
@@ -9,28 +11,22 @@ mod docs;
 mod parse_html;
 mod type_match;
 mod tokens;
-mod tree;
 mod jsonl;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
 use syn::parse::{Parse, ParseStream};
+use syn::visit::Visit;
 use quote::ToTokens;
 
 use docs::Docs;
 use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
-use crate::parse_html::{parse_all_files, toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir, DocItem, ItemContainer, ParseError};
-use std::io::{BufWriter, Write};
-use std::fs::OpenOptions;
-use crate::docs::{RawDocs, Section};
-use crate::jsonl::JsonLValues;
-use syn::visit::Visit;
+use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
+use jsonl::JsonLValues;
 
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate syn;
 
 static DOC_PARSER: &str = include_str!("../../doc_parser/doc_parser.py");
 static FIX_TOKENS: &str = include_str!("../../doc_parser/fix_tokens.py");
@@ -265,9 +261,9 @@ fn main() {
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
         let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
-        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match item {
-            SearchItem::Fn(docs, _) | SearchItem::Method(docs, _) => {
-                docs
+        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match &item.item {
+            SearchItem::Fn(_) | SearchItem::Method(_) => {
+                item.docs
                     .sections.first().map(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false)).unwrap_or(false)
             }
             _ => false,
@@ -276,16 +272,7 @@ fn main() {
         println!("Search took {}s", (end - start).as_secs_f32());
 
         let start = std::time::Instant::now();
-        let sents = tree.search(&|x| true, Depth::Infinite).iter().map(|x| match x {
-            SearchItem::Const(docs, _) => docs.sections.first(),
-            SearchItem::Enum(docs, _) => docs.sections.first(),
-            SearchItem::Fn(docs, _) => docs.sections.first(),
-            SearchItem::Impl(docs, _) => docs.sections.first(),
-            SearchItem::Mod(docs, _) => docs.sections.first(),
-            SearchItem::Struct(docs, _) => docs.sections.first(),
-            SearchItem::ImplConst(docs, _) => docs.sections.first(),
-            SearchItem::Method(docs, _) => docs.sections.first(),
-        }).flatten().map(|s| &s.sentences).flatten().collect::<Vec<_>>();
+        let sents = tree.search(&|x| true, Depth::Infinite).iter().map(|x| x.docs.sections.first()).flatten().map(|s| &s.sentences).flatten().collect::<Vec<_>>();
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
         println!("{:?}", sents.len());
