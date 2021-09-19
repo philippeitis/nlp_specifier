@@ -1,8 +1,9 @@
 use std::path::Path;
 use std::io::{BufWriter, Write};
 use std::fs::OpenOptions;
+use std::collections::HashSet;
 
-use pyo3::{Python, PyResult, PyObject, ToPyObject};
+use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
 use pyo3::types::{IntoPyDict, PyModule};
 use pyo3::exceptions::PyStopIteration;
 
@@ -20,7 +21,7 @@ use syn::visit::Visit;
 use quote::ToTokens;
 
 use docs::Docs;
-use search_tree::{SearchTree, SearchItem, Depth};
+use search_tree::{SearchTree, SearchValue, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
 use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
 use jsonl::JsonLValues;
@@ -156,6 +157,11 @@ impl<'p> Parser<'p> {
         Parser { parser, py }
     }
 
+    fn tokenize_sents(&self, sents: &[String]) -> PyResult<()> {
+        self.parser.call_method1(self.py, "stokenize", (sents.to_object(self.py), ))?;
+        Ok(())
+    }
+
     fn parse_trees(&self, s: &str) -> TreeIter<'p> {
         let kwargs = [("attach_tags", false)].into_py_dict(self.py);
         TreeIter { trees: self.parser.call_method(self.py, "parse_tree", (s, ), Some(kwargs)).unwrap(), py: self.py }
@@ -180,24 +186,25 @@ impl<'p> Iterator for TreeIter<'p> {
 }
 
 struct Grammar<'p> {
-    grammar: &'p PyModule,
+    specifier: PyObject,
     py: Python<'p>,
 }
 
 impl<'p> Grammar<'p> {
     fn new(py: Python<'p>) -> Self {
         Grammar {
-            grammar: py.import("grammar").unwrap(),
+            specifier: py.import("grammar").unwrap().getattr("Specification").unwrap().into_py(py),
             py,
         }
     }
 
     fn specify_tree(&self, tree: &PyObject) -> PyResult<String> {
-        let locals = [("grammar", &self.grammar.to_object(self.py)), ("val", tree)].into_py_dict(self.py);
-        match self.py.eval("grammar.Specification(val, None).as_spec()", None, Some(locals)) {
-            Ok(val) => val.extract(),
-            Err(e) => Err(e)
-        }
+        self.specifier.call1(
+            self.py,
+            (tree.into_py(self.py), self.py.None()),
+        )?
+            .call_method0(self.py, "as_spec")?
+            .extract(self.py)
     }
 }
 
@@ -245,18 +252,15 @@ impl<'p> SimMatcher<'p> {
 }
 
 
-fn main() {
-    let mut x = Specifier::from_path("../../data/test.rs").unwrap();
-
+fn search_demo() {
     let start = std::time::Instant::now();
     let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
     let tree = file_from_root_dir(&path).unwrap();
     let end = std::time::Instant::now();
-
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
+
     Python::with_gil(|py| -> PyResult<()> {
         let parser = Parser::new(py);
-        let grammar = Grammar::new(py);
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
         let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32") };
@@ -269,28 +273,85 @@ fn main() {
         }, Depth::Infinite).len());
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
-
-        let start = std::time::Instant::now();
-        let sents = tree.search(&|x| true, Depth::Infinite).iter().map(|x| x.docs.sections.first()).flatten().map(|s| &s.sentences).flatten().collect::<Vec<_>>();
-        let end = std::time::Instant::now();
-        println!("Search took {}s", (end - start).as_secs_f32());
-        println!("{:?}", sents.len());
-        let mut writer = BufWriter::new(OpenOptions::new().write(true).truncate(true).create(true).open("sents.txt").unwrap());
-        for sent in &sents {
-            writer.write(format!("{}\n", sent).as_bytes());
-        }
-
         matcher.print_seen();
-        // x.specify(&parser, &grammar);
         Ok(())
     }).unwrap();
+}
 
-    let mut jsonl = JsonLValues::new();
+fn specify_docs() {
+    let start = std::time::Instant::now();
+    let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
+    let tree = file_from_root_dir(&path).unwrap();
+    let end = std::time::Instant::now();
 
-    jsonl.visit_file(&x.file);
-    jsonl.write_to_path("./jsonl.txt");
+    println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    let file = &x.file;
-    std::fs::write("../../data/test_specified.rs", file.to_token_stream().to_string()).unwrap();
-    std::process::Command::new("rustfmt").arg("../../data/test_specified.rs").spawn().unwrap();
+    Python::with_gil(|py| -> PyResult<()> {
+        let mut ntrees = 0;
+        let mut nspecs = 0;
+        let mut successful_sents = 0;
+        let mut unsucessful_sents = 0;
+        let mut specified_sents = 0;
+        let parser = Parser::new(py);
+        let grammar = Grammar::new(py);
+
+        let mut sentences = Vec::new();
+        for value in tree.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
+            sentences.extend(&value.docs.sections[0].sentences);
+        }
+
+        let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
+
+        let start = std::time::Instant::now();
+        let _ = parser.tokenize_sents(&sentences);
+        let end = std::time::Instant::now();
+        println!("Time to tokenize sentences: {}", (end - start).as_secs_f32());
+        let start = std::time::Instant::now();
+
+        for sentence in &sentences {
+            let trees: Vec<_> = parser.parse_trees(&sentence).filter_map(Result::ok).collect();
+            let specs: Vec<_> = trees.iter().map(|tree| grammar.specify_tree(tree).ok()).collect();
+
+            if !specs.is_empty() {
+                // println!("{}", "=".repeat(80));
+                // println!("Sentence: {}", sentence);
+                // println!("    Tags: ?");
+                // println!("{}", "=".repeat(80));
+
+                // for (tree, spec) in trees.iter().zip(specs.iter()) {
+                //     println!("{}", tree.call_method0(py, "__str__").unwrap().extract::<String>(py).unwrap());
+                //     println!("{:?}", spec);
+                // }
+
+                // println!();
+                successful_sents += 1;
+            } else {
+                unsucessful_sents += 1;
+            }
+            ntrees += trees.len();
+            let count = specs.iter().filter(|x| x.is_some()).count();
+            if count != 0 {
+                specified_sents += 1;
+            }
+            nspecs += count;
+        }
+        let end = std::time::Instant::now();
+        println!("          Sentences: {}", sentences.len());
+        println!("Successfully parsed: {}", successful_sents);
+        println!("              Trees: {}", ntrees);
+        println!("     Specifications: {}", nspecs);
+        println!("Specified Sentences: {}", specified_sents);
+        println!("       Time elapsed: {}", (end - start).as_secs_f32());
+
+        //                  Sentences: 4946
+        //        Successfully parsed: 284
+        //                      Trees: 515
+        //             Specifications: 155
+        //        Specified Sentences: 114
+        Ok(())
+    }).unwrap();
+}
+
+fn main() {
+    specify_docs()
 }

@@ -220,10 +220,6 @@ if __name__ == "__main__":
     end = time.time()
     print(end - start)
     profiling("convert_rs_to_py(parse_all_files(target_dir))")
-    # start = time.time()
-    # _ = convert_rs_to_py(parse_all_files(target_dir))
-    # end = time.time()
-    # print(end - start)
-# main(get_toolchains()[0])
+
 # mention that documentation is incomplete spec
 # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)

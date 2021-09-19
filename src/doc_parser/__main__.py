@@ -268,7 +268,14 @@ def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=
     successful_sents = 0
     unsucessful_sents = []
     specified_sents = 0
-    for sentence in chain(invocations, (sentence for _, _, sentence in invocation_triples)):
+    start = time.time()
+    sentences = list(chain(invocations, (sentence for _, _, sentence in invocation_triples)))
+    parser.stokenize(sentences)
+    end = time.time()
+    print("Time to tokenize sentences:", end - start)
+
+    start = time.time()
+    for sentence in sentences:
         # print("=" * 80)
         # print("Sentence:", sentence)
         # print("    Tags:", parser.tokenize(sentence).tags)
@@ -292,14 +299,14 @@ def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=
             pass
             # print(f"Grammar: ({e})")
         if specs:
-            print("=" * 80)
-            print("Sentence:", sentence)
-            print("    Tags:", parser.tokenize(sentence).tags)
-            print("=" * 80)
-            for tree, spec in zip(trees, specs):
-                print(tree)
-                print(spec)
-            print()
+            # print("=" * 80)
+            # print("Sentence:", sentence)
+            # print("    Tags:", parser.tokenize(sentence).tags)
+            # print("=" * 80)
+            # for tree, spec in zip(trees, specs):
+            #     print(tree)
+            #     print(spec)
+            # print()
             successful_sents += 1
         else:
             unsucessful_sents.append(sentence)
@@ -313,6 +320,13 @@ def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=
     # print("Sentence:", sentence)
     # print("    Tags:", parser.tokenize(sentence).tags)
     # print("=" * 80)
+    end = time.time()
+    print("          Sentences:", num_sents)
+    print("Successfully parsed:", successful_sents)
+    print("              Trees:", ntrees)
+    print("     Specifications:", nspecs)
+    print("Specified Sentences:", specified_sents)
+    print("       Time elapsed:", end - start)
 
     return successful_sents, nspecs, ntrees, num_sents, specified_sents
 
@@ -434,35 +448,6 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
 @click.group()
 def cli():
     pass
-
-
-@cli.command("search-demo")
-def stdlib_search_demo2():
-    """Demonstrates searching for function arguments and phrases with synonyms."""
-    from doc_json.parse_html import get_toolchains, DocCrate
-
-    parser = Parser.default()
-
-    query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
-    query.append_field(FnArg("f32", is_input=False))
-
-    start = time.time()
-    doc_ast = DocCrate.from_root_dir(get_toolchains()[0])
-    end = time.time()
-
-    print(f"Took {end - start}s to read DocCrate")
-    sim = SimPhrase("The minimum of two values", parser)
-    query = Query([sim, FnArg("f32", is_input=False)])
-    start = time.time()
-    print("Using similarity methods")
-    num = 0
-    for file in doc_ast.files:
-        for match in file.find_matches(query):
-            num += 1
-            print(match, sim.similarity_cache[match])
-    end = time.time()
-    print(num, sim.sents_seen)
-    print(f"Took {end - start}s")
 
 
 @cli.command()
