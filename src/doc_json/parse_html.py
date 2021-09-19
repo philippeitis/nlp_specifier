@@ -1,150 +1,18 @@
-import itertools
 import logging
 from pathlib import Path
-from typing import List, Dict, Union, Tuple
-from multiprocessing import Pool
+from typing import List, Dict, Union
 import json
 
-from lxml import etree
-from lxml.html import parse
-
 from pyrs_ast.docs import Docs
-from py_cargo_utils import rustup_home, get_toolchains as get_toolchainsx, parse_all_files
+from py_cargo_utils import get_toolchains as get_toolchainsx, parse_all_files
 
 from pyrs_ast.lib import Crate, Fn, Struct, Method, Mod, AstFile, LexError
 from pyrs_ast.scope import Scope
 
 LOGGER = logging.getLogger(__name__)
 
-HEADER = {
-    f"h{n}": "#" * n for n in range(1, 7)
-}
-
-
-def peek(it):
-    first = next(it)
-    return first, itertools.chain([first], it)
-
-
-def remove_all_spans(item: etree.ElementBase):
-    for val in item.findall("span"):
-        if not {"since", "notable-traits", "out-of-band"}.isdisjoint(val.classes):
-            val.drop_tree()
-
-
-def remove_mustuse_div(item: etree.ElementBase):
-    for val in item.findall("div"):
-        if not {"code-attribute"}.isdisjoint(val.classes):
-            val.drop_tree()
-
-
-def remove_all_src_links(item: etree.ElementBase):
-    for val in item.findall("a"):
-        if "srclink" in val.classes:
-            val.drop_tree()
-        if val.attrib["href"] == "javascript:void(0)":
-            val.drop_tree()
-
-
-def find_with_class(item: etree.ElementBase, tag: str, class_: str):
-    try:
-        return next(find_with_class_iter(item, tag, class_))
-    except StopIteration:
-        return None
-
-
-def find_with_class_iter(item: etree.ElementBase, tag: str, class_: str):
-    for result in item.findall(tag):
-        if class_ in result.classes:
-            yield result
-
-
-def text(item: etree.ElementBase) -> str:
-    return etree.tostring(item, method="text", encoding="unicode")
-
-
-def stringify(item: etree.ElementBase) -> str:
-    s = ""
-    itext = item.text or ""
-    if item.tag == "code":
-        s += f"`{itext}`"
-    else:
-        s += itext
-
-    for sub in item.getchildren():
-        s += stringify(sub)
-        s += sub.tail or ""
-
-    return s
-
-
-class RList:
-    def __init__(self, doc):
-        self.items = []
-        for item in doc:
-            assert item.tag == "li"
-            self.items.append(stringify(item))
-
-
-def parse_doc(html_doc: etree.ElementBase) -> Docs:
-    docs = Docs()
-    if html_doc is None:
-        return docs
-
-    for item in html_doc:
-        h = HEADER.get(item.tag)
-        if h and "section-header" in item.classes:
-            docs.push_lines(f"{h} {stringify(item)}")
-        elif item.tag == "p":
-            docs.push_lines(stringify(item))
-        elif item.tag == "div" and "example-wrap" in item.classes:
-            docs.push_lines(parse_example(item))
-        elif item.tag == "ul":
-            for sub_item in RList(item).items:
-                docs.push_lines("* " + sub_item.strip())
-        elif item.tag == "ol":
-            for n, sub_item in enumerate(RList(item).items):
-                docs.push_lines("{n}. " + sub_item.strip())
-        elif item.tag == "blockquote":
-            docs.push_lines(f"> {stringify(item)}")
-        elif item.tag == "table":
-            # Tables not handled. std::mem::size_of demonstrates usage.
-            pass
-        elif item.tag == "div" and "information" in item.classes:
-            # Tooltips are not handled.
-            pass
-        else:
-            LOGGER.debug("Unknown item", item)
-    docs.consolidate()
-    return docs
-
-
-def parse_example(doc: etree.ElementBase) -> str:
-    return "```CODE```"
-
-
-class DocError(ValueError):
-    pass
-
 
 class DocStruct(Struct):
-    @classmethod
-    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
-        type_decl = find_with_class(body, "div", "docblock")
-        type_decl.drop_tree()
-
-        parent = find_with_class(body, "details", "top-doc")
-        if parent is not None:
-            doc = find_with_class(parent, "div", "docblock")
-            docs = parse_doc(doc)
-            parent.drop_tree()
-        else:
-            docs = Docs()
-
-        struct = cls.from_str(f"{docs}\n{stringify(type_decl)}")
-        struct.eat_impls(body)
-        return struct
-
     def eat_impls_old(self, doc_iter) -> List["DocMethod"]:
         items = []
         while True:
@@ -152,9 +20,6 @@ class DocStruct(Struct):
                 item, doc_iter = peek(doc_iter)
                 if item.tag != "div":
                     return items + self.eat_impl(doc_iter)
-                remove_all_spans(item)
-                remove_all_src_links(item)
-                remove_mustuse_div(item)
                 name = stringify(item)
                 next(doc_iter)
                 item.drop_tree()
@@ -172,102 +37,6 @@ class DocStruct(Struct):
             items.append(DocMethod.from_str(f"{Docs()}\n{name} {{}}"))
 
         return items
-
-    def eat_impl(self, doc_iter) -> List["DocMethod"]:
-        items = []
-        while True:
-            try:
-                item, doc_iter = peek(doc_iter)
-                if item.tag != "details":
-                    return items + self.eat_impls_old(doc_iter)
-                try:
-                    items.append(DocMethod.from_block(item))
-                except DocError:
-                    raise
-                except ValueError:
-                    pass
-                next(doc_iter)
-                item.drop_tree()
-
-            except StopIteration:
-                break
-        return items
-
-    def eat_impl_dispatch(self, doc: etree.ElementBase) -> List["DocMethod"]:
-        try:
-            first = next(iter(doc))
-            if "method" in first.classes:
-                return self.eat_impls_old(iter(doc))
-            return self.eat_impl(iter(doc))
-        except StopIteration:
-            return []
-
-    def eat_impls(self, body):
-        impl_block = find_with_class(body, "details", "implementors-toggle")
-        if impl_block is not None:
-            for doc in find_with_class_iter(impl_block, "div", "impl-items"):
-                self.methods += self.eat_impl_dispatch(doc)
-
-
-class DocPrimitive(DocStruct):
-    @classmethod
-    def from_block(cls, body: etree.ElementBase, scope: Scope = None):
-        type_decl = find_with_class(body, "h1", "fqn")
-        remove_all_spans(type_decl)
-        remove_all_src_links(type_decl)
-        remove_mustuse_div(type_decl)
-
-        parent = find_with_class(body, "details", "top-doc")
-        if parent is not None:
-            doc = find_with_class(parent, "div", "docblock")
-            docs = parse_doc(doc)
-            parent.drop_tree()
-        else:
-            docs = Docs()
-
-        tdcl = f"struct {stringify(type_decl).rsplit(' ', 1)[1]} {{}}"
-        type_decl.drop_tree()
-        struct = cls.from_str(f"{docs}\n{tdcl}")
-        struct.eat_impls(body)
-        return struct
-
-
-class DocFn(Fn):
-    @classmethod
-    def from_block(cls, body: etree.ElementBase):
-        fn_decl_block = find_with_class(body, "pre", "fn")
-        remove_all_src_links(fn_decl_block)
-        remove_all_spans(fn_decl_block)
-        fn_decl = text(fn_decl_block) + " {}"
-        fn_decl_block.drop_tree()
-        parent = find_with_class(body, "details", "rustdoc-toggle")
-        if parent is None:
-            docs = Docs()
-        else:
-            doc = find_with_class(parent, "div", "docblock")
-            docs = parse_doc(doc)
-
-        return cls.from_str(f"{docs}\n{fn_decl}")
-
-
-class DocMethod(Method):
-    @classmethod
-    def from_block(cls, block) -> "DocMethod":
-        name = block.find("summary/div/h4")
-        remove_all_src_links(name)
-        remove_all_spans(name)
-        remove_mustuse_div(name)
-        name = stringify(name)
-
-        docs = parse_doc(find_with_class(block, "div", "docblock"))
-        return cls.from_str(f"{docs}\n{name} {{}}")
-
-
-DISPATCH = {
-    "fn": DocFn.from_block,
-    "struct": DocStruct.from_block,
-    "primitive": DocPrimitive.from_block,
-}
 
 
 class DocMod(Mod):
@@ -289,20 +58,13 @@ class DocMod(Mod):
                 if len(item.items) != 0:
                     items.append(item)
             else:
-                if child_path in file_hints:
-                    item, _, _ = file_hints[child_path]
+                item = file_hints.get(child_path)
 
-                    if item is None:
-                        continue
-                    else:
-                        # imports += AstFile.from_str("\n".join(imports)).items
-                        items.append(item)
+                if item is None:
+                    continue
                 else:
-                    name = child_path.name
-                    if any(name.startswith(prefix) for prefix in cls.ITEM_PREFIXES):
-                        file, _, _ = parse_file(child_path)
-                        if file:
-                            items.append(file)
+                    items.append(item)
+
         return cls(ident, imports + items, [])
 
 
@@ -372,77 +134,8 @@ def files_into_dict(paths: List[Path]) -> Dict[str, List[Path]]:
     return path_dict
 
 
-def parse_rs_html(path: Path) -> List[str]:
-    # This is intended to be used for reading imports from the source file. However,
-    # this may not be necessary if a compiler extension is implemented.
-    pass
-    # with open(path, "r") as file:
-    #     soup = parse(file)
-    #     items = soup.find("body/section/div")
-    #
-    #     rust_body = find_with_class(items, "pre", "rust")
-    #     uses = []
-    #     for use in find_with_class_iter(rust_body, "span", "kw"):
-    #         use_text = text(use)
-    #         if "use" in use_text.split(" "):
-    #             uses.append(use_text)
-    #     return uses
-
-
-def parse_file(path: Path) -> Tuple[Union[Struct, Fn], List[str], str]:
-    with open(path, "r") as file:
-        soup = parse(file)
-        title = soup.find("head/title")
-        if title.text == "Redirection":
-            return None, None, None
-
-        if {"rustdoc", "source"}.issubset(soup.find("body").classes):
-            return None, None, None
-        body = soup.find("body/section")
-        # print(path)
-        # header = find_with_class(body, "h1", "fqn")
-        # srcspan = find_with_class(header, "span", "out-of-band")
-        # srclink = find_with_class(srcspan, "a", "srclink")
-
-        try:
-            # if srclink is not None:
-            #     src, lines = srclink.attrib["href"].split("#")
-            #     srcpath = (path.parent / Path(src)).resolve()
-            #
-            #     return DISPATCH[path.stem.split(".", 1)[0]](body), parse_rs_html(srcpath), lines
-            return DISPATCH[path.stem.split(".", 1)[0]](body), None, None
-        except LexError:
-            return None, None, None
-        except DocError:
-            print(path)
-            return None, None, None
-
-
-def _get_all_files_st(toolchain_root: Path):
-    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
-    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
-    targets = files["fn"] + files["struct"]
-    return [(file, path, rs_path, lines) for (file, rs_path, lines), path in zip(map(parse_file, targets), targets) if
-            file]
-
-
-def get_all_files(toolchain_root: Path, num_processes: int = 12):
-    # For debugging purposes
-    if num_processes == 1:
-        return _get_all_files_st(toolchain_root)
-
-    return get_all_files_with_pool(toolchain_root, Pool(num_processes))
-
-
-def get_all_files_with_pool(toolchain_root: Path, pool: Pool):
-    target_dir = (toolchain_root / Path("share/doc/rust/html/")).expanduser()
-    files = files_into_dict(DocCrate.get_all_doc_files(target_dir))
-
-    with pool as p:
-        targets = files["fn"] + files["struct"] + files["primitive"]
-        results = p.map(parse_file, targets)
-        return [(file, path, rs_path, lines) for (file, rs_path, lines), path in
-                zip(results, targets) if file]
+def get_all_files(toolchain_root: Path) -> Dict[Path, Union[Struct, Fn]]:
+    return convert_rs_to_py(parse_all_files(str(toolchain_root)))
 
 
 def main(toolchain_root: Path):
@@ -501,7 +194,7 @@ def load_item(ident, val):
         # print(val)
 
 
-def convert_rs_to_py(files):
+def convert_rs_to_py(files) -> Dict[Path, Union[Struct, Fn]]:
     new_files = {}
     for file in files:
         name, path, base = file[0:3]
@@ -511,15 +204,16 @@ def convert_rs_to_py(files):
             continue
 
         if name == "struct" or name == "primitive":
-            item.methods = [load_item("method", base) for item in file[3]]
+            item.methods = [load_item("method", item) for item in file[3]]
             item.methods = [method for method in item.methods if method]
 
-        new_files[Path(path)] = (item, None, None)
+        new_files[Path(path)] = item
     return new_files
 
 
 if __name__ == "__main__":
     import time
+
     target_dir = str((get_toolchains()[0] / Path("share/doc/rust/html/")).expanduser())
     start = time.time()
     print(len(convert_rs_to_py(parse_all_files(target_dir))))

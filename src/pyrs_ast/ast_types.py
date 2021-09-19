@@ -194,25 +194,18 @@ class Type:
         try:
             type_key, val = next(iter(kwargs.items()))
             self.ty = TYPE_DICT[type_key](val)
-
-            self.methods = []
         except StopIteration:
             self.ty = EmptyType()
-            self.methods = []
+        except AttributeError:
+            if kwargs == "!":
+                self.ty = NeverType()
         self.struct = None
 
     def register_struct(self, struct):
-        # Don't clobber self.struct with duplicate methods.
-        if not self.struct:
-            self.struct = struct
-            struct.methods += self.methods
-            self.methods = struct.methods
+        self.struct = self.struct or struct
 
     def __str__(self):
         return str(self.ty)
-
-    def register_method(self, method: "Method"):
-        self.methods.append(method)
 
     def name(self) -> Optional[Path]:
         if isinstance(self.ty, SingletonType):

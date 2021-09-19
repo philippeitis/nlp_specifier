@@ -9,7 +9,6 @@ from nltk import Tree
 from spacy.tokens import Doc
 import click
 
-from doc_json.parse_html import DocStruct, DocFn, get_toolchains, DocCrate
 from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod
 from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
@@ -440,6 +439,8 @@ def cli():
 @cli.command("search-demo")
 def stdlib_search_demo2():
     """Demonstrates searching for function arguments and phrases with synonyms."""
+    from doc_json.parse_html import get_toolchains, DocCrate
+
     parser = Parser.default()
 
     query = query_from_sentence("The minimum of two values", parser, (Fn, Struct))
@@ -514,29 +515,28 @@ def specify_file(path: Path, dest: Path):
 
 
 @specify.command("docs")
-@click.option('--path', default=get_toolchains()[0], help='Path to documentation.', type=Path)
+@click.option('--path', default=None, help='Path to documentation.', type=Path)
 def specify_docs(path: Path):
     """Specifies each item in the documentation at the given path.
     Documentation can be generated using `cargo doc`, or can be downloaded via `rustup`.
 
     By default, specifies items in toolchain documentation.
     """
-    from doc_json import get_all_files
+    from doc_json import get_all_files, get_toolchains
+    path = path or get_toolchains()[0] / Path("share/doc/rust/html/")
     files = get_all_files(path)
 
     sentences = []
-    for item, _, _, _ in files:
-        try:
-            if isinstance(item, DocStruct):
-                for method in item.methods:
-                    if method is None:
-                        continue
-                    sentences += method.docs.sections()[0].sentences
-            elif isinstance(item, DocFn):
-                sentences += item.docs.sections()[0].sentences
-
-        except IndexError:
-            pass
+    for item in files.values():
+        if isinstance(item, Struct):
+            for method in item.methods:
+                sections = method.docs.sections()
+                if len(sections):
+                    sentences += sections[0].sentences
+        elif isinstance(item, Fn):
+            sections = item.docs.sections()
+            if len(sections):
+                sentences += sections[0].sentences
     sentences = set(sentences)
     print(invoke_helper(sentences))
 
