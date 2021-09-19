@@ -30,7 +30,7 @@ pub fn split_string_on(s: &str, c: char) -> Vec<&str> {
     while let Some((ind, cx)) = char_inds.next() {
         match looking_for {
             Some(')') => match cx {
-                '"' | '`' | '\''  => while let Some((_, cx_)) = char_inds.next() {
+                '"' | '`' | '\'' => while let Some((_, cx_)) = char_inds.next() {
                     if cx_ == cx {
                         break;
                     }
@@ -40,7 +40,7 @@ pub fn split_string_on(s: &str, c: char) -> Vec<&str> {
             },
             Some(x) if x == cx => {
                 looking_for = None
-            },
+            }
             Some(_) => continue,
             None => match cx {
                 '"' | '`' | '\'' => looking_for = Some(cx),

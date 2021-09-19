@@ -142,7 +142,6 @@ class InvocationFactory:
         productions = "\n".join(productions)
         return f"{rule_line}\n{productions}"
 
-
     def __call__(self, tree: Tree, *args):
         return self.initializers[tree[0].label()](tree[0], self)
 

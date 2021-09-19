@@ -249,9 +249,7 @@ impl DocStruct {
                     };
                     self.methods
                         .push(format!("{}\n{} {{}}", docs, stringify(&name)));
-                } else if has_class(item.value(), "method") {
-                } else {
-                }
+                } else if has_class(item.value(), "method") {} else {}
             }
         }
     }
@@ -468,13 +466,12 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                             trait_: None,
                             self_ty: Box::new(Type::Path(TypePath {
                                 qself: None,
-                                path: parse_path(s.ident.to_string()).unwrap()
+                                path: parse_path(s.ident.to_string()).unwrap(),
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect()
+                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect(),
                         };
                         mod_items.push(SearchItem::Struct(s).into());
                         mod_items.push(SearchItem::Impl(impl_item).into());
-
                     }
                     ItemContainer::Primitive(s, methods) => {
                         let impl_item = SearchItemImpl {
@@ -485,9 +482,9 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                             trait_: None,
                             self_ty: Box::new(Type::Path(TypePath {
                                 qself: None,
-                                path: parse_path(s.ident.to_string()).unwrap()
+                                path: parse_path(s.ident.to_string()).unwrap(),
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect()
+                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect(),
                         };
                         mod_items.push(SearchItem::Struct(s).into());
                         mod_items.push(SearchItem::Impl(impl_item).into());
@@ -503,7 +500,7 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
         vis: Visibility::Inherited,
         ident,
         content: Some(mod_items),
-        semi: false
+        semi: false,
     })
 }
 
@@ -534,6 +531,6 @@ pub fn file_from_root_dir<P: AsRef<Path>>(dir: P) -> Result<SearchTree, ParseErr
     Ok(SearchTree {
         docs: RawDocs::default().consolidate(),
         attrs: vec![],
-        items
+        items,
     })
 }

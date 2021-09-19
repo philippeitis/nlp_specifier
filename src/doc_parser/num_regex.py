@@ -38,6 +38,7 @@ class Float:
         small = self.small or ""
         return f"{self.sign}{big}.{small}{e}_{self.width}"
 
+
 if __name__ == '__main__':
     print(INTEGER_RE.match("-7_000_000_i8").groups())
     print(INTEGER_RE.match("7_000_000_usize").groups())

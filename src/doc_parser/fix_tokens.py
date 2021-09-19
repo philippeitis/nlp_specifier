@@ -51,10 +51,11 @@ RET_RULES = [
 ]
 
 ARITH = {
-    "LOWER": {"IN": [
-        "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
-        "rem", "added", "subtracted", "divided", "multiplied", "xor", "modulo",
-    ]
+    "LOWER": {
+        "IN": [
+            "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
+            "rem", "added", "subtracted", "divided", "multiplied", "xor", "modulo",
+        ]
     }
 }
 
@@ -121,7 +122,6 @@ BOOL_OPS = [
     ({"POS": "NOUN", "TAG": "BOOL_OP"}, matcher_with_rule(op, merge_bool_op(op)))
     for op in ["!=", "==", "&&", "||"]
 ]
-
 
 # WORD_MATCHERS_0 = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
 #     (0, {"tag_": "PATH"}, [{"TEXT": {"REGEX": "^(::)?[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$"}}]),

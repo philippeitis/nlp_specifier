@@ -81,7 +81,7 @@ impl Specifier {
 struct SpecifierX<'a, 'p> {
     searcher: &'a SearchTree,
     parser: &'a Parser<'p>,
-    grammar: &'a Grammar<'p>
+    grammar: &'a Grammar<'p>,
 }
 
 
@@ -92,6 +92,7 @@ fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
 struct AttrHelper {
     attrs: Vec<Attribute>,
 }
+
 impl Parse for AttrHelper {
     fn parse(input: ParseStream) -> Result<Self, syn::Error> {
         Ok(AttrHelper {
@@ -100,7 +101,7 @@ impl Parse for AttrHelper {
     }
 }
 
-impl <'a, 'p> SpecifierX<'a, 'p> {
+impl<'a, 'p> SpecifierX<'a, 'p> {
     fn specify_docs(&self, attrs: &mut Vec<Attribute>) {
         if should_specify(&attrs) {
             let docs = Docs::from(&attrs);
@@ -120,10 +121,9 @@ impl <'a, 'p> SpecifierX<'a, 'p> {
                 }
             }
         }
-
     }
-
 }
+
 impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
     fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
         self.specify_docs(&mut i.attrs)
@@ -184,11 +184,11 @@ struct Grammar<'p> {
     py: Python<'p>,
 }
 
-impl<'p> Grammar <'p> {
+impl<'p> Grammar<'p> {
     fn new(py: Python<'p>) -> Self {
         Grammar {
             grammar: py.import("grammar").unwrap(),
-            py
+            py,
         }
     }
 
@@ -207,7 +207,7 @@ struct SimMatcher<'p> {
     py: Python<'p>,
 }
 
-impl<'p> SimMatcher <'p> {
+impl<'p> SimMatcher<'p> {
     fn new(py: Python<'p>, sentence: &str, parser: &Parser<'p>, cutoff: f32) -> Self {
         let locals = [
             ("nlp_query", py.import("nlp_query").unwrap().to_object(py)),
@@ -218,7 +218,7 @@ impl<'p> SimMatcher <'p> {
         SimMatcher {
             sim_matcher: py.eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals)).unwrap().to_object(py),
             cutoff,
-            py
+            py,
         }
     }
 
@@ -235,14 +235,13 @@ impl<'p> SimMatcher <'p> {
                 "any_similar",
                 (sents.to_object(self.py),
                  self.cutoff.to_object(self.py)),
-                None
+                None,
             )?.extract(self.py)
     }
     fn print_seen(&self) {
         let sents_seen: usize = self.sim_matcher.getattr(self.py, "sents_seen").unwrap().extract(self.py).unwrap();
         println!("{}", sents_seen);
     }
-
 }
 
 
@@ -260,7 +259,7 @@ fn main() {
         let grammar = Grammar::new(py);
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
-        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32")};
+        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32") };
         println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match &item.item {
             SearchItem::Fn(_) | SearchItem::Method(_) => {
                 item.docs

@@ -56,7 +56,7 @@ impl From<SearchItem> for SearchValue {
     fn from(item: SearchItem) -> Self {
         Self {
             docs: Docs::from(item.attrs()),
-            item
+            item,
         }
     }
 }

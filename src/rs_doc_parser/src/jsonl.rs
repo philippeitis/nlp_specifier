@@ -20,7 +20,7 @@ pub struct JsonLValues {
 }
 
 impl<'ast> Visit<'ast> for JsonLValues {
-    fn visit_item_fn(&mut self, i: &'ast ItemFn) {
+    fn visit_impl_item_method(&mut self, i: &'ast ImplItemMethod) {
         let docs = Docs::from(&i.attrs);
         match docs.sections.first() {
             None => {}
@@ -32,7 +32,7 @@ impl<'ast> Visit<'ast> for JsonLValues {
         }
     }
 
-    fn visit_impl_item_method(&mut self, i: &'ast ImplItemMethod) {
+    fn visit_item_fn(&mut self, i: &'ast ItemFn) {
         let docs = Docs::from(&i.attrs);
         match docs.sections.first() {
             None => {}

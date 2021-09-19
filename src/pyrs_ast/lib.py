@@ -50,6 +50,7 @@ class Attr:
 
 class LitAttr:
     __slots__ = ["lit"]
+
     def __init__(self, lit: str):
         self.lit = lit
 
@@ -235,6 +236,7 @@ class TokenStream:
 
 class Receiver:
     __slots__ = ["mut", "ref", "lifetime", "ty", "ident"]
+
     def __init__(self, kwargs):
         self.mut = kwargs.get("mut", False)
         self.ref = kwargs.get("ref", False)
@@ -313,6 +315,7 @@ class Fn(HasParams, HasAttrs):
 
 class BoundVariable:
     __slots__ = ["ty", "ident"]
+
     def __init__(self, kwargs):
         self.ty = Type(kwargs["ty"])
         pat = kwargs["pat"]
@@ -330,6 +333,7 @@ class BoundVariable:
 
 class Const(HasAttrs):
     __slots__ = ["ident", "expr", "ty"]
+
     def __init__(self, kwargs):
         super().__init__(kwargs)
         self.ident = kwargs["ident"]
