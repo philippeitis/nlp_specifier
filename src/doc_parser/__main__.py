@@ -269,7 +269,7 @@ def invoke_helper(invocations: Collection, invocation_triples=None, use_invokes=
     unsucessful_sents = []
     specified_sents = 0
     start = time.time()
-    sentences = list(chain(invocations, (sentence for _, _, sentence in invocation_triples)))
+    sentences = list(invocations)
     parser.stokenize(sentences)
     end = time.time()
     print("Time to tokenize sentences:", end - start)

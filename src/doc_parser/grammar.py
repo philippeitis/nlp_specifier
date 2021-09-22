@@ -1,7 +1,7 @@
 import logging
 from copy import copy
 from enum import auto, Enum
-from typing import Optional, List, Union, Collection
+from typing import Optional, List, Union
 
 from nltk import Tree
 from nltk.corpus.reader import ADJ, VERB
@@ -27,9 +27,6 @@ class Code:
 
     def as_code(self):
         return self.code.strip("`")
-
-    def is_ident(self, idents: Collection[str]):
-        return self.as_code() in idents
 
 
 class Literal:

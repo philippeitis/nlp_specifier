@@ -136,6 +136,8 @@ class Parser:
 
     def stokenize(self, sentences: Iterator[str], idents=None) -> List[Sentence]:
         """Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items (all unique sentences in stdlib)."""
+
+        print(len(sentences))
         sentences = [unidecode.unidecode(sentence).rstrip(".") for sentence in sentences]
         sentence_dict = {i: copy(self.token_cache.get(sentence)) for i, sentence in enumerate(sentences)}
 

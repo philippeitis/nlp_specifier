@@ -1,11 +1,16 @@
 use std::path::Path;
-use std::io::{BufWriter, Write};
-use std::fs::OpenOptions;
 use std::collections::HashSet;
 
 use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
-use pyo3::types::{IntoPyDict, PyModule};
+use pyo3::types::IntoPyDict;
 use pyo3::exceptions::PyStopIteration;
+
+use syn::visit_mut::VisitMut;
+use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
+use syn::parse::{Parse, ParseStream};
+
+use chartparse::TreeWrapper;
+use chartparse::tree::TreeNode;
 
 mod search_tree;
 mod docs;
@@ -13,18 +18,19 @@ mod parse_html;
 mod type_match;
 mod tokens;
 mod jsonl;
+mod grammar;
+mod sir;
+mod parse_tree;
 
-use syn::visit_mut::VisitMut;
-use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
-use syn::parse::{Parse, ParseStream};
-use syn::visit::Visit;
-use quote::ToTokens;
 
 use docs::Docs;
-use search_tree::{SearchTree, SearchValue, SearchItem, Depth};
+use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
 use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
-use jsonl::JsonLValues;
+use crate::sir::{Specification};
+use crate::parse_tree::{gen_cfg_enum, SymbolTree, Terminal};
+use crate::grammar::AsSpec;
+
 
 #[macro_use]
 extern crate lazy_static;
@@ -287,6 +293,7 @@ fn specify_docs() {
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
     Python::with_gil(|py| -> PyResult<()> {
+        println!("{}", py.version());
         let mut ntrees = 0;
         let mut nspecs = 0;
         let mut successful_sents = 0;
@@ -352,6 +359,22 @@ fn specify_docs() {
     }).unwrap();
 }
 
+fn grammar() {
+    use chartparse::ChartParser;
+    use chartparse::ContextFreeGrammar;
+
+    use parse_tree::tree::S;
+    let cfg = ContextFreeGrammar::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let parser = ChartParser::from_grammar(&cfg);
+    let mut parses = parser.parse(&vec!["RET", "CODE", "ARITH", "CODE"].into_iter().map(String::from).collect::<Vec<_>>()).unwrap();
+    let root_words = ["returns", "`1 + 2`", "plus", "`2 + 3`"];
+    let iter: Vec<_> = root_words.iter().cloned().map(|x| Terminal { word: x.to_string(), lemma: x.to_string() }).collect();
+    let x = SymbolTree::from_iter(parses.remove(0), &mut iter.into_iter());
+    let x = S::from(x);
+    let spec = Specification::from(x).as_spec().remove(0);
+    println!("{}", quote::quote! {#spec}.to_string());
+}
+
 fn main() {
-    specify_docs()
+    grammar()
 }
