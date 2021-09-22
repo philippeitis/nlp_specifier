@@ -1,6 +1,8 @@
 #![allow(clippy)]
-use crate::parse_tree::{SymbolTree, Symbol};
 
+use crate::parse_tree::{SymbolTree, Symbol, Terminal};
+
+#[derive(Clone)]
 pub enum S {
     Mret(MRET),
     Retif(RETIF),
@@ -44,6 +46,7 @@ impl From<Vec<SymbolTree>> for S {
     }
 }
 
+#[derive(Clone)]
 pub enum MNN {
     Nn(NN),
     Nns(NNS),
@@ -87,6 +90,7 @@ impl From<Vec<SymbolTree>> for MNN {
     }
 }
 
+#[derive(Clone)]
 pub enum TJJ {
     JJ(Option<DT>, JJ),
     JJR(Option<DT>, JJR),
@@ -127,6 +131,7 @@ impl From<Vec<SymbolTree>> for TJJ {
     }
 }
 
+#[derive(Clone)]
 pub enum MJJ {
     JJ(Option<RB>, JJ),
     JJR(Option<RB>, JJR),
@@ -167,6 +172,7 @@ impl From<Vec<SymbolTree>> for MJJ {
     }
 }
 
+#[derive(Clone)]
 pub enum MVB {
     VB(Option<RB>, VB),
     VBZ(Option<RB>, VBZ),
@@ -228,6 +234,7 @@ impl From<Vec<SymbolTree>> for MVB {
     }
 }
 
+#[derive(Clone)]
 pub enum IFF {
     _0(IF, CC, RB, IF),
 }
@@ -251,6 +258,7 @@ impl From<Vec<SymbolTree>> for IFF {
     }
 }
 
+#[derive(Clone)]
 pub enum EQTO {
     _0(IN, CC, JJ, IN),
 }
@@ -274,6 +282,7 @@ impl From<Vec<SymbolTree>> for EQTO {
     }
 }
 
+#[derive(Clone)]
 pub enum BITOP {
     _0(JJ, CC),
     _1(NN, CC),
@@ -301,6 +310,7 @@ impl From<Vec<SymbolTree>> for BITOP {
     }
 }
 
+#[derive(Clone)]
 pub enum ARITHOP {
     ARITH(ARITH, Option<IN>),
 }
@@ -327,6 +337,7 @@ impl From<Vec<SymbolTree>> for ARITHOP {
     }
 }
 
+#[derive(Clone)]
 pub enum SHIFTOP {
     _0(SHIFT, IN, DT, NN, IN),
     _1(JJ, SHIFT),
@@ -354,6 +365,7 @@ impl From<Vec<SymbolTree>> for SHIFTOP {
     }
 }
 
+#[derive(Clone)]
 pub enum OP {
     Bitop(BITOP),
     Arithop(ARITHOP),
@@ -385,6 +397,7 @@ impl From<Vec<SymbolTree>> for OP {
     }
 }
 
+#[derive(Clone)]
 pub enum OBJ {
     Prp(PRP),
     MNN(Option<DT>, MNN),
@@ -446,6 +459,7 @@ impl From<Vec<SymbolTree>> for OBJ {
     }
 }
 
+#[derive(Clone)]
 pub enum REL {
     _0(TJJ, IN, OBJ),
     _1(TJJ, EQTO, OBJ),
@@ -481,6 +495,7 @@ impl From<Vec<SymbolTree>> for REL {
     }
 }
 
+#[derive(Clone)]
 pub enum MREL {
     REL(Option<RB>, REL),
 }
@@ -507,6 +522,7 @@ impl From<Vec<SymbolTree>> for MREL {
     }
 }
 
+#[derive(Clone)]
 pub enum PROP {
     _0(MVB, MJJ),
     _1(MVB, MREL),
@@ -546,6 +562,7 @@ impl From<Vec<SymbolTree>> for PROP {
     }
 }
 
+#[derive(Clone)]
 pub enum PROP_OF {
     _0(DT, MNN, IN, DT),
     _1(DT, MNN, IN),
@@ -581,6 +598,7 @@ impl From<Vec<SymbolTree>> for PROP_OF {
     }
 }
 
+#[derive(Clone)]
 pub enum RSEP {
     Cc(CC),
     In(IN),
@@ -612,6 +630,7 @@ impl From<Vec<SymbolTree>> for RSEP {
     }
 }
 
+#[derive(Clone)]
 pub enum RANGE {
     _0(OBJ, IN, OBJ, RSEP, OBJ),
     _1(IN, OBJ, RSEP, OBJ),
@@ -643,6 +662,7 @@ impl From<Vec<SymbolTree>> for RANGE {
     }
 }
 
+#[derive(Clone)]
 pub enum RANGEMOD {
     Range(RANGE),
     _0(RANGE, Option<COMMA>, JJ),
@@ -673,6 +693,7 @@ impl From<Vec<SymbolTree>> for RANGEMOD {
     }
 }
 
+#[derive(Clone)]
 pub enum ASSERT {
     _0(OBJ, PROP),
     _1(OBJ, CC, Box<ASSERT>),
@@ -700,6 +721,7 @@ impl From<Vec<SymbolTree>> for ASSERT {
     }
 }
 
+#[derive(Clone)]
 pub enum HASSERT {
     _0(OBJ, MD, PROP),
     _1(OBJ, CC, Box<HASSERT>),
@@ -727,6 +749,7 @@ impl From<Vec<SymbolTree>> for HASSERT {
     }
 }
 
+#[derive(Clone)]
 pub enum QUANT {
     _0(FOR, DT, OBJ),
 }
@@ -750,12 +773,11 @@ impl From<Vec<SymbolTree>> for QUANT {
     }
 }
 
+#[derive(Clone)]
 pub enum QUANT_EXPR {
     QUANT(QUANT, Option<RANGEMOD>),
-    _0(Box<QUANT_EXPR>, COMMA, CC, MREL),
-    _1(Box<QUANT_EXPR>, COMMA, MREL),
-    _2(Box<QUANT_EXPR>, CC, MREL),
-    _3(Box<QUANT_EXPR>, MREL),
+    _0(Box<QUANT_EXPR>, Option<COMMA>, CC, MREL),
+    _1(Box<QUANT_EXPR>, Option<COMMA>, MREL),
 }
 
 impl From<SymbolTree> for QUANT_EXPR {
@@ -775,23 +797,24 @@ impl From<Vec<SymbolTree>> for QUANT_EXPR {
             (Some((Symbol::QUANT, quant_0)), Some((Symbol::RANGEMOD, rangemod_1)), None, None) => {
                 QUANT_EXPR::QUANT(QUANT::from(quant_0), Some(RANGEMOD::from(rangemod_1)))
             },
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::CC, cc_2)), Some((Symbol::MREL, mrel_3)), None) => {
+                QUANT_EXPR::_0(Box::new(QUANT_EXPR::from(quant_expr_0)), None, CC::from(cc_2), MREL::from(mrel_3))
+            },
             (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::CC, cc_2)), Some((Symbol::MREL, mrel_3))) => {
-                QUANT_EXPR::_0(Box::new(QUANT_EXPR::from(quant_expr_0)), COMMA::from(comma_1), CC::from(cc_2), MREL::from(mrel_3))
+                QUANT_EXPR::_0(Box::new(QUANT_EXPR::from(quant_expr_0)), Some(COMMA::from(comma_1)), CC::from(cc_2), MREL::from(mrel_3))
+            },
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::MREL, mrel_2)), None, None) => {
+                QUANT_EXPR::_1(Box::new(QUANT_EXPR::from(quant_expr_0)), None, MREL::from(mrel_2))
             },
             (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MREL, mrel_2)), None) => {
-                QUANT_EXPR::_1(Box::new(QUANT_EXPR::from(quant_expr_0)), COMMA::from(comma_1), MREL::from(mrel_2))
-            },
-            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::CC, cc_1)), Some((Symbol::MREL, mrel_2)), None) => {
-                QUANT_EXPR::_2(Box::new(QUANT_EXPR::from(quant_expr_0)), CC::from(cc_1), MREL::from(mrel_2))
-            },
-            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::MREL, mrel_1)), None, None) => {
-                QUANT_EXPR::_3(Box::new(QUANT_EXPR::from(quant_expr_0)), MREL::from(mrel_1))
+                QUANT_EXPR::_1(Box::new(QUANT_EXPR::from(quant_expr_0)), Some(COMMA::from(comma_1)), MREL::from(mrel_2))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
         }
     }
 }
 
+#[derive(Clone)]
 pub enum QASSERT {
     _0(QUANT_EXPR, Option<COMMA>, HASSERT),
     _1(HASSERT, QUANT_EXPR),
@@ -826,6 +849,7 @@ impl From<Vec<SymbolTree>> for QASSERT {
     }
 }
 
+#[derive(Clone)]
 pub enum MRET {
     _0(RET, OBJ),
     _1(OBJ, VBZ, RET),
@@ -857,6 +881,7 @@ impl From<Vec<SymbolTree>> for MRET {
     }
 }
 
+#[derive(Clone)]
 pub enum BOOL_EXPR {
     Assert(ASSERT),
     Qassert(QASSERT),
@@ -892,6 +917,7 @@ impl From<Vec<SymbolTree>> for BOOL_EXPR {
     }
 }
 
+#[derive(Clone)]
 pub enum COND {
     _0(IF, BOOL_EXPR),
     _1(IFF, BOOL_EXPR),
@@ -919,6 +945,7 @@ impl From<Vec<SymbolTree>> for COND {
     }
 }
 
+#[derive(Clone)]
 pub enum RETIF {
     _0(MRET, COND),
     _1(COND, COMMA, MRET),
@@ -958,6 +985,7 @@ impl From<Vec<SymbolTree>> for RETIF {
     }
 }
 
+#[derive(Clone)]
 pub enum SIDE {
     _0(OBJ, VBZ, MVB, IN, OBJ),
     _1(OBJ, VBZ, MVB),
@@ -993,6 +1021,7 @@ impl From<Vec<SymbolTree>> for SIDE {
     }
 }
 
+#[derive(Clone)]
 pub enum ASSIGN {
     _0(VBZ, OBJ, IN, OBJ),
     _1(VBZ, OBJ, TO, OBJ),
@@ -1032,6 +1061,7 @@ impl From<Vec<SymbolTree>> for ASSIGN {
     }
 }
 
+#[derive(Clone)]
 pub enum EVENT {
     _0(MNN, VBD),
 }
@@ -1055,6 +1085,7 @@ impl From<Vec<SymbolTree>> for EVENT {
     }
 }
 
+#[derive(Clone)]
 pub enum OBJV {
     _0(OBJ, Option<VBZ>, MVB),
 }
@@ -1081,6 +1112,7 @@ impl From<Vec<SymbolTree>> for OBJV {
     }
 }
 
+#[derive(Clone)]
 pub struct NN {
     pub word: String,
     pub lemma: String,
@@ -1093,6 +1125,13 @@ impl From<Vec<SymbolTree>> for NN {
     }
 }
 
+impl From<NN> for Terminal {
+    fn from(val: NN) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct NNS {
     pub word: String,
     pub lemma: String,
@@ -1105,6 +1144,13 @@ impl From<Vec<SymbolTree>> for NNS {
     }
 }
 
+impl From<NNS> for Terminal {
+    fn from(val: NNS) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct NNP {
     pub word: String,
     pub lemma: String,
@@ -1117,6 +1163,13 @@ impl From<Vec<SymbolTree>> for NNP {
     }
 }
 
+impl From<NNP> for Terminal {
+    fn from(val: NNP) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct NNPS {
     pub word: String,
     pub lemma: String,
@@ -1129,6 +1182,13 @@ impl From<Vec<SymbolTree>> for NNPS {
     }
 }
 
+impl From<NNPS> for Terminal {
+    fn from(val: NNPS) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VB {
     pub word: String,
     pub lemma: String,
@@ -1141,6 +1201,13 @@ impl From<Vec<SymbolTree>> for VB {
     }
 }
 
+impl From<VB> for Terminal {
+    fn from(val: VB) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VBP {
     pub word: String,
     pub lemma: String,
@@ -1153,6 +1220,13 @@ impl From<Vec<SymbolTree>> for VBP {
     }
 }
 
+impl From<VBP> for Terminal {
+    fn from(val: VBP) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VBZ {
     pub word: String,
     pub lemma: String,
@@ -1165,6 +1239,13 @@ impl From<Vec<SymbolTree>> for VBZ {
     }
 }
 
+impl From<VBZ> for Terminal {
+    fn from(val: VBZ) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VBN {
     pub word: String,
     pub lemma: String,
@@ -1177,6 +1258,13 @@ impl From<Vec<SymbolTree>> for VBN {
     }
 }
 
+impl From<VBN> for Terminal {
+    fn from(val: VBN) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VBG {
     pub word: String,
     pub lemma: String,
@@ -1189,6 +1277,13 @@ impl From<Vec<SymbolTree>> for VBG {
     }
 }
 
+impl From<VBG> for Terminal {
+    fn from(val: VBG) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct VBD {
     pub word: String,
     pub lemma: String,
@@ -1201,6 +1296,13 @@ impl From<Vec<SymbolTree>> for VBD {
     }
 }
 
+impl From<VBD> for Terminal {
+    fn from(val: VBD) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct JJ {
     pub word: String,
     pub lemma: String,
@@ -1213,6 +1315,13 @@ impl From<Vec<SymbolTree>> for JJ {
     }
 }
 
+impl From<JJ> for Terminal {
+    fn from(val: JJ) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct JJR {
     pub word: String,
     pub lemma: String,
@@ -1225,6 +1334,13 @@ impl From<Vec<SymbolTree>> for JJR {
     }
 }
 
+impl From<JJR> for Terminal {
+    fn from(val: JJR) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct JJS {
     pub word: String,
     pub lemma: String,
@@ -1237,6 +1353,13 @@ impl From<Vec<SymbolTree>> for JJS {
     }
 }
 
+impl From<JJS> for Terminal {
+    fn from(val: JJS) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct RB {
     pub word: String,
     pub lemma: String,
@@ -1249,6 +1372,13 @@ impl From<Vec<SymbolTree>> for RB {
     }
 }
 
+impl From<RB> for Terminal {
+    fn from(val: RB) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct PRP {
     pub word: String,
     pub lemma: String,
@@ -1261,6 +1391,13 @@ impl From<Vec<SymbolTree>> for PRP {
     }
 }
 
+impl From<PRP> for Terminal {
+    fn from(val: PRP) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct DT {
     pub word: String,
     pub lemma: String,
@@ -1273,6 +1410,13 @@ impl From<Vec<SymbolTree>> for DT {
     }
 }
 
+impl From<DT> for Terminal {
+    fn from(val: DT) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct IN {
     pub word: String,
     pub lemma: String,
@@ -1285,6 +1429,13 @@ impl From<Vec<SymbolTree>> for IN {
     }
 }
 
+impl From<IN> for Terminal {
+    fn from(val: IN) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct CC {
     pub word: String,
     pub lemma: String,
@@ -1297,6 +1448,13 @@ impl From<Vec<SymbolTree>> for CC {
     }
 }
 
+impl From<CC> for Terminal {
+    fn from(val: CC) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct MD {
     pub word: String,
     pub lemma: String,
@@ -1309,6 +1467,13 @@ impl From<Vec<SymbolTree>> for MD {
     }
 }
 
+impl From<MD> for Terminal {
+    fn from(val: MD) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct TO {
     pub word: String,
     pub lemma: String,
@@ -1321,6 +1486,13 @@ impl From<Vec<SymbolTree>> for TO {
     }
 }
 
+impl From<TO> for Terminal {
+    fn from(val: TO) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct RET {
     pub word: String,
     pub lemma: String,
@@ -1333,6 +1505,13 @@ impl From<Vec<SymbolTree>> for RET {
     }
 }
 
+impl From<RET> for Terminal {
+    fn from(val: RET) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct CODE {
     pub word: String,
     pub lemma: String,
@@ -1345,6 +1524,13 @@ impl From<Vec<SymbolTree>> for CODE {
     }
 }
 
+impl From<CODE> for Terminal {
+    fn from(val: CODE) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct LIT {
     pub word: String,
     pub lemma: String,
@@ -1357,6 +1543,13 @@ impl From<Vec<SymbolTree>> for LIT {
     }
 }
 
+impl From<LIT> for Terminal {
+    fn from(val: LIT) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct IF {
     pub word: String,
     pub lemma: String,
@@ -1369,6 +1562,13 @@ impl From<Vec<SymbolTree>> for IF {
     }
 }
 
+impl From<IF> for Terminal {
+    fn from(val: IF) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct FOR {
     pub word: String,
     pub lemma: String,
@@ -1381,6 +1581,13 @@ impl From<Vec<SymbolTree>> for FOR {
     }
 }
 
+impl From<FOR> for Terminal {
+    fn from(val: FOR) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct ARITH {
     pub word: String,
     pub lemma: String,
@@ -1393,6 +1600,13 @@ impl From<Vec<SymbolTree>> for ARITH {
     }
 }
 
+impl From<ARITH> for Terminal {
+    fn from(val: ARITH) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct SHIFT {
     pub word: String,
     pub lemma: String,
@@ -1405,6 +1619,13 @@ impl From<Vec<SymbolTree>> for SHIFT {
     }
 }
 
+impl From<SHIFT> for Terminal {
+    fn from(val: SHIFT) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct DOT {
     pub word: String,
     pub lemma: String,
@@ -1417,6 +1638,13 @@ impl From<Vec<SymbolTree>> for DOT {
     }
 }
 
+impl From<DOT> for Terminal {
+    fn from(val: DOT) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct COMMA {
     pub word: String,
     pub lemma: String,
@@ -1429,6 +1657,13 @@ impl From<Vec<SymbolTree>> for COMMA {
     }
 }
 
+impl From<COMMA> for Terminal {
+    fn from(val: COMMA) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct EXCL {
     pub word: String,
     pub lemma: String,
@@ -1441,6 +1676,13 @@ impl From<Vec<SymbolTree>> for EXCL {
     }
 }
 
+impl From<EXCL> for Terminal {
+    fn from(val: EXCL) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct WDT {
     pub word: String,
     pub lemma: String,
@@ -1453,6 +1695,13 @@ impl From<Vec<SymbolTree>> for WDT {
     }
 }
 
+impl From<WDT> for Terminal {
+    fn from(val: WDT) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct LRB {
     pub word: String,
     pub lemma: String,
@@ -1465,6 +1714,13 @@ impl From<Vec<SymbolTree>> for LRB {
     }
 }
 
+impl From<LRB> for Terminal {
+    fn from(val: LRB) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct RRB {
     pub word: String,
     pub lemma: String,
@@ -1477,6 +1733,13 @@ impl From<Vec<SymbolTree>> for RRB {
     }
 }
 
+impl From<RRB> for Terminal {
+    fn from(val: RRB) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct HYPH {
     pub word: String,
     pub lemma: String,
@@ -1489,6 +1752,13 @@ impl From<Vec<SymbolTree>> for HYPH {
     }
 }
 
+impl From<HYPH> for Terminal {
+    fn from(val: HYPH) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct CD {
     pub word: String,
     pub lemma: String,
@@ -1501,6 +1771,13 @@ impl From<Vec<SymbolTree>> for CD {
     }
 }
 
+impl From<CD> for Terminal {
+    fn from(val: CD) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct X {
     pub word: String,
     pub lemma: String,
@@ -1513,6 +1790,13 @@ impl From<Vec<SymbolTree>> for X {
     }
 }
 
+impl From<X> for Terminal {
+    fn from(val: X) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct STR {
     pub word: String,
     pub lemma: String,
@@ -1525,6 +1809,13 @@ impl From<Vec<SymbolTree>> for STR {
     }
 }
 
+impl From<STR> for Terminal {
+    fn from(val: STR) -> Self {
+        Self { word: val.word, lemma: val.lemma }
+    }
+}
+
+#[derive(Clone)]
 pub struct CHAR {
     pub word: String,
     pub lemma: String,
@@ -1534,5 +1825,11 @@ impl From<Vec<SymbolTree>> for CHAR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
         let t = branches.remove(0).unwrap_terminal();
         Self { word: t.word, lemma: t.lemma }
+    }
+}
+
+impl From<CHAR> for Terminal {
+    fn from(val: CHAR) -> Self {
+        Self { word: val.word, lemma: val.lemma }
     }
 }

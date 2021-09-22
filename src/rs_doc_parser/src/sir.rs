@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use crate::parse_tree::{SymbolTree, Symbol};
-use crate::parse_tree::tree::{S, MRET, OBJ, OP, BITOP, ARITHOP, SHIFTOP, LIT, CODE};
+use crate::parse_tree::{SymbolTree, Symbol, Terminal};
+use crate::parse_tree::tree::{S, MRET, OBJ, OP, BITOP, ARITHOP, SHIFTOP, LIT, CODE, RANGE, RANGEMOD, QUANT, PROP_OF, MNN, MJJ, VBG, JJ, VBN, RETIF, BOOL_EXPR, COND, ASSERT, MVB, PROP, REL, MREL, TJJ, RB, QASSERT, QUANT_EXPR, HASSERT, EVENT, VBD, MD, PRP};
 
 
+#[derive(Clone)]
 pub struct Code {
     pub(crate) code: String,
 }
@@ -25,6 +26,7 @@ impl From<CODE> for Code {
     }
 }
 
+#[derive(Clone)]
 pub struct Literal {
     pub(crate) s: String,
 }
@@ -82,11 +84,6 @@ impl BinOp {
             _ => None,
         }
     }
-
-    /// Should
-    fn from_tree(tree: SymbolTree) -> Self {
-        OP::from(tree).into()
-    }
 }
 
 impl From<OP> for BinOp {
@@ -117,7 +114,7 @@ impl From<OP> for BinOp {
             }
             OP::Shiftop(shift) => match shift {
                 SHIFTOP::_0(_, _, _, nn, _) => {
-                        BinOp::shift_with_dir(&nn.lemma).unwrap()
+                    BinOp::shift_with_dir(&nn.lemma).unwrap()
                 }
                 SHIFTOP::_1(jj, _) => {
                     BinOp::shift_with_dir(&jj.lemma).unwrap()
@@ -178,6 +175,7 @@ impl Display for BinOp {
     }
 }
 
+#[derive(Clone)]
 pub struct Op {
     pub(crate) lhs: Box<Object>,
     pub(crate) op: BinOp,
@@ -199,11 +197,15 @@ impl Op {
     }
 }
 
+#[derive(Clone)]
 pub enum Object {
     Code(Code),
     Lit(Literal),
     Op(Op),
-    PropOf(PropertyOf),
+    PropOf(PropertyOf, Box<Object>),
+    Mnn(Mnn),
+    VbgMnn(VBG, Mnn),
+    Prp(PRP)
 }
 
 impl From<OBJ> for Object {
@@ -214,6 +216,34 @@ impl From<OBJ> for Object {
             OBJ::_0(lhs, op, rhs) => {
                 Object::Op(Op::new(lhs.into(), op.into(), rhs.into()))
             }
+            OBJ::MNN(_, mnn) => {
+                Object::Mnn(mnn.into())
+            }
+            OBJ::_1(_, vbg, mnn) => {
+                Object::VbgMnn(vbg, mnn.into())
+            }
+            OBJ::_2(prop, obj) => {
+                let prop = PropertyOf::from(prop);
+                match Object::from(obj) {
+                    Object::Op(op) => {
+                        match op.op {
+                            BinOp::Sub => match prop.prop.lemma() {
+                                "remainder" => Object::Op(op),
+                                _ => Object::PropOf(prop, Box::new(Object::Op(op))),
+                            }
+                            BinOp::Div => match prop.prop.lemma() {
+                                "remainder" => Object::Op(Op::new(*op.lhs, BinOp::Rem, *op.rhs)),
+                                _ => Object::PropOf(prop, Box::new(Object::Op(op))),
+                            }
+                            _ => Object::PropOf(prop, Box::new(Object::Op(op))),
+                        }
+                    },
+                    x => {
+                        Object::PropOf(prop, Box::new(x))
+                    }
+                }
+            }
+            OBJ::Prp(prp) => Object::Prp(prp),
             _ => unimplemented!(),
         }
     }
@@ -225,30 +255,100 @@ impl From<Box<OBJ>> for Object {
     }
 }
 
-impl Object {
-    /// Tree with OBJ root
-    pub(crate) fn from_tree(tree: SymbolTree) -> Self {
-        OBJ::from(tree).into()
-    }
-
-    /// Tree without OBJ root
-    pub(crate) fn from_symbol_trees(branches: Vec<SymbolTree>) -> Self {
-        OBJ::from(branches).into()
-    }
-}
-
-enum Property {
-    Mnn(MNN),
+#[derive(Clone)]
+enum PropOfMod {
+    Mnn(Mnn),
     Mjj(MJJ),
 }
 
-pub struct PropertyOf {
-    prop: Property,
-    object: Box<Object>,
+impl PropOfMod {
+    fn lemma(&self) -> &str {
+        match self {
+            PropOfMod::Mnn(mnn) => mnn.root_lemma(),
+            PropOfMod::Mjj(mjj) => match mjj {
+                MJJ::JJ(_, jj) => &jj.lemma,
+                MJJ::JJR(_,jj) => &jj.lemma,
+                MJJ::JJS(_,jj) => &jj.lemma,
+            }
+        }
+    }
 }
 
-impl PropertyOf {}
+#[derive(Clone)]
+pub struct PropertyOf {
+    prop: PropOfMod,
+}
 
+impl From<PROP_OF> for PropertyOf {
+    fn from(prop_of: PROP_OF) -> Self {
+        match prop_of {
+            PROP_OF::_0(_, mnn, _, _) | PROP_OF::_1(_, mnn, _) => {
+                PropertyOf {
+                    prop: PropOfMod::Mnn(mnn.into()),
+                }
+            }
+            PROP_OF::_2(_, mjj, _) | PROP_OF::_3(_, mjj, _, _) => {
+                PropertyOf {
+                    prop: PropOfMod::Mjj(mjj),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct IsProperty {
+    mvb: MVB,
+    prop_type: IsPropMod,
+}
+
+#[derive(Clone)]
+enum IsPropMod {
+    Mjj(MJJ),
+    Rel(Relation),
+    Obj(Object),
+    RangeMod(RangeMod),
+    None,
+}
+
+impl From<PROP> for IsProperty {
+    fn from(prop: PROP) -> Self {
+        match prop {
+            PROP::_0(mvb, mjj) => {
+                IsProperty {
+                    mvb,
+                    prop_type: IsPropMod::Mjj(mjj.into()),
+                }
+            }
+            PROP::_1(mvb, mrel) => {
+                IsProperty {
+                    mvb,
+                    prop_type: IsPropMod::Rel(mrel.into()),
+                }
+            }
+            PROP::_2(mvb, obj) => {
+                IsProperty {
+                    mvb,
+                    prop_type: IsPropMod::Obj(obj.into()),
+                }
+            }
+            PROP::Mvb(mvb) => {
+                IsProperty {
+                    mvb,
+                    prop_type: IsPropMod::None,
+                }
+            }
+            PROP::_3(mvb, rangemod) => {
+                IsProperty {
+                    mvb,
+                    prop_type: IsPropMod::RangeMod(rangemod.into()),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
 enum Comparator {
     Lt,
     Gt,
@@ -296,47 +396,102 @@ impl Comparator {
     }
 }
 
+#[derive(Copy, Clone)]
 enum IfExpr {
     If,
     Iff,
 }
 
+#[derive(Clone)]
 struct BoolCond {
     if_expr: IfExpr,
-
+    negated: bool,
+    value: BoolValue,
 }
 
-pub enum Event {
-    Overflow,
-    Panic,
-    NoOverflow,
-    NoPanic,
-    Other(String, bool),
+impl From<COND> for BoolCond {
+    fn from(cond: COND) -> Self {
+        match cond {
+            COND::_0(_if, value) => {
+                BoolCond {
+                    if_expr: IfExpr::If,
+                    negated: false,
+                    value: value.into()
+                }
+            }
+            COND::_1(_iff, value) => {
+                BoolCond {
+                    if_expr: IfExpr::Iff,
+                    negated: false,
+                    value: value.into()
+                }
+            }
+        }
+    }
 }
 
-impl Event {
-    fn new(nn: SymbolTree, vb: SymbolTree) {}
+#[derive(Clone)]
+enum BoolValue {
+    Assert(Assert),
+    QAssert(QuantAssert),
+    Code(Code),
+    Event(Event),
 }
 
+impl From<BOOL_EXPR> for BoolValue {
+    fn from(boolexpr: BOOL_EXPR) -> Self {
+        match boolexpr {
+            BOOL_EXPR::Assert(a) => {
+                BoolValue::Assert(a.into())
+            }
+            BOOL_EXPR::Qassert(q) => {
+                BoolValue::QAssert(q.into())
+            }
+            BOOL_EXPR::Code(c) => {
+                BoolValue::Code(c.into())
+            }
+            BOOL_EXPR::Event(e) => {
+                BoolValue::Event(e.into())
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Event {
+    mnn: Mnn,
+    vbd: VBD
+}
+
+impl From<EVENT> for Event {
+    fn from(e: EVENT) -> Self {
+        match e {
+            EVENT::_0(mnn, vbd) => Event { mnn: mnn.into(), vbd }
+        }
+    }
+}
 
 pub enum Specification {
-    RetIf,
-    HAssert,
-    QAssert,
+    RetIf(ReturnIf),
+    HAssert(HardAssert),
+    QAssert(QuantAssert),
     Mret(MReturn),
     Side,
-    FnCall,
 }
 
 impl From<S> for Specification {
     fn from(spec_tree: S) -> Self {
         match spec_tree {
             S::Mret(m) => Specification::Mret(m.into()),
-            _ => unimplemented!(),
+            S::Retif(retif) => Specification::RetIf(retif.into()),
+            S::Hassert(hassert) => Specification::HAssert(hassert.into()),
+            S::Qassert(qassert) => Specification::QAssert(qassert.into()),
+            S::Side(_) | S::Assign(_) => unimplemented!(),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct MReturn {
     pub(crate) ret_val: Object,
 }
@@ -358,13 +513,8 @@ impl From<MRET> for MReturn {
     }
 }
 
-impl MReturn {
-    pub(crate) fn from_symbol_trees(branches: Vec<SymbolTree>) -> Self {
-        MRET::from(branches).into()
-    }
-}
-
-enum UnaryOp {
+#[derive(Copy, Clone)]
+pub enum UnaryOp {
     Negate,
 }
 
@@ -380,27 +530,113 @@ impl FromStr for UnaryOp {
     }
 }
 
-struct QuantAssert {
-    quant_expr: QuantExpr,
-    assertion: bool,
+#[derive(Clone)]
+pub enum QuantItem {
+    Code(Code),
+    HAssert(HardAssert),
 }
 
-struct HardAssert {
-    md: Md,
-    assert: Assert,
+#[derive(Clone)]
+pub struct QuantAssert {
+    pub quant_expr: QuantExpr,
+    pub assertion: QuantItem,
 }
 
-struct Md {
-    word: String,
+impl From<QASSERT> for QuantAssert {
+    fn from(qassert: QASSERT) -> Self {
+        match qassert {
+            QASSERT::_0(quant_expr, _, hassert) | QASSERT::_1(hassert, quant_expr) => {
+                QuantAssert {
+                    quant_expr: quant_expr.into(),
+                    assertion: QuantItem::HAssert(hassert.into()),
+                }
+            }
+            QASSERT::_2(code, quant_expr) => {
+                QuantAssert {
+                    quant_expr: quant_expr.into(),
+                    assertion: QuantItem::Code(code.into()),
+                }
+            }
+        }
+    }
 }
 
-struct QuantExpr {
-    quant: Quantifier,
-    range: RangeMod,
-    range_conds: Vec<(CC, ModRelation)>,
+#[derive(Clone)]
+pub struct HardAssert {
+    pub md: MD,
+    pub assert: Assert,
 }
 
-enum CC {
+impl From<HASSERT> for HardAssert {
+    fn from(hassert: HASSERT) -> Self {
+        match hassert {
+            HASSERT::_0(obj, md, prop) => {
+                HardAssert {
+                    md,
+                    assert: Assert::from(ASSERT::_0(obj, prop))
+                }
+            }
+            HASSERT::_1(obj, cc, hassert) => {
+                let mut hassert = HardAssert::from(hassert);
+                match CC::from_str(&cc.lemma).unwrap() {
+                    CC::And => hassert.assert.objects.last_mut().unwrap().push(obj.into()),
+                    CC::Or => hassert.assert.objects.push(vec![obj.into()]),
+                }
+                hassert
+            }
+        }
+    }
+}
+
+impl From<Box<HASSERT>> for HardAssert {
+    fn from(hassert: Box<HASSERT>) -> Self {
+        Self::from(*hassert)
+    }
+}
+
+#[derive(Clone)]
+pub struct QuantExpr {
+    pub quant: Quantifier,
+    pub range: Option<RangeMod>,
+    pub range_conds: Vec<Vec<Relation>>,
+}
+
+impl From<QUANT_EXPR> for QuantExpr {
+    fn from(qexpr: QUANT_EXPR) -> Self {
+        match qexpr {
+            QUANT_EXPR::QUANT(quant, rangemod) => {
+                QuantExpr {
+                    quant: quant.into(),
+                    range: rangemod.map(RangeMod::from),
+                    range_conds: vec![vec![]],
+                }
+            }
+            QUANT_EXPR::_0(quantexpr, _, cc, mrel) => {
+                let mut quantexpr = QuantExpr::from(quantexpr);
+                match CC::from_str(&cc.lemma).unwrap() {
+                    CC::And => quantexpr.range_conds.last_mut().unwrap().push(mrel.into()),
+                    CC::Or => quantexpr.range_conds.push(vec![mrel.into()]),
+                }
+
+                quantexpr
+            }
+            QUANT_EXPR::_1(quantexpr, _, mrel) => {
+                let mut quantexpr = QuantExpr::from(quantexpr);
+                quantexpr.range_conds.last_mut().unwrap().push(mrel.into());
+                quantexpr
+            }
+        }
+    }
+}
+
+impl From<Box<QUANT_EXPR>> for QuantExpr {
+    fn from(qexpr: Box<QUANT_EXPR>) -> Self {
+        Self::from(*qexpr)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum CC {
     And,
     Or,
 }
@@ -417,14 +653,80 @@ impl FromStr for CC {
     }
 }
 
-struct ModRelation {}
-
-struct Relation {
-    objs: Vec<(CC, Object)>,
+#[derive(Clone)]
+pub struct Relation {
+    objects: Vec<Vec<Object>>,
     op: Comparator,
-    negated: bool,
+    modifier: Option<RB>,
 }
 
+impl From<REL> for Relation {
+    fn from(rel: REL) -> Self {
+        match rel {
+            REL::_0(tjj, _in, obj) => {
+                Relation {
+                    objects: vec![vec![obj.into()]],
+                    op: Comparator::from_str(match tjj {
+                        TJJ::JJ(_, jj) => jj.lemma,
+                        TJJ::JJR(_, jjr) => jjr.lemma,
+                        TJJ::JJS(_, jjs) => jjs.lemma
+                    }.as_str()).unwrap_or(Comparator::Neq),
+                    modifier: None,
+                }
+            }
+            REL::_1(tjj, _eqto, obj) => {
+                Relation {
+                    objects: vec![vec![obj.into()]],
+                    op: Comparator::from_str(match tjj {
+                        TJJ::JJ(_, jj) => jj.lemma,
+                        TJJ::JJR(_, jjr) => jjr.lemma,
+                        TJJ::JJS(_, jjs) => jjs.lemma
+                    }.as_str()).unwrap_or(Comparator::Neq),
+                    modifier: None,
+                }
+            }
+            REL::_2(_in, obj) => {
+                Relation {
+                    objects: vec![vec![obj.into()]],
+                    op: Comparator::Lt,
+                    modifier: None,
+                }
+            }
+            REL::_3(rel, cc, obj) => {
+                let mut rel = Relation::from(rel);
+                match CC::from_str(&cc.lemma).unwrap() {
+                    CC::And => rel.objects.last_mut().unwrap().push(obj.into()),
+                    CC::Or => rel.objects.push(vec![obj.into()]),
+                }
+
+                rel
+            }
+        }
+    }
+}
+
+impl From<MREL> for Relation {
+    fn from(mrel: MREL) -> Self {
+        match mrel {
+            MREL::REL(Some(rb), rel) => {
+                let mut rel = Relation::from(rel);
+                rel.modifier = Some(rb);
+                rel
+            }
+            MREL::REL(None, rel) => {
+                rel.into()
+            }
+        }
+    }
+}
+
+impl From<Box<REL>> for Relation {
+    fn from(rel: Box<REL>) -> Self {
+        Self::from(*rel)
+    }
+}
+
+#[derive(Copy, Clone)]
 enum UpperBound {
     Inclusive,
     Exclusive,
@@ -451,120 +753,229 @@ impl UpperBound {
     }
 }
 
+#[derive(Clone)]
 struct Range {
     ident: Option<Object>,
     start: Option<Object>,
     end: Option<Object>,
 }
 
-impl Range {
-    pub(crate) fn from_symbol_trees(branches: Vec<SymbolTree>) -> Self {
-        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        println!("MReturn");
-        match (labels.next(), labels.next(), labels.next(), labels.next(), labels.next()) {
-            (
-                Some((Symbol::OBJ, mut ident)),
-                Some((Symbol::IN, _)),
-                Some((Symbol::OBJ, mut start)),
-                Some((Symbol::RSEP, _)),
-                Some((Symbol::OBJ, mut end)),
-            ) => {
+impl From<RANGE> for Range {
+    fn from(r: RANGE) -> Self {
+        match r {
+            RANGE::_0(ident, _, start, _, end) => {
                 Self {
-                    ident: Some(Object::from_symbol_trees(ident)),
-                    start: Some(Object::from_symbol_trees(start)),
-                    end: Some(Object::from_symbol_trees(end)),
+                    ident: Some(ident.into()),
+                    start: Some(start.into()),
+                    end: Some(end.into()),
                 }
             }
-            (
-                Some((Symbol::IN, _)),
-                Some((Symbol::OBJ, mut start)),
-                Some((Symbol::RSEP, _)),
-                Some((Symbol::OBJ, mut end)),
-                None,
-            ) => {
+            RANGE::_1(_, start, _, end) => {
                 Self {
                     ident: None,
-                    start: Some(Object::from_symbol_trees(start)),
-                    end: Some(Object::from_symbol_trees(end)),
+                    start: Some(start.into()),
+                    end: Some(end.into()),
                 }
             }
-            (
-                Some((Symbol::IN, _)),
-                Some((Symbol::IN, _)),
-                Some((Symbol::OBJ, mut end)),
-                None,
-                None,
-            ) => {
+            RANGE::_2(_, _, end) => {
                 Self {
                     ident: None,
                     start: None,
-                    end: Some(Object::from_symbol_trees(end)),
+                    end: Some(end.into()),
                 }
             }
-            _ => unimplemented!()
         }
     }
 }
 
-struct RangeMod {
+#[derive(Clone)]
+pub struct RangeMod {
     range: Range,
     upper_bound: UpperBound,
 }
 
-impl RangeMod {
-    pub(crate) fn from_symbol_trees(mut branches: Vec<SymbolTree>) -> Self {
-        let range = Range::from_symbol_trees(branches.remove(0).unwrap_branch().1);
-        let upper_bound = match branches.pop() {
-            None => UpperBound::Exclusive,
-            Some(t) => {
-                let (sym, mut branches) = t.unwrap_branch();
-                if sym == Symbol::JJ {
-                    UpperBound::from_str(&branches.remove(0).unwrap_terminal().word).unwrap()
-                } else {
-                    UpperBound::Exclusive
+impl From<RANGEMOD> for RangeMod {
+    fn from(rmod: RANGEMOD) -> Self {
+        match rmod {
+            RANGEMOD::Range(range) => {
+                Self {
+                    range: range.into(),
+                    upper_bound: UpperBound::Exclusive,
                 }
             }
-        };
-        RangeMod {
-            range,
-            upper_bound,
+            RANGEMOD::_0(range, _, jj) => {
+                Self {
+                    range: range.into(),
+                    upper_bound: UpperBound::from_str(&jj.lemma).unwrap(),
+                }
+            }
         }
     }
 }
 
-struct Quantifier {
-    universal: bool,
-    obj: Object,
+#[derive(Clone)]
+pub struct Quantifier {
+    pub universal: bool,
+    pub obj: Object,
 }
 
-impl Quantifier {
-    pub(crate) fn from_symbol_trees(mut branches: Vec<SymbolTree>) -> Self {
-        let obj = Object::from_tree(branches.remove(0));
-        let universal = match branches.remove(0).unwrap_terminal().word.as_str() {
-            "all" | "each" | "any" => true,
-            _ => false,
-        };
-
-        Quantifier {
-            obj,
-            universal,
+impl From<QUANT> for Quantifier {
+    fn from(quant: QUANT) -> Self {
+        match quant {
+            QUANT::_0(a, dt, obj) => {
+                Quantifier {
+                    universal: ["all", "each", "any"].contains(&dt.lemma.as_str()),
+                    obj: obj.into(),
+                }
+            }
         }
     }
 }
 
-pub enum Negatable {
-    Assert(Assert),
-    Code(Code),
-    Event(Event),
+#[derive(Clone)]
+enum MnnMod {
+    Jj(JJ),
+    Vbn(VBN),
 }
 
-pub struct Negated {
-    iff: IfExpr,
-    pub expr: Negatable,
+#[derive(Clone)]
+pub struct Mnn {
+    adjs: Vec<MnnMod>,
+    root: Terminal,
 }
 
-struct MNN {}
+impl From<MNN> for Mnn {
+    fn from(mnn: MNN) -> Self {
+        match mnn {
+            MNN::Nn(nn) => {
+                Mnn {
+                    adjs: Vec::with_capacity(0),
+                    root: nn.into(),
+                }
+            }
+            MNN::Nns(nn) => {
+                Mnn {
+                    adjs: Vec::with_capacity(0),
+                    root: nn.into(),
+                }
+            }
+            MNN::Nnp(nn) => {
+                Mnn {
+                    adjs: Vec::with_capacity(0),
+                    root: nn.into(),
+                }
+            }
+            MNN::Nnps(nn) => {
+                Mnn {
+                    adjs: Vec::with_capacity(0),
+                    root: nn.into(),
+                }
+            }
+            MNN::_0(jj, mnn) => {
+                let mut mnn = Mnn::from(mnn);
+                mnn.adjs.insert(0, MnnMod::Jj(jj));
+                mnn
+            }
+            MNN::_1(vbn, mnn) => {
+                let mut mnn = Mnn::from(mnn);
+                mnn.adjs.insert(0, MnnMod::Vbn(vbn));
+                mnn
+            }
+        }
+    }
+}
 
-struct MJJ {}
+impl Mnn {
+    fn root_lemma(&self) -> &str {
+        &self.root.lemma
+    }
+}
 
-pub struct Assert {}
+impl From<Box<MNN>> for Mnn {
+    fn from(mnn: Box<MNN>) -> Self {
+        Self::from(*mnn)
+    }
+}
+
+#[derive(Clone)]
+pub struct Assert {
+    property: IsProperty,
+    // (a and b and c) or (d and e and f)
+    objects: Vec<Vec<Object>>,
+}
+
+impl From<ASSERT> for Assert {
+    fn from(a: ASSERT) -> Self {
+        match a {
+            ASSERT::_0(obj, prop) => {
+                Assert {
+                    objects: vec![vec![obj.into()]],
+                    property: prop.into(),
+                }
+            }
+            ASSERT::_1(obj, cc, assert) => {
+                let mut assert = Assert::from(assert);
+                match CC::from_str(&cc.lemma).unwrap() {
+                    CC::And => assert.objects.last_mut().unwrap().push(obj.into()),
+                    CC::Or => assert.objects.push(vec![obj.into()]),
+                }
+                assert
+            }
+        }
+    }
+}
+
+impl From<Box<ASSERT>> for Assert {
+    fn from(assert: Box<ASSERT>) -> Self {
+        Self::from(*assert)
+    }
+}
+
+#[derive(Clone)]
+pub struct ReturnIf {
+    ret_pred: Vec<(Object, BoolCond)>,
+}
+
+impl From<RETIF> for ReturnIf {
+    fn from(retif: RETIF) -> Self {
+        match retif {
+            RETIF::_0(mret, cond) | RETIF::_1(cond, _, mret) => {
+                let mret = MReturn::from(mret);
+                ReturnIf {
+                    ret_pred: vec![(mret.ret_val, cond.into())]
+                }
+            }
+            RETIF::_2(retif1, _, rb, retif2) => {
+                assert_eq!(rb.lemma, "otherwise");
+                let mut retif1 = ReturnIf::from(retif1);
+                let mut retif2 = ReturnIf::from(retif2);
+                retif1.ret_pred.append(&mut retif2.ret_pred);
+                retif1
+            }
+            RETIF::_3(retif, _, rb, obj) => {
+                assert_eq!(rb.lemma, "otherwise");
+                let mut retif = ReturnIf::from(retif);
+                let mut pred = retif.ret_pred.last().unwrap().1.clone();
+                pred.negated = true;
+                retif.ret_pred.push((obj.into(), pred));
+                retif
+            }
+            RETIF::_4(mret, _, ow_mret, cond) => {
+                let mret = MReturn::from(mret);
+                let ow_mret = MReturn::from(ow_mret);
+                let ow_cond = BoolCond::from(cond);
+                let mut cond = ow_cond.clone();
+                cond.negated = true;
+                ReturnIf {
+                    ret_pred: vec![(ow_mret.ret_val, ow_cond), (mret.ret_val, cond)]
+                }
+            }
+        }
+    }
+}
+
+impl From<Box<RETIF>> for ReturnIf {
+    fn from(retif: Box<RETIF>) -> Self {
+        Self::from(*retif)
+    }
+}

@@ -76,6 +76,7 @@ class Sentence:
         self.doc = doc
         self.tags = tuple(token.tag_ for token in self.doc)
         self.words = tuple(token.text for token in self.doc)
+        self.metadata = tuple((token.tag_, token.text, token.lemma_) for token in self.doc)
 
 
 class SpacyModel(str, Enum):

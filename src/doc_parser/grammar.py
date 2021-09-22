@@ -591,7 +591,7 @@ class QuantExpr:
             self.range_conditions = []
 
     def as_code(self, cond: str):
-        return self.with_conditions(cond)
+        return self.with_conditions([cond])
 
     def with_conditions_iff(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
         raise NotImplementedError()
@@ -607,7 +607,7 @@ class QuantExpr:
         # if isinstance(pre_cond, list):
         #     pre_cond = " && ".join(pre_cond)
 
-    def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
+    def with_conditions(self, post_cond: List[str], pre_cond: List[str] = None, flip=False):
         quant = "forall"
         if not self.quant.is_universal:
             quant = "forsome"
@@ -617,10 +617,8 @@ class QuantExpr:
         # type hints: start.as_code(), end.as_code()
         #                                    v do type introspection here
         # detect multiple identifiers.
-        if isinstance(post_cond, list):
-            post_cond = " && ".join(post_cond)
-        if isinstance(pre_cond, list):
-            pre_cond = " && ".join(pre_cond)
+        post_cond = " && ".join(post_cond)
+        pre_cond = " && ".join(pre_cond)
 
         # TODO: Implement code for type detection.
         xtype = "int"
@@ -688,32 +686,19 @@ class QuantAssert:
         else:
             raise ValueError(f"Unexpected productions for QASSERT: {labels}")
 
-    def bound_vars(self):
-        # TODO: Fix bound vars to find actual bound variables
-        return self.quant_expr.quant.obj.as_code()
-
     def as_code(self):
         # eg. there exists some x such that y is true
         #     to forall: !forall(x st y is not true)
         return self.quant_expr.as_code(self.assertion.as_code())
 
     def with_conditions(self, post_cond: Union[List[str], str], pre_cond: Union[List[str], str] = None, flip=False):
-        def merge_to_list(a: Union[List[str], str], b: Union[List[str], str]):
-            if a is None:
-                return b
-            if b is None:
-                return a
-            if isinstance(a, list):
-                if isinstance(b, list):
-                    return a + b
-                return a + [b]
-            if isinstance(b, list):
-                return b + [a]
-            return [a, b]
-
+        assert isinstance(post_cond, list) if post_cond else True
+        assert isinstance(pre_cond, list) if pre_cond else True
+        post_cond = post_cond or []
+        pre_cond = pre_cond or []
         if flip:
-            return self.quant_expr.with_conditions(post_cond, merge_to_list(pre_cond, self.assertion.as_code()), flip)
-        return self.quant_expr.with_conditions(merge_to_list(self.assertion.as_code(), post_cond), pre_cond, flip)
+            return self.quant_expr.with_conditions(post_cond, pre_cond + [self.assertion.as_code()], flip)
+        return self.quant_expr.with_conditions([self.assertion.as_code()] + post_cond, pre_cond, flip)
 
     def as_spec(self):
         if isinstance(self.assertion, HardAssert) and self.assertion.is_precondition():
@@ -861,10 +846,10 @@ class ReturnIf(MReturn):
             if pred.iff:
                 # need to be able to put cond inside quant pred
                 # Need to handle ret val inside QASSERT.
-                return f"""#[ensures({expr.with_conditions(ret_assert)})]
-#[ensures({expr.with_conditions(ret_assert, flip=True)})]"""
+                return f"""#[ensures({expr.with_conditions([ret_assert])})]
+#[ensures({expr.with_conditions([ret_assert], flip=True)})]"""
 
-            return f"""#[ensures({expr.with_conditions(ret_assert)})]"""
+            return f"""#[ensures({expr.with_conditions([ret_assert])})]"""
 
         if pred.iff:
             return f"""#[ensures({pred.as_code()} ==> {ret_assert})]

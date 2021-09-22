@@ -104,7 +104,6 @@ if __name__ == '__main__':
     x = CFG.fromstring(Path("./codegrammar_pre.cfg").read_text())
     graph = networkx.DiGraph()
 
-    print("use crate::parse_tree::{SymbolTree, Symbol};\n")
     for lhs, rhsv in x._lhs_index.items():
         rhs = set(r for rhs in rhsv for r in rhs._rhs)
         for r in rhs:
@@ -125,9 +124,12 @@ if __name__ == '__main__':
                 terminals.add(str(lhs))
                 break
 
+    print("#![allow(clippy)]\n")
+    print("use crate::parse_tree::{SymbolTree, Symbol, Terminal};\n")
 
     for lhs, rhsv in x._lhs_index.items():
         if lhs in terminals:
+            print(f"#[derive(Clone)]")
             print(f"pub struct {lhs} {{")
             print(f"    pub word: String,")
             print(f"    pub lemma: String,")
@@ -138,8 +140,14 @@ if __name__ == '__main__':
             print(f"        Self {{ word: t.word, lemma: t.lemma }}")
             print(f"    }}")
             print(f"}}\n")
-            continue
+            print(f"impl From<{lhs}> for Terminal {{")
+            print(f"    fn from(val: {lhs}) -> Self {{")
+            print(f"        Self {{ word: val.word, lemma: val.lemma }}")
+            print(f"    }}")
+            print(f"}}\n")
 
+            continue
+        print(f"#[derive(Clone)]")
         e = f"pub enum {lhs} {{\n"
         impl_t = f"impl From<SymbolTree> for {lhs} {{\n"
         impl_t += "    fn from(tree: SymbolTree) -> Self {\n"

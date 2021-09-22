@@ -1,6 +1,6 @@
-use syn::{Expr, Attribute};
+use syn::{Expr, Attribute, Error};
 
-use crate::sir::{Op, Code, Literal, Object, MReturn, Negated, Negatable, Assert, Event, Specification};
+use crate::sir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem};
 use syn::parse::{Parse, ParseStream};
 
 pub trait AsCode {
@@ -37,7 +37,7 @@ impl AsCode for Object {
             Object::Code(c) => c.as_code(),
             Object::Lit(l) => l.as_code(),
             Object::Op(o) => o.as_code(),
-            Object::PropOf(_) => unimplemented!()
+            _ => unimplemented!()
         }
     }
 }
@@ -50,22 +50,7 @@ impl AsCode for MReturn {
     }
 }
 
-impl AsCode for Negatable {
-    fn as_code(&self) -> Expr {
-        match self {
-            Negatable::Assert(a) => a.as_code(),
-            Negatable::Code(c) => c.as_code(),
-            Negatable::Event(e) => e.as_code(),
-        }
-    }
-}
 
-impl AsCode for Negated {
-    fn as_code(&self) -> Expr {
-        let val = self.expr.as_code();
-        syn::parse_str(&quote::quote! {!(#val)}.to_string()).unwrap()
-    }
-}
 
 impl AsCode for Event {
     fn as_code(&self) -> Expr {
@@ -84,7 +69,7 @@ struct AttrHelper {
 }
 
 pub trait AsSpec {
-    fn as_spec(&self) -> Vec<Attribute>;
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError>;
 }
 
 impl Parse for AttrHelper {
@@ -95,17 +80,27 @@ impl Parse for AttrHelper {
     }
 }
 
+#[derive(Debug)]
+pub enum SpecificationError {
+    Syn(syn::Error)
+}
+
+impl From<syn::Error> for SpecificationError {
+    fn from(err: syn::Error) -> Self {
+        SpecificationError::Syn(err)
+    }
+}
 
 impl AsSpec for Specification {
-    fn as_spec(&self) -> Vec<Attribute> {
-        match self {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        Ok(match self {
             Specification::Mret(m) => {
                 let e = m.as_code();
                 let attrs = format!("#[ensures({})]", quote::quote! {#e}.to_string());
-                let e: AttrHelper = syn::parse_str(&attrs).unwrap();
+                let e: AttrHelper = syn::parse_str(&attrs)?;
                 e.attrs
             },
             _ => unimplemented!(),
-        }
+        })
     }
 }

@@ -9,7 +9,7 @@ use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
 use syn::parse::{Parse, ParseStream};
 
-use chartparse::TreeWrapper;
+use chartparse::{TreeWrapper, ChartParser, ContextFreeGrammar};
 use chartparse::tree::TreeNode;
 
 mod search_tree;
@@ -163,9 +163,15 @@ impl<'p> Parser<'p> {
         Parser { parser, py }
     }
 
-    fn tokenize_sents(&self, sents: &[String]) -> PyResult<()> {
-        self.parser.call_method1(self.py, "stokenize", (sents.to_object(self.py), ))?;
-        Ok(())
+    fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Vec<(String, String, String)>>> {
+        self.parser.call_method1(self.py, "stokenize", (sents.to_object(self.py), ))?
+            .extract::<Vec<PyObject>>(self.py)?
+            .into_iter()
+            .map(|x| x.getattr(self.py, "metadata"))
+            .collect::<PyResult<Vec<PyObject>>>()?
+            .into_iter()
+            .map(|x| x.extract::<Vec<(String, String, String)>>(self.py))
+            .collect::<PyResult<Vec<Vec<(String, String, String)>>>>()
     }
 
     fn parse_trees(&self, s: &str) -> TreeIter<'p> {
@@ -292,15 +298,11 @@ fn specify_docs() {
 
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    Python::with_gil(|py| -> PyResult<()> {
-        println!("{}", py.version());
-        let mut ntrees = 0;
-        let mut nspecs = 0;
-        let mut successful_sents = 0;
-        let mut unsucessful_sents = 0;
-        let mut specified_sents = 0;
-        let parser = Parser::new(py);
-        let grammar = Grammar::new(py);
+    let cfg = ContextFreeGrammar::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let parser = ChartParser::from_grammar(&cfg);
+
+    let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
+        let tokparser = Parser::new(py);
 
         let mut sentences = Vec::new();
         for value in tree.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
@@ -310,59 +312,77 @@ fn specify_docs() {
         let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
 
         let start = std::time::Instant::now();
-        let _ = parser.tokenize_sents(&sentences);
+        let tokens = tokparser.tokenize_sents(&sentences).unwrap();
         let end = std::time::Instant::now();
         println!("Time to tokenize sentences: {}", (end - start).as_secs_f32());
-        let start = std::time::Instant::now();
-
-        for sentence in &sentences {
-            let trees: Vec<_> = parser.parse_trees(&sentence).filter_map(Result::ok).collect();
-            let specs: Vec<_> = trees.iter().map(|tree| grammar.specify_tree(tree).ok()).collect();
-
-            if !specs.is_empty() {
-                // println!("{}", "=".repeat(80));
-                // println!("Sentence: {}", sentence);
-                // println!("    Tags: ?");
-                // println!("{}", "=".repeat(80));
-
-                // for (tree, spec) in trees.iter().zip(specs.iter()) {
-                //     println!("{}", tree.call_method0(py, "__str__").unwrap().extract::<String>(py).unwrap());
-                //     println!("{:?}", spec);
-                // }
-
-                // println!();
-                successful_sents += 1;
-            } else {
-                unsucessful_sents += 1;
-            }
-            ntrees += trees.len();
-            let count = specs.iter().filter(|x| x.is_some()).count();
-            if count != 0 {
-                specified_sents += 1;
-            }
-            nspecs += count;
-        }
-        let end = std::time::Instant::now();
-        println!("          Sentences: {}", sentences.len());
-        println!("Successfully parsed: {}", successful_sents);
-        println!("              Trees: {}", ntrees);
-        println!("     Specifications: {}", nspecs);
-        println!("Specified Sentences: {}", specified_sents);
-        println!("       Time elapsed: {}", (end - start).as_secs_f32());
-
-        //                  Sentences: 4946
-        //        Successfully parsed: 284
-        //                      Trees: 515
-        //             Specifications: 155
-        //        Specified Sentences: 114
-        Ok(())
+        Ok(tokens)
     }).unwrap();
+
+    let mut ntrees = 0;
+    let mut nspecs = 0;
+    let mut successful_sents = 0;
+    let mut unsucessful_sents = 0;
+    let mut specified_sents = 0;
+
+    let start = std::time::Instant::now();
+
+    for metadata in tokens.iter() {
+        let tokens: Vec<_> = metadata.iter().map(|x| x.0.to_string()).collect();
+        let iter: Vec<_> = metadata.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+        let trees: Vec<_> = match parser.parse(&tokens) {
+            Ok(trees) => trees
+                .into_iter()
+                .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
+                .map(parse_tree::tree::S::from)
+                .collect(),
+            Err(_) => continue,
+        };
+        let specs: Vec<_> = trees
+            .clone()
+            .into_iter()
+            .map(Specification::from)
+            .collect();
+
+        if !specs.is_empty() {
+            // println!("{}", "=".repeat(80));
+            // println!("Sentence: {}", sentence);
+            // println!("    Tags: ?");
+            // println!("{}", "=".repeat(80));
+
+            // for (tree, spec) in trees.iter().zip(specs.iter()) {
+            //     println!("{}", tree.call_method0(py, "__str__").unwrap().extract::<String>(py).unwrap());
+            //     println!("{:?}", spec);
+            // }
+
+            // println!();
+            successful_sents += 1;
+        } else {
+            unsucessful_sents += 1;
+        }
+        ntrees += trees.len();
+        // let count = specs.iter().filter(|x| x.is_some()).count();
+        // if count != 0 {
+        //     specified_sents += 1;
+        // }
+        nspecs += specs.len();
+    }
+    let end = std::time::Instant::now();
+    println!("          Sentences: {}", tokens.len());
+    println!("Successfully parsed: {}", successful_sents);
+    println!("              Trees: {}", ntrees);
+    println!("     Specifications: {}", nspecs);
+    println!("Specified Sentences: {}", specified_sents);
+    println!("       Time elapsed: {}", (end - start).as_secs_f32());
+
+    //                  Sentences: 4946
+    //        Successfully parsed: 284
+    //                      Trees: 515
+    //             Specifications: 155
+    //        Specified Sentences: 114
+
 }
 
 fn grammar() {
-    use chartparse::ChartParser;
-    use chartparse::ContextFreeGrammar;
-
     use parse_tree::tree::S;
     let cfg = ContextFreeGrammar::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
@@ -371,10 +391,10 @@ fn grammar() {
     let iter: Vec<_> = root_words.iter().cloned().map(|x| Terminal { word: x.to_string(), lemma: x.to_string() }).collect();
     let x = SymbolTree::from_iter(parses.remove(0), &mut iter.into_iter());
     let x = S::from(x);
-    let spec = Specification::from(x).as_spec().remove(0);
+    let spec = Specification::from(x).as_spec().unwrap().remove(0);
     println!("{}", quote::quote! {#spec}.to_string());
 }
 
 fn main() {
-    grammar()
+    specify_docs()
 }
