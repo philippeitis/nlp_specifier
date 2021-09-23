@@ -115,8 +115,8 @@ def read_terminals(path: Path):
 
 
 if __name__ == '__main__':
-    non_terminals = CFG.fromstring(Path("nonterminals.cfg").read_text())
-    terminals = read_terminals(Path("terminals.cfg"))
+    non_terminals = CFG.fromstring((Path(__file__).parent / Path("nonterminals.cfg")).read_text())
+    terminals = read_terminals(Path(__file__).parent / Path("terminals.cfg"))
     terminal_set = {Nonterminal(v) for v, _ in terminals}
     graph = networkx.DiGraph()
 
@@ -379,6 +379,6 @@ impl ParseSymbol for Symbol {
         Ok(Self::from(s))
     }
 }"""
-    Path("codegrammar.cfg").write_text(cfg)
-    Path("../rs_doc_parser/src/parse_tree/tree.rs").write_text(tree_rs)
-    Path("../rs_doc_parser/src/parse_tree/eir.rs").write_text(eir_rs)
+    (Path(__file__).parent / Path("../doc_parser/codegrammar.cfg")).write_text(cfg)
+    (Path(__file__).parent / Path("../rs_doc_parser/src/parse_tree/tree.rs")).write_text(tree_rs)
+    (Path(__file__).parent / Path("../rs_doc_parser/src/parse_tree/eir.rs")).write_text(eir_rs)
