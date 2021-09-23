@@ -1,5 +1,6 @@
 #![allow(clippy)]
 
+use std::convert::TryFrom;
 use crate::parse_tree::{SymbolTree, Symbol, Terminal};
 
 #[derive(Clone)]
@@ -14,7 +15,7 @@ pub enum S {
 
 impl From<SymbolTree> for S {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -41,7 +42,7 @@ impl From<Vec<SymbolTree>> for S {
             (Some((Symbol::ASSIGN, assign_0))) => {
                 S::Assign(ASSIGN::from(assign_0))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -58,7 +59,7 @@ pub enum MNN {
 
 impl From<SymbolTree> for MNN {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -85,7 +86,7 @@ impl From<Vec<SymbolTree>> for MNN {
             (Some((Symbol::VBN, vbn_0)), Some((Symbol::MNN, mnn_1))) => {
                 MNN::_1(VBN::from(vbn_0), Box::new(MNN::from(mnn_1)))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -99,7 +100,7 @@ pub enum TJJ {
 
 impl From<SymbolTree> for TJJ {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -126,7 +127,7 @@ impl From<Vec<SymbolTree>> for TJJ {
             (Some((Symbol::DT, dt_0)), Some((Symbol::JJS, jjs_1))) => {
                 TJJ::JJS(Some(DT::from(dt_0)), JJS::from(jjs_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -140,7 +141,7 @@ pub enum MJJ {
 
 impl From<SymbolTree> for MJJ {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -167,7 +168,7 @@ impl From<Vec<SymbolTree>> for MJJ {
             (Some((Symbol::RB, rb_0)), Some((Symbol::JJS, jjs_1))) => {
                 MJJ::JJS(Some(RB::from(rb_0)), JJS::from(jjs_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -184,7 +185,7 @@ pub enum MVB {
 
 impl From<SymbolTree> for MVB {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -229,7 +230,7 @@ impl From<Vec<SymbolTree>> for MVB {
             (Some((Symbol::RB, rb_0)), Some((Symbol::VBD, vbd_1))) => {
                 MVB::VBD(Some(RB::from(rb_0)), VBD::from(vbd_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -241,7 +242,7 @@ pub enum IFF {
 
 impl From<SymbolTree> for IFF {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -253,7 +254,7 @@ impl From<Vec<SymbolTree>> for IFF {
             (Some((Symbol::IF, if_0)), Some((Symbol::CC, cc_1)), Some((Symbol::RB, rb_2)), Some((Symbol::IF, if_3))) => {
                 IFF::_0(IF::from(if_0), CC::from(cc_1), RB::from(rb_2), IF::from(if_3))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -265,7 +266,7 @@ pub enum EQTO {
 
 impl From<SymbolTree> for EQTO {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -277,7 +278,7 @@ impl From<Vec<SymbolTree>> for EQTO {
             (Some((Symbol::IN, in_0)), Some((Symbol::CC, cc_1)), Some((Symbol::JJ, jj_2)), Some((Symbol::IN, in_3))) => {
                 EQTO::_0(IN::from(in_0), CC::from(cc_1), JJ::from(jj_2), IN::from(in_3))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -290,7 +291,7 @@ pub enum BITOP {
 
 impl From<SymbolTree> for BITOP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -305,7 +306,7 @@ impl From<Vec<SymbolTree>> for BITOP {
             (Some((Symbol::NN, nn_0)), Some((Symbol::CC, cc_1))) => {
                 BITOP::_1(NN::from(nn_0), CC::from(cc_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -317,7 +318,7 @@ pub enum ARITHOP {
 
 impl From<SymbolTree> for ARITHOP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -332,7 +333,7 @@ impl From<Vec<SymbolTree>> for ARITHOP {
             (Some((Symbol::ARITH, arith_0)), Some((Symbol::IN, in_1))) => {
                 ARITHOP::ARITH(ARITH::from(arith_0), Some(IN::from(in_1)))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -345,7 +346,7 @@ pub enum SHIFTOP {
 
 impl From<SymbolTree> for SHIFTOP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -360,7 +361,7 @@ impl From<Vec<SymbolTree>> for SHIFTOP {
             (Some((Symbol::JJ, jj_0)), Some((Symbol::SHIFT, shift_1)), None, None, None) => {
                 SHIFTOP::_1(JJ::from(jj_0), SHIFT::from(shift_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -374,7 +375,7 @@ pub enum OP {
 
 impl From<SymbolTree> for OP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -392,7 +393,7 @@ impl From<Vec<SymbolTree>> for OP {
             (Some((Symbol::SHIFTOP, shiftop_0))) => {
                 OP::Shiftop(SHIFTOP::from(shiftop_0))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -412,7 +413,7 @@ pub enum OBJ {
 
 impl From<SymbolTree> for OBJ {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -454,7 +455,7 @@ impl From<Vec<SymbolTree>> for OBJ {
             (Some((Symbol::PROP_OF, prop_of_0)), Some((Symbol::OBJ, obj_1)), None) => {
                 OBJ::_2(PROP_OF::from(prop_of_0), Box::new(OBJ::from(obj_1)))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -469,7 +470,7 @@ pub enum REL {
 
 impl From<SymbolTree> for REL {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -490,7 +491,7 @@ impl From<Vec<SymbolTree>> for REL {
             (Some((Symbol::REL, rel_0)), Some((Symbol::CC, cc_1)), Some((Symbol::OBJ, obj_2))) => {
                 REL::_3(Box::new(REL::from(rel_0)), CC::from(cc_1), OBJ::from(obj_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -502,7 +503,7 @@ pub enum MREL {
 
 impl From<SymbolTree> for MREL {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -517,7 +518,7 @@ impl From<Vec<SymbolTree>> for MREL {
             (Some((Symbol::RB, rb_0)), Some((Symbol::REL, rel_1))) => {
                 MREL::REL(Some(RB::from(rb_0)), REL::from(rel_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -533,7 +534,7 @@ pub enum PROP {
 
 impl From<SymbolTree> for PROP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -557,7 +558,7 @@ impl From<Vec<SymbolTree>> for PROP {
             (Some((Symbol::MVB, mvb_0)), Some((Symbol::RANGEMOD, rangemod_1))) => {
                 PROP::_3(MVB::from(mvb_0), RANGEMOD::from(rangemod_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -572,7 +573,7 @@ pub enum PROP_OF {
 
 impl From<SymbolTree> for PROP_OF {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -593,7 +594,7 @@ impl From<Vec<SymbolTree>> for PROP_OF {
             (Some((Symbol::DT, dt_0)), Some((Symbol::MJJ, mjj_1)), Some((Symbol::IN, in_2)), Some((Symbol::DT, dt_3))) => {
                 PROP_OF::_3(DT::from(dt_0), MJJ::from(mjj_1), IN::from(in_2), DT::from(dt_3))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -607,7 +608,7 @@ pub enum RSEP {
 
 impl From<SymbolTree> for RSEP {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -625,7 +626,7 @@ impl From<Vec<SymbolTree>> for RSEP {
             (Some((Symbol::TO, to_0))) => {
                 RSEP::To(TO::from(to_0))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -639,7 +640,7 @@ pub enum RANGE {
 
 impl From<SymbolTree> for RANGE {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -657,7 +658,7 @@ impl From<Vec<SymbolTree>> for RANGE {
             (Some((Symbol::IN, in_0)), Some((Symbol::IN, in_1)), Some((Symbol::OBJ, obj_2)), None, None) => {
                 RANGE::_2(IN::from(in_0), IN::from(in_1), OBJ::from(obj_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -670,7 +671,7 @@ pub enum RANGEMOD {
 
 impl From<SymbolTree> for RANGEMOD {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -688,7 +689,7 @@ impl From<Vec<SymbolTree>> for RANGEMOD {
             (Some((Symbol::RANGE, range_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::JJ, jj_2))) => {
                 RANGEMOD::_0(RANGE::from(range_0), Some(COMMA::from(comma_1)), JJ::from(jj_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -701,7 +702,7 @@ pub enum ASSERT {
 
 impl From<SymbolTree> for ASSERT {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -716,7 +717,7 @@ impl From<Vec<SymbolTree>> for ASSERT {
             (Some((Symbol::OBJ, obj_0)), Some((Symbol::CC, cc_1)), Some((Symbol::ASSERT, assert_2))) => {
                 ASSERT::_1(OBJ::from(obj_0), CC::from(cc_1), Box::new(ASSERT::from(assert_2)))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -729,7 +730,7 @@ pub enum HASSERT {
 
 impl From<SymbolTree> for HASSERT {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -744,7 +745,7 @@ impl From<Vec<SymbolTree>> for HASSERT {
             (Some((Symbol::OBJ, obj_0)), Some((Symbol::CC, cc_1)), Some((Symbol::HASSERT, hassert_2))) => {
                 HASSERT::_1(OBJ::from(obj_0), CC::from(cc_1), Box::new(HASSERT::from(hassert_2)))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -756,7 +757,7 @@ pub enum QUANT {
 
 impl From<SymbolTree> for QUANT {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -768,7 +769,7 @@ impl From<Vec<SymbolTree>> for QUANT {
             (Some((Symbol::FOR, for_0)), Some((Symbol::DT, dt_1)), Some((Symbol::OBJ, obj_2))) => {
                 QUANT::_0(FOR::from(for_0), DT::from(dt_1), OBJ::from(obj_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -782,7 +783,7 @@ pub enum QUANT_EXPR {
 
 impl From<SymbolTree> for QUANT_EXPR {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -809,7 +810,7 @@ impl From<Vec<SymbolTree>> for QUANT_EXPR {
             (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MREL, mrel_2)), None) => {
                 QUANT_EXPR::_1(Box::new(QUANT_EXPR::from(quant_expr_0)), Some(COMMA::from(comma_1)), MREL::from(mrel_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -823,7 +824,7 @@ pub enum QASSERT {
 
 impl From<SymbolTree> for QASSERT {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -844,7 +845,7 @@ impl From<Vec<SymbolTree>> for QASSERT {
             (Some((Symbol::CODE, code_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
                 QASSERT::_2(CODE::from(code_0), QUANT_EXPR::from(quant_expr_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -858,7 +859,7 @@ pub enum MRET {
 
 impl From<SymbolTree> for MRET {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -876,7 +877,7 @@ impl From<Vec<SymbolTree>> for MRET {
             (Some((Symbol::OBJ, obj_0)), Some((Symbol::RET, ret_1)), None) => {
                 MRET::_2(OBJ::from(obj_0), RET::from(ret_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -891,7 +892,7 @@ pub enum BOOL_EXPR {
 
 impl From<SymbolTree> for BOOL_EXPR {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -912,7 +913,7 @@ impl From<Vec<SymbolTree>> for BOOL_EXPR {
             (Some((Symbol::EVENT, event_0))) => {
                 BOOL_EXPR::Event(EVENT::from(event_0))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -925,7 +926,7 @@ pub enum COND {
 
 impl From<SymbolTree> for COND {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -940,7 +941,7 @@ impl From<Vec<SymbolTree>> for COND {
             (Some((Symbol::IFF, iff_0)), Some((Symbol::BOOL_EXPR, bool_expr_1))) => {
                 COND::_1(IFF::from(iff_0), BOOL_EXPR::from(bool_expr_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -956,7 +957,7 @@ pub enum RETIF {
 
 impl From<SymbolTree> for RETIF {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -980,7 +981,7 @@ impl From<Vec<SymbolTree>> for RETIF {
             (Some((Symbol::MRET, mret_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), Some((Symbol::COND, cond_3))) => {
                 RETIF::_4(MRET::from(mret_0), COMMA::from(comma_1), MRET::from(mret_2), COND::from(cond_3))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -995,7 +996,7 @@ pub enum SIDE {
 
 impl From<SymbolTree> for SIDE {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -1016,7 +1017,7 @@ impl From<Vec<SymbolTree>> for SIDE {
             (Some((Symbol::VBZ, vbz_0)), Some((Symbol::TJJ, tjj_1)), Some((Symbol::OBJ, obj_2)), Some((Symbol::IN, in_3)), Some((Symbol::OBJ, obj_4)), Some((Symbol::CC, cc_5)), Some((Symbol::MRET, mret_6))) => {
                 SIDE::_3(VBZ::from(vbz_0), TJJ::from(tjj_1), OBJ::from(obj_2), IN::from(in_3), OBJ::from(obj_4), CC::from(cc_5), MRET::from(mret_6))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -1032,7 +1033,7 @@ pub enum ASSIGN {
 
 impl From<SymbolTree> for ASSIGN {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -1056,7 +1057,7 @@ impl From<Vec<SymbolTree>> for ASSIGN {
             (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::JJ, jj_2)), Some((Symbol::OBJ, obj_3))) => {
                 ASSIGN::_4(VBZ::from(vbz_0), DT::from(dt_1), JJ::from(jj_2), OBJ::from(obj_3))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -1068,7 +1069,7 @@ pub enum EVENT {
 
 impl From<SymbolTree> for EVENT {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -1080,7 +1081,7 @@ impl From<Vec<SymbolTree>> for EVENT {
             (Some((Symbol::MNN, mnn_0)), Some((Symbol::VBD, vbd_1))) => {
                 EVENT::_0(MNN::from(mnn_0), VBD::from(vbd_1))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -1092,7 +1093,7 @@ pub enum OBJV {
 
 impl From<SymbolTree> for OBJV {
     fn from(tree: SymbolTree) -> Self {
-        let (symbol, branches) = tree.unwrap_branch();
+        let (_symbol, branches) = tree.unwrap_branch();
         Self::from(branches)
     }
 }
@@ -1107,7 +1108,7 @@ impl From<Vec<SymbolTree>> for OBJV {
             (Some((Symbol::OBJ, obj_0)), Some((Symbol::VBZ, vbz_1)), Some((Symbol::MVB, mvb_2))) => {
                 OBJV::_0(OBJ::from(obj_0), Some(VBZ::from(vbz_1)), MVB::from(mvb_2))
             },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the last grammar?"),
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
     }
 }
@@ -1120,8 +1121,7 @@ pub struct NN {
 
 impl From<Vec<SymbolTree>> for NN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1139,8 +1139,7 @@ pub struct NNS {
 
 impl From<Vec<SymbolTree>> for NNS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1158,8 +1157,7 @@ pub struct NNP {
 
 impl From<Vec<SymbolTree>> for NNP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1177,8 +1175,7 @@ pub struct NNPS {
 
 impl From<Vec<SymbolTree>> for NNPS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1196,8 +1193,7 @@ pub struct VB {
 
 impl From<Vec<SymbolTree>> for VB {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1215,8 +1211,7 @@ pub struct VBP {
 
 impl From<Vec<SymbolTree>> for VBP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1234,8 +1229,7 @@ pub struct VBZ {
 
 impl From<Vec<SymbolTree>> for VBZ {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1253,8 +1247,7 @@ pub struct VBN {
 
 impl From<Vec<SymbolTree>> for VBN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1272,8 +1265,7 @@ pub struct VBG {
 
 impl From<Vec<SymbolTree>> for VBG {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1291,8 +1283,7 @@ pub struct VBD {
 
 impl From<Vec<SymbolTree>> for VBD {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1310,8 +1301,7 @@ pub struct JJ {
 
 impl From<Vec<SymbolTree>> for JJ {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1329,8 +1319,7 @@ pub struct JJR {
 
 impl From<Vec<SymbolTree>> for JJR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1348,8 +1337,7 @@ pub struct JJS {
 
 impl From<Vec<SymbolTree>> for JJS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1367,8 +1355,7 @@ pub struct RB {
 
 impl From<Vec<SymbolTree>> for RB {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1386,8 +1373,7 @@ pub struct PRP {
 
 impl From<Vec<SymbolTree>> for PRP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1405,8 +1391,7 @@ pub struct DT {
 
 impl From<Vec<SymbolTree>> for DT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1424,8 +1409,7 @@ pub struct IN {
 
 impl From<Vec<SymbolTree>> for IN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1443,8 +1427,7 @@ pub struct CC {
 
 impl From<Vec<SymbolTree>> for CC {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1462,8 +1445,7 @@ pub struct MD {
 
 impl From<Vec<SymbolTree>> for MD {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1481,8 +1463,7 @@ pub struct TO {
 
 impl From<Vec<SymbolTree>> for TO {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1500,8 +1481,7 @@ pub struct RET {
 
 impl From<Vec<SymbolTree>> for RET {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1519,8 +1499,7 @@ pub struct CODE {
 
 impl From<Vec<SymbolTree>> for CODE {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1538,8 +1517,7 @@ pub struct LIT {
 
 impl From<Vec<SymbolTree>> for LIT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1557,8 +1535,7 @@ pub struct IF {
 
 impl From<Vec<SymbolTree>> for IF {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1576,8 +1553,7 @@ pub struct FOR {
 
 impl From<Vec<SymbolTree>> for FOR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1595,8 +1571,7 @@ pub struct ARITH {
 
 impl From<Vec<SymbolTree>> for ARITH {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1614,8 +1589,7 @@ pub struct SHIFT {
 
 impl From<Vec<SymbolTree>> for SHIFT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1633,8 +1607,7 @@ pub struct DOT {
 
 impl From<Vec<SymbolTree>> for DOT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1652,8 +1625,7 @@ pub struct COMMA {
 
 impl From<Vec<SymbolTree>> for COMMA {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1671,127 +1643,12 @@ pub struct EXCL {
 
 impl From<Vec<SymbolTree>> for EXCL {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
 impl From<EXCL> for Terminal {
     fn from(val: EXCL) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct WDT {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for WDT {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<WDT> for Terminal {
-    fn from(val: WDT) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct LRB {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for LRB {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<LRB> for Terminal {
-    fn from(val: LRB) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct RRB {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for RRB {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<RRB> for Terminal {
-    fn from(val: RRB) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct HYPH {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for HYPH {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<HYPH> for Terminal {
-    fn from(val: HYPH) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct CD {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for CD {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<CD> for Terminal {
-    fn from(val: CD) -> Self {
-        Self { word: val.word, lemma: val.lemma }
-    }
-}
-
-#[derive(Clone)]
-pub struct X {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for X {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
-    }
-}
-
-impl From<X> for Terminal {
-    fn from(val: X) -> Self {
         Self { word: val.word, lemma: val.lemma }
     }
 }
@@ -1804,8 +1661,7 @@ pub struct STR {
 
 impl From<Vec<SymbolTree>> for STR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1823,8 +1679,7 @@ pub struct CHAR {
 
 impl From<Vec<SymbolTree>> for CHAR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
     }
 }
 
@@ -1833,3 +1688,79 @@ impl From<CHAR> for Terminal {
         Self { word: val.word, lemma: val.lemma }
     }
 }
+
+pub enum TerminalSymbol {
+    NN,
+    NNS,
+    NNP,
+    NNPS,
+    VB,
+    VBP,
+    VBZ,
+    VBN,
+    VBG,
+    VBD,
+    JJ,
+    JJR,
+    JJS,
+    RB,
+    PRP,
+    DT,
+    IN,
+    CC,
+    MD,
+    TO,
+    RET,
+    CODE,
+    LIT,
+    IF,
+    FOR,
+    ARITH,
+    SHIFT,
+    DOT,
+    COMMA,
+    EXCL,
+    STR,
+    CHAR,
+}
+
+impl TerminalSymbol {
+    pub fn from_terminal<S: AsRef<str>>(s: S) -> Result<Self, String> {
+        match s.as_ref() {
+            "NN" => Ok(TerminalSymbol::NN),
+            "NNS" => Ok(TerminalSymbol::NNS),
+            "NNP" => Ok(TerminalSymbol::NNP),
+            "NNPS" => Ok(TerminalSymbol::NNPS),
+            "VB" => Ok(TerminalSymbol::VB),
+            "VBP" => Ok(TerminalSymbol::VBP),
+            "VBZ" => Ok(TerminalSymbol::VBZ),
+            "VBN" => Ok(TerminalSymbol::VBN),
+            "VBG" => Ok(TerminalSymbol::VBG),
+            "VBD" => Ok(TerminalSymbol::VBD),
+            "JJ" => Ok(TerminalSymbol::JJ),
+            "JJR" => Ok(TerminalSymbol::JJR),
+            "JJS" => Ok(TerminalSymbol::JJS),
+            "RB" => Ok(TerminalSymbol::RB),
+            "PRP" => Ok(TerminalSymbol::PRP),
+            "DT" => Ok(TerminalSymbol::DT),
+            "IN" => Ok(TerminalSymbol::IN),
+            "CC" => Ok(TerminalSymbol::CC),
+            "MD" => Ok(TerminalSymbol::MD),
+            "TO" => Ok(TerminalSymbol::TO),
+            "RET" => Ok(TerminalSymbol::RET),
+            "CODE" => Ok(TerminalSymbol::CODE),
+            "LIT" => Ok(TerminalSymbol::LIT),
+            "IF" => Ok(TerminalSymbol::IF),
+            "FOR" => Ok(TerminalSymbol::FOR),
+            "ARITH" => Ok(TerminalSymbol::ARITH),
+            "SHIFT" => Ok(TerminalSymbol::SHIFT),
+            "DOT" | "." => Ok(TerminalSymbol::DOT),
+            "COMMA" | "," => Ok(TerminalSymbol::COMMA),
+            "EXCL" | "!" => Ok(TerminalSymbol::EXCL),
+            "STR" => Ok(TerminalSymbol::STR),
+            "CHAR" => Ok(TerminalSymbol::CHAR),
+            x => Err(format!("Terminal {} is not supported.", x)),
+        }
+    }
+}
+

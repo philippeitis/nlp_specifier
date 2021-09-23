@@ -28,8 +28,9 @@ use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
 use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
 use crate::sir::{Specification};
-use crate::parse_tree::{gen_cfg_enum, SymbolTree, Terminal};
+use crate::parse_tree::{gen_cfg_enum, SymbolTree, Terminal, Symbol};
 use crate::grammar::AsSpec;
+use crate::parse_tree::tree::TerminalSymbol;
 
 
 #[macro_use]
@@ -298,7 +299,7 @@ fn specify_docs() {
 
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    let cfg = ContextFreeGrammar::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
@@ -327,7 +328,11 @@ fn specify_docs() {
     let start = std::time::Instant::now();
 
     for metadata in tokens.iter() {
-        let tokens: Vec<_> = metadata.iter().map(|x| x.0.to_string()).collect();
+        let tokens: Result<Vec<TerminalSymbol>, _> = metadata.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+        let tokens: Vec<_> = match tokens {
+            Ok(t) => t.into_iter().map(Symbol::from).collect(),
+            Err(_) => continue,
+        };
         let iter: Vec<_> = metadata.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
         let trees: Vec<_> = match parser.parse(&tokens) {
             Ok(trees) => trees

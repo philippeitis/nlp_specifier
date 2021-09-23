@@ -1,161 +1,163 @@
+use std::hash::Hash;
+
 use chartparse::TreeWrapper;
 use chartparse::production::{NonTerminal, Terminal as CTerminal};
 use chartparse::tree::TreeNode;
+use chartparse::grammar::ParseSymbol;
+
 use crate::parse_tree::Terminal;
+use crate::parse_tree::tree::TerminalSymbol;
 
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Hash, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Symbol {
-    ARITH,
-    ARITHOP,
-    ASSERT,
-    ASSIGN,
-    BITOP,
-    BOOL_EXPR,
-    CC,
-    CD,
-    CHAR,
-    CODE,
-    COMMA,
-    COND,
-    DOT,
-    DT,
-    EQTO,
-    EVENT,
-    EXCL,
-    FOR,
-    HASSERT,
-    HYPH,
-    IF,
-    IFF,
-    IN,
+   S,
+   MNN,
+   TJJ,
+   MJJ,
+   MVB,
+   IFF,
+   EQTO,
+   BITOP,
+   ARITHOP,
+   SHIFTOP,
+   OP,
+   OBJ,
+   REL,
+   MREL,
+   PROP,
+   PROP_OF,
+   RSEP,
+   RANGE,
+   RANGEMOD,
+   ASSERT,
+   HASSERT,
+   QUANT,
+   QUANT_EXPR,
+   QASSERT,
+   MRET,
+   BOOL_EXPR,
+   COND,
+   RETIF,
+   SIDE,
+   ASSIGN,
+   EVENT,
+   OBJV,
+    NN,
+    NNS,
+    NNP,
+    NNPS,
+    VB,
+    VBP,
+    VBZ,
+    VBN,
+    VBG,
+    VBD,
     JJ,
     JJR,
     JJS,
-    LIT,
-    LRB,
-    MD,
-    MJJ,
-    MNN,
-    MREL,
-    MRET,
-    MVB,
-    NN,
-    NNP,
-    NNPS,
-    NNS,
-    OBJ,
-    OBJV,
-    OP,
-    PROP,
-    PROP_OF,
-    PRP,
-    QASSERT,
-    QUANT,
-    QUANT_EXPR,
-    RANGE,
-    RANGEMOD,
     RB,
-    REL,
-    RET,
-    RETIF,
-    RRB,
-    RSEP,
-    S,
-    SHIFT,
-    SHIFTOP,
-    SIDE,
-    STR,
-    TJJ,
+    PRP,
+    DT,
+    IN,
+    CC,
+    MD,
     TO,
-    VB,
-    VBD,
-    VBG,
-    VBN,
-    VBP,
-    VBZ,
-    WDT,
-    X,
+    RET,
+    CODE,
+    LIT,
+    IF,
+    FOR,
+    ARITH,
+    SHIFT,
+    DOT,
+    COMMA,
+    EXCL,
+    STR,
+    CHAR,
 }
 
-impl From<NonTerminal> for Symbol {
-    fn from(nt: NonTerminal) -> Self {
-        match nt.symbol.as_str() {
-            "ARITH" => Symbol::ARITH,
-            "ARITHOP" => Symbol::ARITHOP,
-            "ASSERT" => Symbol::ASSERT,
-            "ASSIGN" => Symbol::ASSIGN,
-            "BITOP" => Symbol::BITOP,
-            "BOOL_EXPR" => Symbol::BOOL_EXPR,
-            "CC" => Symbol::CC,
-            "CD" => Symbol::CD,
-            "CHAR" => Symbol::CHAR,
-            "CODE" => Symbol::CODE,
-            "COMMA" => Symbol::COMMA,
-            "COND" => Symbol::COND,
-            "DOT" => Symbol::DOT,
-            "DT" => Symbol::DT,
-            "EQTO" => Symbol::EQTO,
-            "EVENT" => Symbol::EVENT,
-            "EXCL" => Symbol::EXCL,
-            "FOR" => Symbol::FOR,
-            "HASSERT" => Symbol::HASSERT,
-            "HYPH" => Symbol::HYPH,
-            "IF" => Symbol::IF,
-            "IFF" => Symbol::IFF,
-            "IN" => Symbol::IN,
-            "JJ" => Symbol::JJ,
-            "JJR" => Symbol::JJR,
-            "JJS" => Symbol::JJS,
-            "LIT" => Symbol::LIT,
-            "LRB" => Symbol::LRB,
-            "MD" => Symbol::MD,
-            "MJJ" => Symbol::MJJ,
-            "MNN" => Symbol::MNN,
-            "MREL" => Symbol::MREL,
-            "MRET" => Symbol::MRET,
-            "MVB" => Symbol::MVB,
-            "NN" => Symbol::NN,
-            "NNP" => Symbol::NNP,
-            "NNPS" => Symbol::NNPS,
-            "NNS" => Symbol::NNS,
-            "OBJ" => Symbol::OBJ,
-            "OBJV" => Symbol::OBJV,
-            "OP" => Symbol::OP,
-            "PROP" => Symbol::PROP,
-            "PROP_OF" => Symbol::PROP_OF,
-            "PRP" => Symbol::PRP,
-            "QASSERT" => Symbol::QASSERT,
-            "QUANT" => Symbol::QUANT,
-            "QUANT_EXPR" => Symbol::QUANT_EXPR,
-            "RANGE" => Symbol::RANGE,
-            "RANGEMOD" => Symbol::RANGEMOD,
-            "RB" => Symbol::RB,
-            "REL" => Symbol::REL,
-            "RET" => Symbol::RET,
-            "RETIF" => Symbol::RETIF,
-            "RRB" => Symbol::RRB,
-            "RSEP" => Symbol::RSEP,
-            "S" => Symbol::S,
-            "SHIFT" => Symbol::SHIFT,
-            "SHIFTOP" => Symbol::SHIFTOP,
-            "SIDE" => Symbol::SIDE,
-            "STR" => Symbol::STR,
-            "TJJ" => Symbol::TJJ,
-            "TO" => Symbol::TO,
-            "VB" => Symbol::VB,
-            "VBD" => Symbol::VBD,
-            "VBG" => Symbol::VBG,
-            "VBN" => Symbol::VBN,
-            "VBP" => Symbol::VBP,
-            "VBZ" => Symbol::VBZ,
-            "WDT" => Symbol::WDT,
-            "X" => Symbol::X,
-            x => panic!("Unexpected symbol {}", x),
+impl From<TerminalSymbol> for Symbol {
+    fn from(t: TerminalSymbol) -> Symbol {
+        match t {
+            TerminalSymbol::NN => Symbol::NN,
+            TerminalSymbol::NNS => Symbol::NNS,
+            TerminalSymbol::NNP => Symbol::NNP,
+            TerminalSymbol::NNPS => Symbol::NNPS,
+            TerminalSymbol::VB => Symbol::VB,
+            TerminalSymbol::VBP => Symbol::VBP,
+            TerminalSymbol::VBZ => Symbol::VBZ,
+            TerminalSymbol::VBN => Symbol::VBN,
+            TerminalSymbol::VBG => Symbol::VBG,
+            TerminalSymbol::VBD => Symbol::VBD,
+            TerminalSymbol::JJ => Symbol::JJ,
+            TerminalSymbol::JJR => Symbol::JJR,
+            TerminalSymbol::JJS => Symbol::JJS,
+            TerminalSymbol::RB => Symbol::RB,
+            TerminalSymbol::PRP => Symbol::PRP,
+            TerminalSymbol::DT => Symbol::DT,
+            TerminalSymbol::IN => Symbol::IN,
+            TerminalSymbol::CC => Symbol::CC,
+            TerminalSymbol::MD => Symbol::MD,
+            TerminalSymbol::TO => Symbol::TO,
+            TerminalSymbol::RET => Symbol::RET,
+            TerminalSymbol::CODE => Symbol::CODE,
+            TerminalSymbol::LIT => Symbol::LIT,
+            TerminalSymbol::IF => Symbol::IF,
+            TerminalSymbol::FOR => Symbol::FOR,
+            TerminalSymbol::ARITH => Symbol::ARITH,
+            TerminalSymbol::SHIFT => Symbol::SHIFT,
+            TerminalSymbol::DOT => Symbol::DOT,
+            TerminalSymbol::COMMA => Symbol::COMMA,
+            TerminalSymbol::EXCL => Symbol::EXCL,
+            TerminalSymbol::STR => Symbol::STR,
+            TerminalSymbol::CHAR => Symbol::CHAR,
         }
     }
 }
 
+impl<S: AsRef<str>> From<S> for Symbol {
+    fn from(nt: S) -> Self {
+        if let Ok(termsym) = TerminalSymbol::from_terminal(&nt) {
+            return termsym.into();
+        }
+        
+        match nt.as_ref() {
+            "S" => Symbol::S,
+            "MNN" => Symbol::MNN,
+            "TJJ" => Symbol::TJJ,
+            "MJJ" => Symbol::MJJ,
+            "MVB" => Symbol::MVB,
+            "IFF" => Symbol::IFF,
+            "EQTO" => Symbol::EQTO,
+            "BITOP" => Symbol::BITOP,
+            "ARITHOP" => Symbol::ARITHOP,
+            "SHIFTOP" => Symbol::SHIFTOP,
+            "OP" => Symbol::OP,
+            "OBJ" => Symbol::OBJ,
+            "REL" => Symbol::REL,
+            "MREL" => Symbol::MREL,
+            "PROP" => Symbol::PROP,
+            "PROP_OF" => Symbol::PROP_OF,
+            "RSEP" => Symbol::RSEP,
+            "RANGE" => Symbol::RANGE,
+            "RANGEMOD" => Symbol::RANGEMOD,
+            "ASSERT" => Symbol::ASSERT,
+            "HASSERT" => Symbol::HASSERT,
+            "QUANT" => Symbol::QUANT,
+            "QUANT_EXPR" => Symbol::QUANT_EXPR,
+            "QASSERT" => Symbol::QASSERT,
+            "MRET" => Symbol::MRET,
+            "BOOL_EXPR" => Symbol::BOOL_EXPR,
+            "COND" => Symbol::COND,
+            "RETIF" => Symbol::RETIF,
+            "SIDE" => Symbol::SIDE,
+            "ASSIGN" => Symbol::ASSIGN,
+            "EVENT" => Symbol::EVENT,
+            "OBJV" => Symbol::OBJV,
+            x => panic!("Unexpected symbol {}", x),
+        }
+    }
+}
 #[derive(Clone, Debug)]
 pub enum SymbolTree {
     Terminal(Terminal),
@@ -163,16 +165,16 @@ pub enum SymbolTree {
 }
 
 impl SymbolTree {
-    pub(crate) fn from_iter<I: Iterator<Item=Terminal>>(tree: TreeWrapper, iter: &mut I) -> Self {
+    pub(crate) fn from_iter<I: Iterator<Item=Terminal>, S: Eq + Clone + Hash + PartialEq + Into<Symbol>>(tree: TreeWrapper<S>, iter: &mut I) -> Self {
         match tree.inner {
-            TreeNode::Terminal(t) => SymbolTree::Terminal(iter.next().unwrap()),
+            TreeNode::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
             TreeNode::Branch(nt, rest) => {
                 let mut sym_trees = Vec::with_capacity(rest.len());
                 for item in rest {
                     sym_trees.push(SymbolTree::from_iter(item, iter));
                 }
                 SymbolTree::Branch(
-                    Symbol::from(nt),
+                    nt.symbol.into(),
                     sym_trees
                 )
             }
@@ -193,5 +195,17 @@ impl SymbolTree {
             SymbolTree::Terminal(_) => panic!("Called unwrap_branch with terminal Tree"),
             SymbolTree::Branch(sym, trees) => (sym, trees),
         }
+    }
+}
+
+impl ParseSymbol for Symbol {
+    type Error = ();
+
+    fn parse_terminal(s: &str) -> Result<Self, Self::Error> {
+        Ok(Self::from(s))
+    }
+
+    fn parse_nonterminal(s: &str) -> Result<Self, Self::Error> {
+        Ok(Self::from(s))
     }
 }

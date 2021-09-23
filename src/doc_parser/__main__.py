@@ -559,6 +559,6 @@ if __name__ == '__main__':
     #  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
 
     # TODO:
-    #  Implement two piece grammar & code-gen (yeet comma / excl / dot rules)
+    #  Implement two piece grammar & code-gen (yeet comma / excl / dot rules, fn_calls.py)
     #  Test FNVHasher / alternatives for CFG
     #  Finish porting grammar.py (yeet lemmatizer.py, grammar.py)

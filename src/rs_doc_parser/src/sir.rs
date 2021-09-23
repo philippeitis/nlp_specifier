@@ -205,7 +205,7 @@ pub enum Object {
     PropOf(PropertyOf, Box<Object>),
     Mnn(Mnn),
     VbgMnn(VBG, Mnn),
-    Prp(PRP)
+    Prp(PRP),
 }
 
 impl From<OBJ> for Object {
@@ -237,7 +237,7 @@ impl From<OBJ> for Object {
                             }
                             _ => Object::PropOf(prop, Box::new(Object::Op(op))),
                         }
-                    },
+                    }
                     x => {
                         Object::PropOf(prop, Box::new(x))
                     }
@@ -267,8 +267,8 @@ impl PropOfMod {
             PropOfMod::Mnn(mnn) => mnn.root_lemma(),
             PropOfMod::Mjj(mjj) => match mjj {
                 MJJ::JJ(_, jj) => &jj.lemma,
-                MJJ::JJR(_,jj) => &jj.lemma,
-                MJJ::JJS(_,jj) => &jj.lemma,
+                MJJ::JJR(_, jj) => &jj.lemma,
+                MJJ::JJS(_, jj) => &jj.lemma,
             }
         }
     }
@@ -297,13 +297,13 @@ impl From<PROP_OF> for PropertyOf {
 }
 
 #[derive(Clone)]
-struct IsProperty {
-    mvb: MVB,
-    prop_type: IsPropMod,
+pub struct IsProperty {
+    pub mvb: MVB,
+    pub prop_type: IsPropMod,
 }
 
 #[derive(Clone)]
-enum IsPropMod {
+pub enum IsPropMod {
     Mjj(MJJ),
     Rel(Relation),
     Obj(Object),
@@ -416,14 +416,14 @@ impl From<COND> for BoolCond {
                 BoolCond {
                     if_expr: IfExpr::If,
                     negated: false,
-                    value: value.into()
+                    value: value.into(),
                 }
             }
             COND::_1(_iff, value) => {
                 BoolCond {
                     if_expr: IfExpr::Iff,
                     negated: false,
-                    value: value.into()
+                    value: value.into(),
                 }
             }
         }
@@ -460,7 +460,7 @@ impl From<BOOL_EXPR> for BoolValue {
 #[derive(Clone)]
 pub struct Event {
     mnn: Mnn,
-    vbd: VBD
+    vbd: VBD,
 }
 
 impl From<EVENT> for Event {
@@ -573,7 +573,7 @@ impl From<HASSERT> for HardAssert {
             HASSERT::_0(obj, md, prop) => {
                 HardAssert {
                     md,
-                    assert: Assert::from(ASSERT::_0(obj, prop))
+                    assert: Assert::from(ASSERT::_0(obj, prop)),
                 }
             }
             HASSERT::_1(obj, cc, hassert) => {
@@ -886,7 +886,7 @@ impl From<MNN> for Mnn {
 }
 
 impl Mnn {
-    fn root_lemma(&self) -> &str {
+    pub fn root_lemma(&self) -> &str {
         &self.root.lemma
     }
 }
@@ -899,9 +899,9 @@ impl From<Box<MNN>> for Mnn {
 
 #[derive(Clone)]
 pub struct Assert {
-    property: IsProperty,
+    pub property: IsProperty,
     // (a and b and c) or (d and e and f)
-    objects: Vec<Vec<Object>>,
+    pub objects: Vec<Vec<Object>>,
 }
 
 impl From<ASSERT> for Assert {
@@ -977,5 +977,22 @@ impl From<RETIF> for ReturnIf {
 impl From<Box<RETIF>> for ReturnIf {
     fn from(retif: Box<RETIF>) -> Self {
         Self::from(*retif)
+    }
+}
+
+pub trait Lemma {
+    fn root_lemma(&self) -> &str;
+}
+
+impl Lemma for MVB {
+    fn root_lemma(&self) -> &str {
+        match self {
+            MVB::VB(_, vb) => &vb.lemma,
+            MVB::VBZ(_, vb) => &vb.lemma,
+            MVB::VBP(_, vb) => &vb.lemma,
+            MVB::VBN(_, vb) => &vb.lemma,
+            MVB::VBG(_, vb) => &vb.lemma,
+            MVB::VBD(_, vb) => &vb.lemma,
+        }
     }
 }
