@@ -155,7 +155,6 @@ WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, 
     (0, {"tag_": "EXCL"}, [lower("!")]),
     (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
     (0, {"tag_": "ENCODING"}, [{"TEXT": {"REGEX": "^(?i)UTF(_|-)?(8|16)$"}}]),
-
 ]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
 
 

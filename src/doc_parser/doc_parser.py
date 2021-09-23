@@ -11,8 +11,12 @@ import spacy
 from spacy.tokens import Doc
 import unidecode
 
-from ner import ner_and_srl
-from fix_tokens import fix_tokens
+try:
+    from ner import ner_and_srl
+    from fix_tokens import fix_tokens
+except ModuleNotFoundError:
+    from .ner import ner_and_srl
+    from .fix_tokens import fix_tokens
 
 GRAMMAR_PATH = Path(__file__).parent / Path("codegrammar.cfg")
 LOGGER = logging.getLogger(__name__)

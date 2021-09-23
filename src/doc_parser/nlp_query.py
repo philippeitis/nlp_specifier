@@ -5,12 +5,12 @@ import itertools
 from pyrs_ast.lib import Fn
 from pyrs_ast.query import Query, QueryField
 
-from lemmatizer import is_synonym, lemmatize
-
 try:
     from doc_parser import Parser
+    from lemmatizer import is_synonym, lemmatize
 except ImportError:
     from doc_parser.doc_parser import Parser
+    from doc_parser.lemmatizer import is_synonym, lemmatize
 
 
 def peek(it):
@@ -58,9 +58,6 @@ class Word(QueryField):
 
     def __str__(self):
         return self.word
-
-    def matches_fn(self, fn):
-        raise NotImplementedError()
 
     @property
     def lemma(self):
