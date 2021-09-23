@@ -8,7 +8,6 @@ from nltk import Tree
 import click
 
 from pyrs_ast.lib import LitAttr, Fn, HasItems, Crate, Struct, Mod
-from pyrs_ast.query import Query, FnArg
 from pyrs_ast.scope import Scope
 from pyrs_ast import AstFile
 
@@ -352,56 +351,6 @@ def invoke_demo():
     invoke_helper(invocations, invocation_triples)
 
 
-# query_demo
-def search_demo():
-    """Demonstrates searching for functions with multiple keywords."""
-
-    ast = AstFile.from_path("../data/test3.rs")
-    parser = Parser.default()
-    # Query Demo
-    words = [
-        Phrase([Word("Remove", "VB", False, False)], parser),
-        Phrase([Word("last", "JJ", False, True), Word("element", "NN", False, False)], parser),
-        Phrase([Word("vector", "NN", True, False)], parser)
-    ]
-    print("Finding documentation matches.")
-    items = ast.find_fn_matches(Query(words))
-    for item in items:
-        print(item.sig_str())
-
-
-# query_demo
-def search_demo2():
-    """Demonstrates searching for function arguments and phrases with synonyms."""
-    ast = Crate.from_root_file("../data/test3.rs")
-    parser = Parser.default()
-    fields = [
-        Phrase([Word("take", "VB", True, False)], parser),
-        FnArg("usize")
-    ]
-    query = Query(fields, (Fn, Struct))
-    for file in ast.files:
-        for match in file.find_matches(query):
-            print(match)
-
-
-def query_formation_demo():
-    """Demonstrates the creation of a query from a sentence, using the most relevant keywords."""
-    print(
-        [str(x) for x in query_from_sentence(
-            """Removes and returns the element at position `index` within the vector""",
-            Parser.default()
-        ).fields]
-    )
-
-    print(
-        [str(x) for x in query_from_sentence(
-            """remove the last element from a vector and return it""",
-            Parser.default()
-        ).fields]
-    )
-
-
 def profiling(statement: str):
     import cProfile
     import pstats
@@ -541,7 +490,6 @@ if __name__ == '__main__':
     sh.setLevel(logging.INFO)
     logging.getLogger().addHandler(sh)
     logging.getLogger().setLevel(logging.WARNING)
-    #
     cli()
 
     # bert library
