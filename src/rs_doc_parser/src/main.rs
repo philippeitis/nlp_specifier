@@ -16,10 +16,9 @@ mod search_tree;
 mod docs;
 mod parse_html;
 mod type_match;
-mod tokens;
 mod jsonl;
 mod grammar;
-mod sir;
+mod nl_ir;
 mod parse_tree;
 
 
@@ -27,8 +26,8 @@ use docs::Docs;
 use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
 use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
-use crate::sir::{Specification};
-use crate::parse_tree::{gen_cfg_enum, SymbolTree, Terminal, Symbol};
+use crate::nl_ir::Specification;
+use crate::parse_tree::{SymbolTree, Terminal, Symbol};
 use crate::grammar::AsSpec;
 use crate::parse_tree::tree::TerminalSymbol;
 
@@ -384,22 +383,48 @@ fn specify_docs() {
     //                      Trees: 515
     //             Specifications: 155
     //        Specified Sentences: 114
-
 }
 
-fn grammar() {
-    use parse_tree::tree::S;
-    let cfg = ContextFreeGrammar::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+fn specify_sentence() {
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
-    let mut parses = parser.parse(&vec!["RET", "CODE", "ARITH", "CODE"].into_iter().map(String::from).collect::<Vec<_>>()).unwrap();
-    let root_words = ["returns", "`1 + 2`", "plus", "`2 + 3`"];
-    let iter: Vec<_> = root_words.iter().cloned().map(|x| Terminal { word: x.to_string(), lemma: x.to_string() }).collect();
-    let x = SymbolTree::from_iter(parses.remove(0), &mut iter.into_iter());
-    let x = S::from(x);
-    let spec = Specification::from(x).as_spec().unwrap().remove(0);
-    println!("{}", quote::quote! {#spec}.to_string());
+
+    let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
+        let tokparser = Parser::new(py);
+        let sentences = vec!["`x == 3` for all `x` from 1 to 5 inclusive".to_string()];
+        let tokens = tokparser.tokenize_sents(&sentences).unwrap();
+        Ok(tokens)
+    }).unwrap();
+
+    for metadata in tokens.iter() {
+        let tokens: Result<Vec<TerminalSymbol>, _> = metadata.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+        let tokens: Vec<_> = match tokens {
+            Ok(t) => t.into_iter().map(Symbol::from).collect(),
+            Err(_) => continue,
+        };
+
+        let iter: Vec<_> = metadata.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+        let trees: Vec<_> = match parser.parse(&tokens) {
+            Ok(trees) => trees
+                .into_iter()
+                .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
+                .map(parse_tree::tree::S::from)
+                .collect(),
+            Err(_) => continue,
+        };
+        let specs: Vec<_> = trees
+            .clone()
+            .into_iter()
+            .map(Specification::from)
+            .collect();
+        for spec in specs {
+            for attr in spec.as_spec().unwrap() {
+                println!("{}", quote::quote! {#attr}.to_string());
+            }
+        }
+    }
 }
 
 fn main() {
-    specify_docs()
+    specify_sentence()
 }

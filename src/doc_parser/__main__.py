@@ -510,3 +510,9 @@ if __name__ == '__main__':
     #  Implement two piece grammar & code-gen (yeet comma / excl / dot rules, fn_calls.py)
     #  Test FNVHasher / alternatives for CFG
     #  Finish porting grammar.py (yeet lemmatizer.py, grammar.py)
+    #  1. parse sent into tokens (falliable)
+    #  2. parse tokens into trees (infalliable)
+    #  3. parse tree in initial type (infalliable)
+    #  4. unresolved code blocks (infalliable)
+    #  5. resolved code items (falliable)
+    #  6. final specification (infalliable)

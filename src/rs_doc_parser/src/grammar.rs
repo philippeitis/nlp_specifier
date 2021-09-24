@@ -4,7 +4,7 @@ use syn::{Expr, Attribute, Error};
 use syn::parse::{Parse, ParseStream};
 use serde_json::to_string;
 
-use crate::sir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem, IsPropMod, Lemma, BinOp, HardAssert};
+use crate::nl_ir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem, IsPropMod, Lemma, BinOp, HardAssert, RangeMod};
 use crate::parse_tree::tree::MVB;
 
 #[derive(Debug)]
@@ -21,6 +21,12 @@ impl From<syn::Error> for SpecificationError {
 
 pub trait AsCode {
     fn as_code(&self) -> Result<Expr, SpecificationError>;
+}
+
+/// Temporary workaround until we create a custom enum for this task
+pub trait AsCodeValue {
+    type Output;
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError>;
 }
 
 impl AsCode for Code {
@@ -140,6 +146,7 @@ impl AsSpec for Specification {
                 Ok(e.attrs)
             }
             Specification::HAssert(hassert) => hassert.as_spec(),
+            Specification::QAssert(qassert) => qassert.as_spec(),
             _ => unimplemented!(),
         }
     }
@@ -155,5 +162,123 @@ impl AsSpec for HardAssert {
         let assert = self.assert.as_code()?;
         let e: AttrHelper = syn::parse_str(&format!("#[{}({})]", cond, quote::quote! {#assert}.to_string()))?;
         Ok(e.attrs)
+    }
+}
+
+impl AsSpec for QuantAssert {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        let is_precond = match &self.assertion {
+            QuantItem::Code(c) => false,
+            QuantItem::HAssert(h) => h.md.lemma == "must",
+        };
+
+        let scope = if is_precond {
+            "requires"
+        } else {
+            "ensures"
+        };
+
+        let attr = format!("#[{}({})]", scope, self.as_code_value()?.as_code_value()?);
+        let e: AttrHelper = syn::parse_str(&attr)?;
+        Ok(e.attrs)
+    }
+}
+
+pub struct IffExpr {
+    lhs: String,
+    rhs: String,
+}
+
+pub enum ExprQBody {
+    String(String),
+    IffExpr(IffExpr)
+}
+
+pub struct ExprQuantifierU {
+    universal: bool,
+    bound_vars: Vec<(String, String)>,
+    body: ExprQBody,
+}
+
+impl ExprQBody {
+    fn flip(&mut self) {
+        match self {
+            ExprQBody::String(s) => {},
+            ExprQBody::IffExpr(IffExpr { lhs, rhs }) => std::mem::swap(lhs, rhs),
+        }
+    }
+}
+
+impl ExprQuantifierU {
+    fn flip(&mut self) {
+        self.body.flip()
+    }
+}
+
+impl AsCodeValue for QuantAssert {
+    type Output = ExprQuantifierU;
+
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
+        let expr = match &self.assertion {
+            QuantItem::Code(c) => c.as_code()?,
+            QuantItem::HAssert(h) => h.assert.as_code()?,
+        };
+
+        Ok(match &self.quant_expr.range {
+            None => {
+                let ident = self.quant_expr.quant.obj.as_code()?;
+                ExprQuantifierU {
+                    universal: self.quant_expr.quant.universal,
+                    bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
+                    body: ExprQBody::String(quote::quote! {#expr}.to_string())
+                }
+            }
+            Some(range) => {
+                let ident = match &range.range.ident {
+                    Some(o) => o,
+                    None => &self.quant_expr.quant.obj,
+                }.as_code()?;
+                let start = match &range.range.start {
+                    // TODO: Type resolution and appropriate minimum detection here.
+                    //     Ensure that we check specifically for numerical types which Prusti supports.
+                    //     Also, check that start < end
+                    None => syn::parse_str("0")?,
+                    Some(x) => x.as_code()?,
+                };
+                let cmp = range.upper_bound.lt().to_string();
+                let end = range.range.end.as_ref().unwrap().as_code()?;
+                let conditions = vec![vec![
+                    format!("{} <= {}", quote::quote! {#start}.to_string(), quote::quote! {#ident}.to_string()),
+                    format!("{} {} {}", quote::quote! {#ident}.to_string(), cmp, quote::quote! {#end}.to_string())
+                ]];
+
+                let conditions = conditions.into_iter().map(|x| x.join(" && ")).join(") || (");
+                ExprQuantifierU {
+                    universal: self.quant_expr.quant.universal,
+                    bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
+                    body: ExprQBody::IffExpr(IffExpr {
+                        lhs: conditions,
+                        rhs: quote::quote! {#expr}.to_string()
+                    })
+                }
+            },
+        })
+    }
+}
+
+impl AsCodeValue for ExprQuantifierU {
+    type Output = String;
+
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
+        let quant = if self.universal {
+            "forall"
+        } else {
+            "forsome"
+        };
+        let idents = self.bound_vars.iter().map(|(name, ty)| format!("{}: {}", name, ty)).join(", ");
+        Ok(match &self.body {
+            ExprQBody::String(s) => format!("{}(|{}| {})", quant, idents, s),
+            ExprQBody::IffExpr(IffExpr { lhs, rhs }) => format!("{}(|{}| ({}) ==> ({}))", quant, idents, lhs, rhs),
+        })
     }
 }

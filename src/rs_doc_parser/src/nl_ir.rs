@@ -349,7 +349,7 @@ impl From<PROP> for IsProperty {
 }
 
 #[derive(Copy, Clone)]
-enum Comparator {
+pub enum Comparator {
     Lt,
     Gt,
     Lte,
@@ -371,6 +371,19 @@ impl FromStr for Comparator {
             "unequal" => Comparator::Neq,
             "same" => Comparator::Eq,
             _ => return Err(()),
+        })
+    }
+}
+
+impl Display for Comparator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Comparator::Lt => "<",
+            Comparator::Gt => ">",
+            Comparator::Lte => "<=",
+            Comparator::Gte => ">=",
+            Comparator::Eq => "==",
+            Comparator::Neq => "!=",
         })
     }
 }
@@ -727,7 +740,7 @@ impl From<Box<REL>> for Relation {
 }
 
 #[derive(Copy, Clone)]
-enum UpperBound {
+pub enum UpperBound {
     Inclusive,
     Exclusive,
 }
@@ -745,7 +758,7 @@ impl FromStr for UpperBound {
 }
 
 impl UpperBound {
-    fn lt(self) -> Comparator {
+    pub fn lt(self) -> Comparator {
         match self {
             UpperBound::Inclusive => Comparator::Lte,
             UpperBound::Exclusive => Comparator::Lt,
@@ -754,10 +767,10 @@ impl UpperBound {
 }
 
 #[derive(Clone)]
-struct Range {
-    ident: Option<Object>,
-    start: Option<Object>,
-    end: Option<Object>,
+pub struct Range {
+    pub ident: Option<Object>,
+    pub start: Option<Object>,
+    pub end: Option<Object>,
 }
 
 impl From<RANGE> for Range {
@@ -790,8 +803,8 @@ impl From<RANGE> for Range {
 
 #[derive(Clone)]
 pub struct RangeMod {
-    range: Range,
-    upper_bound: UpperBound,
+    pub range: Range,
+    pub upper_bound: UpperBound,
 }
 
 impl From<RANGEMOD> for RangeMod {

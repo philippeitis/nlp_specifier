@@ -5,3 +5,5 @@ fn x() {
 
 fn a() {}
 fn b() {}
+
+fn main(){}
