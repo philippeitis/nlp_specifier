@@ -80,15 +80,15 @@ impl Specifier {
         }
     }
 
-    fn specify(&mut self, parser: &Parser, grammar: &Grammar) {
-        SpecifierX { searcher: &self.searcher, parser, grammar }.visit_file_mut(&mut self.file)
+    fn specify(&mut self, tokenizer: &Parser, parser: &ChartParser<Symbol>) {
+        SpecifierX { searcher: &self.searcher, tokenizer, parser }.visit_file_mut(&mut self.file)
     }
 }
 
-struct SpecifierX<'a, 'p> {
+struct SpecifierX<'a, 'b, 'p> {
     searcher: &'a SearchTree,
-    parser: &'a Parser<'p>,
-    grammar: &'a Grammar<'p>,
+    tokenizer: &'a Parser<'p>,
+    parser: &'a ChartParser<'b, Symbol>,
 }
 
 
@@ -108,21 +108,19 @@ impl Parse for AttrHelper {
     }
 }
 
-impl<'a, 'p> SpecifierX<'a, 'p> {
+impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
     fn specify_docs(&self, attrs: &mut Vec<Attribute>) {
         if should_specify(&attrs) {
             let docs = Docs::from(&attrs);
             if let Some(section) = docs.sections.first() {
-                for sentence in &section.sentences {
-                    if let Some(Ok(tree)) = self.parser.parse_trees(sentence).next() {
-                        match self.grammar.specify_tree(&tree) {
-                            Ok(spec) => {
-                                let attr = spec.trim_matches('"');
-                                // let e: Result<Vec<Attribute>, syn::Error> = Attribute::parse_inner::parse(&tokens).unwrap();
-                                let e: Result<AttrHelper, syn::Error> = syn::parse_str(attr);
-                                attrs.extend(e.unwrap().attrs);
+                if let Ok(section_tokens) = self.tokenizer.tokenize_sents(&section.sentences) {
+                    for sentence_tokens in section_tokens {
+                        let (specs, _) = sentence_to_specifications(&self.parser, &sentence_tokens);
+                        for spec in specs {
+                            if let Ok(new_attrs) = spec.as_spec() {
+                                attrs.extend(new_attrs);
+                                break;
                             }
-                            Err(_) => {}
                         }
                     }
                 }
@@ -131,7 +129,7 @@ impl<'a, 'p> SpecifierX<'a, 'p> {
     }
 }
 
-impl<'a, 'p> VisitMut for SpecifierX<'a, 'p> {
+impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
     fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
         self.specify_docs(&mut i.attrs)
     }
@@ -172,51 +170,6 @@ impl<'p> Parser<'p> {
             .into_iter()
             .map(|x| x.extract::<Vec<(String, String, String)>>(self.py))
             .collect::<PyResult<Vec<Vec<(String, String, String)>>>>()
-    }
-
-    fn parse_trees(&self, s: &str) -> TreeIter<'p> {
-        let kwargs = [("attach_tags", false)].into_py_dict(self.py);
-        TreeIter { trees: self.parser.call_method(self.py, "parse_tree", (s, ), Some(kwargs)).unwrap(), py: self.py }
-    }
-}
-
-struct TreeIter<'p> {
-    trees: PyObject,
-    py: Python<'p>,
-}
-
-impl<'p> Iterator for TreeIter<'p> {
-    type Item = PyResult<PyObject>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.trees.call_method0(self.py, "__next__") {
-            Ok(val) => { Some(Ok(val)) }
-            Err(e) if e.is_instance::<PyStopIteration>(self.py) => None,
-            Err(e) => Some(Err(e)),
-        }
-    }
-}
-
-struct Grammar<'p> {
-    specifier: PyObject,
-    py: Python<'p>,
-}
-
-impl<'p> Grammar<'p> {
-    fn new(py: Python<'p>) -> Self {
-        Grammar {
-            specifier: py.import("grammar").unwrap().getattr("Specification").unwrap().into_py(py),
-            py,
-        }
-    }
-
-    fn specify_tree(&self, tree: &PyObject) -> PyResult<String> {
-        self.specifier.call1(
-            self.py,
-            (tree.into_py(self.py), self.py.None()),
-        )?
-            .call_method0(self.py, "as_spec")?
-            .extract(self.py)
     }
 }
 
@@ -263,6 +216,29 @@ impl<'p> SimMatcher<'p> {
     }
 }
 
+fn sentence_to_specifications(parser: &ChartParser<Symbol>, sentence: &[(String, String, String)]) -> (Vec<Specification>, usize) {
+    let tokens: Result<Vec<TerminalSymbol>, _> = sentence.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+    let tokens: Vec<_> = match tokens {
+        Ok(t) => t.into_iter().map(Symbol::from).collect(),
+        Err(_) => return (Vec::new(), 0)
+    };
+
+    let iter: Vec<_> = sentence.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+    let trees: Vec<_> = match parser.parse(&tokens) {
+        Ok(trees) => trees
+            .into_iter()
+            .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
+            .map(parse_tree::tree::S::from)
+            .collect(),
+        Err(_) => return (Vec::new(), 0)
+    };
+    let len = trees.len();
+    (trees
+         .into_iter()
+         .map(Specification::from)
+         .collect(),
+     len)
+}
 
 fn search_demo() {
     let start = std::time::Instant::now();
@@ -327,25 +303,7 @@ fn specify_docs() {
     let start = std::time::Instant::now();
 
     for metadata in tokens.iter() {
-        let tokens: Result<Vec<TerminalSymbol>, _> = metadata.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
-        let tokens: Vec<_> = match tokens {
-            Ok(t) => t.into_iter().map(Symbol::from).collect(),
-            Err(_) => continue,
-        };
-        let iter: Vec<_> = metadata.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
-        let trees: Vec<_> = match parser.parse(&tokens) {
-            Ok(trees) => trees
-                .into_iter()
-                .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
-                .map(parse_tree::tree::S::from)
-                .collect(),
-            Err(_) => continue,
-        };
-        let specs: Vec<_> = trees
-            .clone()
-            .into_iter()
-            .map(Specification::from)
-            .collect();
+        let (specs, trees_len) = sentence_to_specifications(&parser, metadata);
 
         if !specs.is_empty() {
             // println!("{}", "=".repeat(80));
@@ -363,7 +321,7 @@ fn specify_docs() {
         } else {
             unsucessful_sents += 1;
         }
-        ntrees += trees.len();
+        ntrees += trees_len;
         let count = specs.iter().map(Specification::as_spec).filter(Result::is_ok).count();
         if count != 0 {
             specified_sents += 1;
