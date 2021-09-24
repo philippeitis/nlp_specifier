@@ -7,16 +7,16 @@ Note that all .sh files and commands provided are specific to Linux.
 The python implement is available at https://github.com/philippeitis/nlp_specifier/tree/b42778e2cb51e5d8edf08c0cc7a5060225468d92.
 ## HTML Documentation Mining
 This project provides functionality for extracting Rust documentation from pages output by cargo docs, and for documentation downloaded via `rustup`.
-To set up parsing of HTML documentation, build [src/rs_doc_parser/](src/rs_doc_parser/):
+To set up parsing of HTML documentation, build [src/doc_parser/](src/doc_parser/):
 ```bash
-cd ./src/rs_doc_parser/ && cargo build --release ; cd ..
+cd ./src/doc_parser/ && cargo build --release ; cd ..
 ```
 
 ## NLP Parser
 The NLP parsing code will tokenize, assign parts of speech tags, and generate parse-trees for selected functions in a particular file of Rust source code.
 To set up the NLP parser, use [doc_parser/setup.sh](doc_parser/setup.sh):
 ```bash
-cd ./doc_parser/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+cd ./nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
 
 Optionally, it may be useful to review these links:
@@ -42,9 +42,9 @@ http://erwinkomen.ruhosting.nl/eng/2014_Longdale-Labels.htm
 
 ## Rust AST Parser
 The Rust AST parser transforms input Rust files into an AST, which is used in the NLP parser to generate specifications.
-To set up the Rust AST parser, build [src/rs_doc_parser/](src/rs_doc_parser/):
+To set up the Rust AST parser, build [src/doc_parser/](src/doc_parser/):
 ```bash
-cd ./src/rs_doc_parser/ && cargo build --release ; cd ..
+cd ./src/doc_parser/ && cargo build --release ; cd ..
 ```
 
 ## Named-entity Recognition and Semantic Role Labelling
@@ -55,7 +55,7 @@ and Git LFS. All other dependencies for this are set up using [jml_nlp/setup.sh]
 cd ./jml_nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
 After running this script, the SRL service will be available at 127.0.0.8:701, and the NER service will be available at 127.0.0.8:702.
-[doc_parser/ner.py](doc_parser/ner.py) provides functions for annotating text using these services. The Parser class in [doc_parser/doc_parser.py](doc_parser/doc_parser.py) transforms these annotations to a format that can be rendered by spaCy's displaCy tool.
+[src/nlp/ner.py](src/nlp/ner.py) provides functions for annotating text using these services. The Tokenizer class in [src/nlp/tokenizer.py](doc_parser/doc_parser.py) transforms these annotations to a format that can be rendered by spaCy's displaCy tool.
 
 The NER and SRL models are sourced from `Combining formal and machine learning techniques for the generation of JML specifications`.
 
