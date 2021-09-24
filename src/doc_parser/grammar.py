@@ -282,23 +282,14 @@ class Relation:
             relations = ") || (".join(" && ".join(rels) for rels in relations)
             return f"({relations})"
 
-    def apply_adverb(self, s: str):
-        if s.lower() != "not":
-            raise ValueError(f"Only not is supported as an adverb for Relation: got {s}")
-        self.negate = True
-        return self
-
-    def apply_negate(self, negate: bool):
-        if negate:
-            self.negate = not self.negate
-        return self
-
 
 class ModRelation(Relation):
     def __init__(self, tree: Tree, invoke_factory):
         if tree[0].label() == "RB":
             super().__init__(tree[1], invoke_factory)
-            self.apply_adverb(tree[0][0])
+            if tree[0][0].lower() != "not":
+                raise ValueError(f"Only not is supported as an adverb for Relation: got {tree[0][0]}")
+            self.negate = True
         else:
             super().__init__(tree[0], invoke_factory)
 
@@ -392,7 +383,8 @@ class Property:
             return f"{sym}{lhs.as_code()}.{mjj.word}()"
 
         if self.labels[-1] == "MREL":
-            return ModRelation(self.tree[-1], self.invoke_factory).apply_negate(self.negate).as_code(lhs)
+            sym = "!" if self.negate else ""
+            return f"{sym}{ModRelation(self.tree[-1], self.invoke_factory).as_code(lhs)}"
 
         if self.labels[-1] == "OBJ":
             if self.mvb.word.lower() not in {"is", "be"}:
@@ -415,7 +407,7 @@ class Property:
             r = RangeMod(self.tree[-1], self.invoke_factory)
             if r.ident:
                 raise ValueError(f"PROP: Unexpected ident in RANGE case: {r.ident}")
-            if r.end or r.upper_bound is None:
+            if r.end is None or r.upper_bound is None:
                 raise ValueError("Bad range bounds")
             return f"{r.start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {r.end.as_code()}"
 

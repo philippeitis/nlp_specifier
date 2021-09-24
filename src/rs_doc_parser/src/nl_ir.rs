@@ -410,16 +410,16 @@ impl Comparator {
 }
 
 #[derive(Copy, Clone)]
-enum IfExpr {
+pub enum IfExpr {
     If,
     Iff,
 }
 
 #[derive(Clone)]
-struct BoolCond {
-    if_expr: IfExpr,
-    negated: bool,
-    value: BoolValue,
+pub struct BoolCond {
+    pub if_expr: IfExpr,
+    pub negated: bool,
+    pub value: BoolValue,
 }
 
 impl From<COND> for BoolCond {
@@ -444,7 +444,7 @@ impl From<COND> for BoolCond {
 }
 
 #[derive(Clone)]
-enum BoolValue {
+pub enum BoolValue {
     Assert(Assert),
     QAssert(QuantAssert),
     Code(Code),
@@ -574,6 +574,14 @@ impl From<QASSERT> for QuantAssert {
     }
 }
 
+impl QuantAssert {
+    pub(crate) fn is_precond(&self) -> bool {
+        match &self.assertion {
+            QuantItem::Code(c) => false,
+            QuantItem::HAssert(h) => h.md.lemma == "must",
+        }
+    }
+}
 #[derive(Clone)]
 pub struct HardAssert {
     pub md: MD,
@@ -668,9 +676,9 @@ impl FromStr for CC {
 
 #[derive(Clone)]
 pub struct Relation {
-    objects: Vec<Vec<Object>>,
-    op: Comparator,
-    modifier: Option<RB>,
+    pub objects: Vec<Vec<Object>>,
+    pub op: Comparator,
+    pub modifier: Option<RB>,
 }
 
 impl From<REL> for Relation {
@@ -946,7 +954,7 @@ impl From<Box<ASSERT>> for Assert {
 
 #[derive(Clone)]
 pub struct ReturnIf {
-    ret_pred: Vec<(Object, BoolCond)>,
+    pub ret_pred: Vec<(BoolCond, Object)>,
 }
 
 impl From<RETIF> for ReturnIf {
@@ -955,7 +963,7 @@ impl From<RETIF> for ReturnIf {
             RETIF::_0(mret, cond) | RETIF::_1(cond, _, mret) => {
                 let mret = MReturn::from(mret);
                 ReturnIf {
-                    ret_pred: vec![(mret.ret_val, cond.into())]
+                    ret_pred: vec![(cond.into(), mret.ret_val)]
                 }
             }
             RETIF::_2(retif1, _, rb, retif2) => {
@@ -968,9 +976,9 @@ impl From<RETIF> for ReturnIf {
             RETIF::_3(retif, _, rb, obj) => {
                 assert_eq!(rb.lemma, "otherwise");
                 let mut retif = ReturnIf::from(retif);
-                let mut pred = retif.ret_pred.last().unwrap().1.clone();
+                let mut pred = retif.ret_pred.last().unwrap().0.clone();
                 pred.negated = true;
-                retif.ret_pred.push((obj.into(), pred));
+                retif.ret_pred.push((pred, obj.into()));
                 retif
             }
             RETIF::_4(mret, _, ow_mret, cond) => {
@@ -980,7 +988,7 @@ impl From<RETIF> for ReturnIf {
                 let mut cond = ow_cond.clone();
                 cond.negated = true;
                 ReturnIf {
-                    ret_pred: vec![(ow_mret.ret_val, ow_cond), (mret.ret_val, cond)]
+                    ret_pred: vec![(ow_cond, ow_mret.ret_val), (cond, mret.ret_val)]
                 }
             }
         }

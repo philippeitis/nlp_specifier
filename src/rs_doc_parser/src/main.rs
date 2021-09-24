@@ -391,9 +391,8 @@ fn specify_sentence() {
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
         let tokparser = Parser::new(py);
-        let sentences = vec!["`x == 3` for all `x` from 1 to 5 inclusive".to_string()];
-        let tokens = tokparser.tokenize_sents(&sentences).unwrap();
-        Ok(tokens)
+        let sentences = vec!["`x` and `y` will not change".to_string()];
+        tokparser.tokenize_sents(&sentences)
     }).unwrap();
 
     for metadata in tokens.iter() {
