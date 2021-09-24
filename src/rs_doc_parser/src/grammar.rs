@@ -4,13 +4,14 @@ use syn::{Expr, Attribute, Error};
 use syn::parse::{Parse, ParseStream};
 use serde_json::to_string;
 
-use crate::nl_ir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem, IsPropMod, Lemma, BinOp, HardAssert, RangeMod, ReturnIf, BoolValue, IfExpr, PropertyOf, IsProperty, Range, UpperBound};
+use crate::nl_ir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem, IsPropMod, Lemma, BinOp, HardAssert, RangeMod, ReturnIf, BoolValue, IfExpr, PropertyOf, IsProperty, Range, UpperBound, MnnMod};
 use crate::parse_tree::tree::{MVB, MJJ};
 
 #[derive(Debug)]
 pub enum SpecificationError {
     Syn(syn::Error),
     UnsupportedSpec(&'static str),
+    Unimplemented,
 }
 
 impl From<syn::Error> for SpecificationError {
@@ -59,7 +60,27 @@ impl AsCode for Object {
             Object::Code(c) => c.as_code(),
             Object::Lit(l) => l.as_code(),
             Object::Op(o) => o.as_code(),
-            _ => return Err(SpecificationError::UnsupportedSpec("Other types of object not supported"))
+            Object::PropOf(prop, obj) => {
+                // TODO: Make this an error / resolve cases such as this.
+                let obj = obj.as_code()?;
+                Ok(syn::parse_str(&format!("{}.{}()", prop.prop.lemma(), quote::quote! {#obj}.to_string()))?)
+            }
+            Object::Mnn(mnn) => {
+                // TODO: Make this an error / resolve cases such as this.
+                Ok(syn::parse_str(&mnn.adjs.iter().map(MnnMod::lemma).chain(std::iter::once(mnn.root_lemma())).join("_"))?)
+            }
+            Object::VbgMnn(vbg, mnn) => {
+                // TODO: Make this an error / resolve cases such as this.
+                Ok(syn::parse_str(&
+                    format!("{}.{}()",
+                        mnn.adjs.iter().map(MnnMod::lemma).chain(std::iter::once(mnn.root_lemma())).join("_"),
+                        vbg.lemma,
+                ))?)
+            }
+            Object::Prp(_) => {
+                println!("Prp");
+                Err(SpecificationError::Unimplemented)
+            },
         }
     }
 }
@@ -75,7 +96,8 @@ impl AsCode for MReturn {
 
 impl AsCode for Event {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
-        Err(SpecificationError::UnsupportedSpec("Events not supported"))
+        println!("Event");
+        Err(SpecificationError::Unimplemented)
     }
 }
 
@@ -117,7 +139,8 @@ impl Apply for IsProperty {
             }
             IsPropMod::Rel(rel) => {
                 // return ModRelation(self.tree[-1]).as_code(lhs)
-                unimplemented!()
+                println!("PropMod::REL");
+                return Err(SpecificationError::Unimplemented);
             }
             IsPropMod::RangeMod(range) => {
                 let rangex = &range.range;
@@ -216,7 +239,7 @@ impl AsSpec for Specification {
             Specification::HAssert(hassert) => hassert.as_spec(),
             Specification::QAssert(qassert) => qassert.as_spec(),
             Specification::RetIf(returnif) => returnif.as_spec(),
-            _ => unimplemented!(),
+            Specification::Side => Err(SpecificationError::Unimplemented)
         }
     }
 }
@@ -419,13 +442,13 @@ impl AsSpec for ReturnIf {
                     // elif pred.expr.resolve() == EventType.NO_OVERFLOW:
                     //     ret_assert = f"{s}!overflows!({overflow_item.as_code()}) ==> (result == {ret_val})"
                     // return f"#[ensures({ret_assert})]"
-                    unimplemented!()
+                    println!("EVENT");
+                    return Err(SpecificationError::Unimplemented);
                 }
             };
             attrs.push_str(&s);
             attrs.push('\n');
         }
-        println!("{}", attrs);
         let e: AttrHelper = syn::parse_str(&attrs)?;
         Ok(e.attrs)
     }

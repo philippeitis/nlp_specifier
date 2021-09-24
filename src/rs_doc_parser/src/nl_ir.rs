@@ -244,7 +244,7 @@ impl From<OBJ> for Object {
                 }
             }
             OBJ::Prp(prp) => Object::Prp(prp),
-            _ => unimplemented!(),
+            OBJ::Str(_) | OBJ::Char(_) => unimplemented!(),
         }
     }
 }
@@ -256,13 +256,13 @@ impl From<Box<OBJ>> for Object {
 }
 
 #[derive(Clone)]
-enum PropOfMod {
+pub enum PropOfMod {
     Mnn(Mnn),
     Mjj(MJJ),
 }
 
 impl PropOfMod {
-    fn lemma(&self) -> &str {
+    pub fn lemma(&self) -> &str {
         match self {
             PropOfMod::Mnn(mnn) => mnn.root_lemma(),
             PropOfMod::Mjj(mjj) => match mjj {
@@ -276,7 +276,7 @@ impl PropOfMod {
 
 #[derive(Clone)]
 pub struct PropertyOf {
-    prop: PropOfMod,
+    pub prop: PropOfMod,
 }
 
 impl From<PROP_OF> for PropertyOf {
@@ -854,15 +854,24 @@ impl From<QUANT> for Quantifier {
 }
 
 #[derive(Clone)]
-enum MnnMod {
+pub enum MnnMod {
     Jj(JJ),
     Vbn(VBN),
 }
 
+impl MnnMod {
+    pub(crate) fn lemma(&self) -> &str {
+        match self {
+            MnnMod::Jj(jj) => &jj.lemma,
+            MnnMod::Vbn(vbn) => &vbn.lemma,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Mnn {
-    adjs: Vec<MnnMod>,
-    root: Terminal,
+    pub adjs: Vec<MnnMod>,
+    pub root: Terminal,
 }
 
 impl From<MNN> for Mnn {

@@ -407,7 +407,7 @@ class Property:
             r = RangeMod(self.tree[-1], self.invoke_factory)
             if r.ident:
                 raise ValueError(f"PROP: Unexpected ident in RANGE case: {r.ident}")
-            if r.end is None or r.upper_bound is None:
+            if r.start is None or r.end is None or r.upper_bound is None:
                 raise ValueError("Bad range bounds")
             return f"{r.start.as_code()} <= {lhs.as_code()} && {lhs.as_code()} {r.upper_bound} {r.end.as_code()}"
 

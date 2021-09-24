@@ -312,7 +312,7 @@ fn specify_docs() {
         let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
 
         let start = std::time::Instant::now();
-        let tokens = tokparser.tokenize_sents(&sentences).unwrap();
+        let tokens = tokparser.tokenize_sents(&sentences)?;
         let end = std::time::Instant::now();
         println!("Time to tokenize sentences: {}", (end - start).as_secs_f32());
         Ok(tokens)
@@ -364,11 +364,11 @@ fn specify_docs() {
             unsucessful_sents += 1;
         }
         ntrees += trees.len();
-        // let count = specs.iter().filter(|x| x.is_some()).count();
-        // if count != 0 {
-        //     specified_sents += 1;
-        // }
-        nspecs += specs.len();
+        let count = specs.iter().map(Specification::as_spec).filter(Result::is_ok).count();
+        if count != 0 {
+            specified_sents += 1;
+        }
+        nspecs += count;
     }
     let end = std::time::Instant::now();
     println!("          Sentences: {}", tokens.len());
@@ -425,5 +425,5 @@ fn specify_sentence() {
 }
 
 fn main() {
-    specify_sentence()
+    specify_docs()
 }
