@@ -516,7 +516,7 @@ impl From<MRET> for MReturn {
                 MReturn { ret_val: ret_val.into() }
             }
             MRET::_1(ret_val, vbz, _) => {
-                assert_eq!(vbz.lemma, "is");
+                assert!(["is", "be"].contains(&vbz.lemma.as_str()));
                 MReturn { ret_val: ret_val.into() }
             }
             MRET::_2(ret_val, _) => {
@@ -582,6 +582,7 @@ impl QuantAssert {
         }
     }
 }
+
 #[derive(Clone)]
 pub struct HardAssert {
     pub md: MD,

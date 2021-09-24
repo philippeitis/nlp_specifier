@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashSet;
+use std::process::Stdio;
+use std::io::Write;
 
 use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
 use pyo3::types::IntoPyDict;
@@ -7,10 +9,12 @@ use pyo3::exceptions::PyStopIteration;
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn, PatPath};
-use syn::parse::{Parse, ParseStream};
+use syn::parse::ParseStream;
 
 use chartparse::{TreeWrapper, ChartParser, ContextFreeGrammar};
 use chartparse::tree::TreeNode;
+
+use clap::{AppSettings, Clap};
 
 mod search_tree;
 mod docs;
@@ -26,11 +30,9 @@ use docs::Docs;
 use search_tree::{SearchTree, SearchItem, Depth};
 use type_match::{HasFnArg, FnArgLocation};
 use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
-use crate::nl_ir::Specification;
-use crate::parse_tree::{SymbolTree, Terminal, Symbol};
-use crate::grammar::AsSpec;
-use crate::parse_tree::tree::TerminalSymbol;
-use serde_json::to_string;
+use nl_ir::Specification;
+use parse_tree::{SymbolTree, Terminal, Symbol, tree::TerminalSymbol};
+use grammar::AsSpec;
 
 
 #[macro_use]
@@ -92,18 +94,6 @@ struct SpecifierX<'a, 'b, 'p> {
 
 fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
     attrs.as_ref().iter().map(|attr| &attr.path).any(|x| quote::quote! {#x}.to_string() == "specify")
-}
-
-struct AttrHelper {
-    attrs: Vec<Attribute>,
-}
-
-impl Parse for AttrHelper {
-    fn parse(input: ParseStream) -> Result<Self, syn::Error> {
-        Ok(AttrHelper {
-            attrs: input.call(Attribute::parse_outer)?,
-        })
-    }
 }
 
 impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
@@ -208,6 +198,7 @@ impl<'p> SimMatcher<'p> {
                 None,
             )?.extract(self.py)
     }
+
     fn print_seen(&self) {
         let sents_seen: usize = self.sim_matcher.getattr(self.py, "sents_seen").unwrap().extract(self.py).unwrap();
         println!("{}", sents_seen);
@@ -264,9 +255,8 @@ fn search_demo() {
     }).unwrap();
 }
 
-fn specify_docs() {
+fn specify_docs<P: AsRef<Path>>(path: P) {
     let start = std::time::Instant::now();
-    let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
     let tree = file_from_root_dir(&path).unwrap();
     let end = std::time::Instant::now();
 
@@ -341,17 +331,16 @@ fn specify_docs() {
     //        Specified Sentences: 114
 }
 
-fn specify_sentence() {
+fn specify_sentences(sentences: Vec<String>) {
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
         let tokparser = Parser::new(py);
-        let sentences = vec!["`x` and `y` will not change".to_string()];
         tokparser.tokenize_sents(&sentences)
     }).unwrap();
 
-    for metadata in tokens.iter() {
+    for (metadata, sentence) in tokens.iter().zip(sentences.iter()) {
         let tokens: Result<Vec<TerminalSymbol>, _> = metadata.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
         let tokens: Vec<_> = match tokens {
             Ok(t) => t.into_iter().map(Symbol::from).collect(),
@@ -372,27 +361,32 @@ fn specify_sentence() {
             .into_iter()
             .map(Specification::from)
             .collect();
+        println!("{}", "=".repeat(80));
+        println!("Sentence: {}", sentence);
+        println!("{}", "=".repeat(80));
         for spec in specs {
-            for attr in spec.as_spec().unwrap() {
-                println!("{}", quote::quote! {#attr}.to_string());
+            match spec.as_spec() {
+                Ok(attrs) => {
+                    println!("SUCCESS");
+                    for attr in attrs {
+                        println!("{}", quote::quote! {#attr}.to_string());
+                    }
+                }
+                Err(e) => {
+                    println!("FAILURE: {:?}", e);
+                }
             }
         }
     }
 }
 
-fn specify_file<P: AsRef<Path>>(path: P) {
+fn specify_file<P: AsRef<Path>>(path: P) -> File {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
-    let output_path = path.as_ref()
-        .to_owned()
-        .with_file_name(
-            format!("{}_specified.rs", path.as_ref().file_stem().unwrap().to_string_lossy()
-            )
-        );
 
-    let tokens = Python::with_gil(|py| -> PyResult<()> {
+    Python::with_gil(|py| -> PyResult<()> {
         let tokparser = Parser::new(py);
 
         // Do ahead of time to take advantage of parallelism
@@ -405,18 +399,164 @@ fn specify_file<P: AsRef<Path>>(path: P) {
 
         let _ = tokparser.tokenize_sents(&sentences)?;
         specifier.specify(&tokparser, &parser);
-        let file = &specifier.file;
-        let output = quote::quote! {#file}.to_string();
-        std::fs::write(&output_path, output).unwrap();
         Ok(())
     }).unwrap();
-    if std::process::Command::new("rustfmt").arg(&output_path).spawn().is_ok() {
-        println!("Formatted output file, result available at {}", output_path.display())
-    } else {
-        println!("Output file {} could not be formatted", output_path.display())
-    }
+    specifier.file
+}
+
+#[derive(Clap)]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct Opts {
+    #[clap(subcommand)]
+    command: SubCommand,
+}
+
+#[derive(Clap)]
+enum SubCommand {
+    #[clap(name = "end-to-end")]
+    EndToEnd(EndToEnd),
+    #[clap(name = "specify")]
+    Specify {
+        #[clap(subcommand)]
+        sub_cmd: Specify
+    },
+}
+
+/// Demonstrates entire pipeline from start to end on provided file, writing output to terminal.
+#[derive(Clap)]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct EndToEnd {
+    /// Source file to specify.
+    #[clap(short, long, parse(from_os_str), default_value = "../../data/test3.rs")]
+    path: PathBuf,
+}
+
+/// Creates specifications for a variety of sources.
+#[derive(Clap)]
+#[clap(setting = AppSettings::ColoredHelp)]
+enum Specify {
+    /// Specifies the sentence, and prints the result to the terminal.
+    #[clap(setting = AppSettings::ColoredHelp)]
+    Sentence {
+        sentence: String
+    },
+    /// Specifies the newline separated sentences in the provided file, and prints the results to the terminal.
+    #[clap(setting = AppSettings::ColoredHelp)]
+    Testcases {
+        #[clap(short, long, parse(from_os_str), default_value = "../../data/base_grammar_test_cases.txt")]
+        path: PathBuf,
+    },
+    /// Specifies the file at `path`, and writes the result to `dest`.
+    #[clap(setting = AppSettings::ColoredHelp)]
+    File {
+        /// The root file to be parsed. If no file is provided, defaults to a test case.
+        #[clap(short, long, parse(from_os_str), default_value = "../../data/test3.rs")]
+        path: PathBuf,
+        /// The path to write the specified file to. If no path is provided, defaults to the provided
+        /// path, appending "_specified" file stem.
+        #[clap(short, long, parse(from_os_str))]
+        dest: Option<PathBuf>,
+    },
+    /// Specifies each item in the documentation at the provided path. If no path is provided,
+    /// defaults to Rust's standard library documentation.
+    ///
+    /// Documentation can be generated using `cargo doc`, or can be downloaded via `rustup`.
+    #[clap(setting = AppSettings::ColoredHelp)]
+    Docs {
+        /// The root directory of the documentation to be parsed. If no directory is provided,
+        /// defaults to the Rust toolchain root.
+        #[clap(short, long, parse(from_os_str))]
+        path: Option<PathBuf>,
+    },
+    /// Provides a REPL for specifying sentences repeatedly.
+    #[clap(setting = AppSettings::ColoredHelp)]
+    Repl,
 }
 
 fn main() {
-    specify_file("../../data/test4.rs")
+    let opts: Opts = Opts::parse();
+
+    match opts.command {
+        SubCommand::EndToEnd(EndToEnd { path }) => {
+            let file = specify_file(path);
+            let output = quote::quote! {#file}.to_string();
+            let mut cmd = std::process::Command::new("rustfmt")
+                .arg("--emit")
+                .arg("stdout")
+                .stdin(Stdio::piped())
+                .spawn()
+                .unwrap();
+            cmd.stdin.as_mut().unwrap().write(output.as_bytes()).unwrap();
+            let output = cmd.wait_with_output().unwrap();
+            println!("{}", String::from_utf8(output.stdout).unwrap());
+        }
+        SubCommand::Specify { sub_cmd } => match sub_cmd {
+            Specify::Sentence { sentence } => specify_sentences(vec![sentence]),
+            Specify::File { path, dest } => {
+                let dest = match dest {
+                    None => {
+                        let mut stem = path.file_stem().unwrap().to_os_string();
+                        stem.push("_specified.rs");
+                        path.with_file_name(stem)
+                    }
+                    Some(dest) => dest,
+                };
+                let file = specify_file(path);
+                let output = quote::quote! {#file}.to_string();
+                std::fs::write(&dest, output).unwrap();
+
+                if std::process::Command::new("rustfmt").arg(&dest).spawn().is_ok() {
+                    println!("Formatted output file, result available at {}", dest.display())
+                } else {
+                    println!("Output file {} could not be formatted", dest.display())
+                }
+            }
+            Specify::Docs { path } => {
+                let path = path.unwrap_or_else(||
+                    toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0])
+                );
+                specify_docs(path);
+            }
+            Specify::Testcases { path } => {
+                let testcases = std::fs::read_to_string(path).unwrap();
+                specify_sentences(testcases.lines().into_iter().map(String::from).collect())
+            }
+            Specify::Repl => {
+                let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+                let parser = ChartParser::from_grammar(&cfg);
+                Python::with_gil(|py| -> PyResult<()> {
+                    println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
+                    let tokparser = Parser::new(py);
+                    println!("Finished loading parser.");
+                    loop {
+                        // Python hijacks stdin
+                        let sent: String = py.eval("input(\'>>> \')", None, None)?.extract()?;
+                        if ["exit", "quit"].contains(&sent.as_str()) {
+                            break;
+                        }
+
+                        let tokens = tokparser.tokenize_sents(&[sent])?.remove(0);
+                        let (specs, _) = sentence_to_specifications(&parser, &tokens);
+                        if specs.is_empty() {
+                            println!("No specification generated")
+                        }
+                        for (i, spec) in specs.iter().enumerate() {
+                            println!("Specification {}/{}", i + 1, specs.len());
+                            match spec.as_spec() {
+                                Ok(attrs) => {
+                                    for attr in attrs {
+                                        println!("{}", quote::quote! {#attr}.to_string());
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("FAILURE: {:?}", e);
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                }).unwrap();
+            }
+        }
+    }
 }
