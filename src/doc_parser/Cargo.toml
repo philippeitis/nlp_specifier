@@ -1,5 +1,5 @@
 [package]
-name = "rs_doc_parser"
+name = "doc_parser"
 version = "0.1.0"
 edition = "2018"
 

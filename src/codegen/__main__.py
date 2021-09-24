@@ -379,6 +379,6 @@ impl ParseSymbol for Symbol {
         Ok(Self::from(s))
     }
 }"""
-    (Path(__file__).parent / Path("../doc_parser/codegrammar.cfg")).write_text(cfg)
-    (Path(__file__).parent / Path("../rs_doc_parser/src/parse_tree/tree.rs")).write_text(tree_rs)
-    (Path(__file__).parent / Path("../rs_doc_parser/src/parse_tree/eir.rs")).write_text(eir_rs)
+    (Path(__file__).parent / Path("../nlp/codegrammar.cfg")).write_text(cfg)
+    (Path(__file__).parent / Path("../doc_parser/src/parse_tree/tree.rs")).write_text(tree_rs)
+    (Path(__file__).parent / Path("../doc_parser/src/parse_tree/eir.rs")).write_text(eir_rs)

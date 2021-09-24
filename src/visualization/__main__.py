@@ -5,7 +5,7 @@ path.append(str(Path(__file__).parent))
 
 import click
 from spacy.tokens import Doc
-from doc_parser.doc_parser import Parser
+from nlp.doc_parser import Tokenizer
 
 
 @click.group()
@@ -26,13 +26,13 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
     from palette import tag_color
     import webbrowser
 
-    parser = Parser.default()
+    tokenizer = Tokenizer.default()
     if no_fix:
-        sent = parser.tagger(sentence)
+        sent = tokenizer.tagger(sentence)
     else:
-        sent = parser.tokenize(sentence, idents)
+        sent = tokenizer.tokenize(sentence, idents)
     tags_as_ents(sent.doc)
-    colors = {tag: tag_color(tag) for tag in parser.tokens()}
+    colors = {tag: tag_color(tag) for tag in tokenizer.tokens()}
 
     html = displacy.render(
         sent.doc,
@@ -65,14 +65,14 @@ def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, 
     from palette import tag_color
     import webbrowser
 
-    parser = Parser.default()
+    tokenizer = Tokenizer.default()
     if retokenize:
-        sent = parser.tokenize(sentence, idents)
+        sent = tokenizer.tokenize(sentence, idents)
     else:
-        sent = parser.tagger(sentence)
+        sent = tokenizer.tagger(sentence)
 
     tags_as_ents(sent.doc)
-    colors = {tag: tag_color(tag) for tag in parser.tokens()}
+    colors = {tag: tag_color(tag) for tag in tokenizer.tokens()}
 
     html = displacy.render(
         sent.doc,
@@ -98,9 +98,9 @@ def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None
     from treevis import render_tree
     import webbrowser
 
-    parser = Parser.default()
+    tokenizer = Tokenizer.default()
     tree = next(
-        parser.parse_tree(sentence, idents=idents, attach_tags=False)
+        tokenizer.parse_tree(sentence, idents=idents, attach_tags=False)
     )
 
     render_tree(tree, str(path))
@@ -114,7 +114,7 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
     from palette import ENTITY_COLORS
     import webbrowser
 
-    sent = Parser.default().entities(sentence)
+    sent = Tokenizer.default().entities(sentence)
     entity_type = entity_type.lower()
 
     if entity_type == "ner":
@@ -146,9 +146,9 @@ def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None
     from treevis import render_tree
     import webbrowser
 
-    parser = Parser.default()
+    tokenizer = Tokenizer.default()
     tree = next(
-        parser.parse_tree(sentence, idents=idents, attach_tags=False)
+        tokenizer.parse_tree(sentence, idents=idents, attach_tags=False)
     )
 
     render_tree(tree, str(path))

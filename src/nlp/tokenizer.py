@@ -43,39 +43,32 @@ class SpacyModel(str, Enum):
         return self.value
 
 
-class Parser:
+class Tokenizer:
     TREE_CACHE = defaultdict(dict)
     TOKEN_CACHE = defaultdict(dict)
     ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
     def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_LG):
-        if model not in Parser.TAGGER_CACHE:
+        if model not in Tokenizer.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
             nlp = spacy.load(str(model))
             nlp.add_pipe("doc_tokens")
-            Parser.TAGGER_CACHE[model] = nlp
+            Tokenizer.TAGGER_CACHE[model] = nlp
 
-        self.token_cache = Parser.TOKEN_CACHE[model]
-        self.entity_cache = Parser.ENTITY_CACHE[model]
-        self.tree_cache = Parser.TREE_CACHE[model]
-        self.tagger = Parser.TAGGER_CACHE[model]
-        self.grammar = nltk.CFG.fromstring(grammar)
-        self.tree_parser = nltk.ChartParser(self.grammar)
+        self.token_cache = Tokenizer.TOKEN_CACHE[model]
+        self.entity_cache = Tokenizer.ENTITY_CACHE[model]
+        self.tree_cache = Tokenizer.TREE_CACHE[model]
+        self.tagger = Tokenizer.TAGGER_CACHE[model]
 
     @classmethod
-    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_LG) -> "Parser":
+    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_LG) -> "Tokenizer":
         with open(grammar_path) as f:
             return cls(f.read(), model)
 
     @classmethod
     def default(cls):
         return cls.from_path(grammar_path=GRAMMAR_PATH)
-
-    def tokens(self) -> Set[str]:
-        """Returns the tokens that might appear in the output of parse_tree"""
-        # noinspection PyProtectedMember
-        return {str(p._lhs) for p in self.grammar._productions}
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
         """Tokenizes and tags the given sentence."""

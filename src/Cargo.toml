@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "rs_doc_parser",
+    "doc_parser",
     "wordnet",
     "compiler_plugin",
     "chartparse"

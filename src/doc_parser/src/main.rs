@@ -38,10 +38,10 @@ use grammar::AsSpec;
 #[macro_use]
 extern crate lazy_static;
 
-static DOC_PARSER: &str = include_str!("../../doc_parser/doc_parser.py");
-static FIX_TOKENS: &str = include_str!("../../doc_parser/fix_tokens.py");
-static NER: &str = include_str!("../../doc_parser/ner.py");
-static CFG: &str = include_str!("../../doc_parser/codegrammar.cfg");
+static TOKENIZER: &str = include_str!("../../nlp/tokenizer.py");
+static FIX_TOKENS: &str = include_str!("../../nlp/fix_tokens.py");
+static NER: &str = include_str!("../../nlp/ner.py");
+static CFG: &str = include_str!("../../nlp/codegrammar.cfg");
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -80,14 +80,14 @@ impl Specifier {
         }
     }
 
-    fn specify(&mut self, tokenizer: &Parser, parser: &ChartParser<Symbol>) {
+    fn specify(&mut self, tokenizer: &Tokenizer, parser: &ChartParser<Symbol>) {
         SpecifierX { searcher: &self.searcher, tokenizer, parser }.visit_file_mut(&mut self.file)
     }
 }
 
 struct SpecifierX<'a, 'b, 'p> {
     searcher: &'a SearchTree,
-    tokenizer: &'a Parser<'p>,
+    tokenizer: &'a Tokenizer<'p>,
     parser: &'a ChartParser<'b, Symbol>,
 }
 
@@ -127,12 +127,12 @@ impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
     }
 }
 
-struct Parser<'p> {
+struct Tokenizer<'p> {
     parser: PyObject,
     py: Python<'p>,
 }
 
-impl<'p> Parser<'p> {
+impl<'p> Tokenizer<'p> {
     fn new(py: Python<'p>) -> Self {
         let path = std::env::current_dir().unwrap();
         let locals = [
@@ -141,12 +141,12 @@ impl<'p> Parser<'p> {
             ("root_dir", path.to_object(py))
         ].into_py_dict(py);
         // TODO: Make sure we fix path handling for the general case.
-        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'doc_parser'), str(pathlib.Path(root_dir).parent)])";
+        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
         py.eval(code, None, Some(locals)).unwrap();
 
-        let locals = [("doc_parser", py.import("doc_parser").unwrap())].into_py_dict(py);
-        let parser: PyObject = py.eval("doc_parser.Parser.default()", None, Some(locals)).unwrap().extract().unwrap();
-        Parser { parser, py }
+        let locals = [("tokenizer", py.import("tokenizer").unwrap())].into_py_dict(py);
+        let parser: PyObject = py.eval("tokenizer.Tokenizer.default()", None, Some(locals)).unwrap().extract().unwrap();
+        Tokenizer { parser, py }
     }
 
     fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Vec<(String, String, String)>>> {
@@ -168,7 +168,7 @@ struct SimMatcher<'p> {
 }
 
 impl<'p> SimMatcher<'p> {
-    fn new(py: Python<'p>, sentence: &str, parser: &Parser<'p>, cutoff: f32) -> Self {
+    fn new(py: Python<'p>, sentence: &str, parser: &Tokenizer<'p>, cutoff: f32) -> Self {
         let locals = [
             ("nlp_query", py.import("nlp_query").unwrap().to_object(py)),
             ("sent", sentence.to_object(py)),
@@ -237,7 +237,7 @@ fn search_demo() {
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
     Python::with_gil(|py| -> PyResult<()> {
-        let parser = Parser::new(py);
+        let parser = Tokenizer::new(py);
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
         let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32") };
@@ -266,7 +266,7 @@ fn specify_docs<P: AsRef<Path>>(path: P) {
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
-        let tokparser = Parser::new(py);
+        let tokenizer = Tokenizer::new(py);
 
         let mut sentences = Vec::new();
         for value in tree.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
@@ -276,7 +276,7 @@ fn specify_docs<P: AsRef<Path>>(path: P) {
         let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
 
         let start = std::time::Instant::now();
-        let tokens = tokparser.tokenize_sents(&sentences)?;
+        let tokens = tokenizer.tokenize_sents(&sentences)?;
         let end = std::time::Instant::now();
         println!("Time to tokenize sentences: {}", (end - start).as_secs_f32());
         Ok(tokens)
@@ -336,8 +336,7 @@ fn specify_sentences(sentences: Vec<String>) {
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
-        let tokparser = Parser::new(py);
-        tokparser.tokenize_sents(&sentences)
+        Tokenizer::new(py).tokenize_sents(&sentences)
     }).unwrap();
 
     for (metadata, sentence) in tokens.iter().zip(sentences.iter()) {
@@ -387,7 +386,7 @@ fn specify_file<P: AsRef<Path>>(path: P) -> File {
     let parser = ChartParser::from_grammar(&cfg);
 
     Python::with_gil(|py| -> PyResult<()> {
-        let tokparser = Parser::new(py);
+        let tokenizer = Tokenizer::new(py);
 
         // Do ahead of time to take advantage of parallelism
         let mut sentences = Vec::new();
@@ -397,8 +396,8 @@ fn specify_file<P: AsRef<Path>>(path: P) -> File {
 
         let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
 
-        let _ = tokparser.tokenize_sents(&sentences)?;
-        specifier.specify(&tokparser, &parser);
+        let _ = tokenizer.tokenize_sents(&sentences)?;
+        specifier.specify(&tokenizer, &parser);
         Ok(())
     }).unwrap();
     specifier.file
@@ -475,7 +474,24 @@ enum Specify {
 
 fn main() {
     let opts: Opts = Opts::parse();
-
+    // TODO: Detect duplicate invocations.
+    // TODO: keyword in fn name, capitalization?
+    // TODO: similarity metrics (capitalization, synonym distance via wordnet)
+    // TODO: Decide spurious keywords
+    //
+    // TODO: Mechanism to evaluate code quality
+    // TODO: Add type to CODE item? eg. CODE_USIZE, CODE_BOOL, CODE_STR, then make CODE accept all of these
+    //  std::any::type_name_of_val
+    // TODO: allow specifying default value in #[invoke]
+    //  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
+    //
+    // TODO:
+    //  1. parse sent into tokens (falliable)
+    //  2. parse tokens into trees (infalliable)
+    //  3. parse tree in initial type (infalliable)
+    //  4. unresolved code blocks (infalliable)
+    //  5. resolved code items (falliable)
+    //  6. final specification (infalliable)
     match opts.command {
         SubCommand::EndToEnd(EndToEnd { path }) => {
             let file = specify_file(path);
@@ -526,7 +542,7 @@ fn main() {
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
                     println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
-                    let tokparser = Parser::new(py);
+                    let tokenizer = Tokenizer::new(py);
                     println!("Finished loading parser.");
                     loop {
                         // Python hijacks stdin
@@ -535,7 +551,7 @@ fn main() {
                             break;
                         }
 
-                        let tokens = tokparser.tokenize_sents(&[sent])?.remove(0);
+                        let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
                         let (specs, _) = sentence_to_specifications(&parser, &tokens);
                         if specs.is_empty() {
                             println!("No specification generated")
@@ -560,3 +576,4 @@ fn main() {
         }
     }
 }
+

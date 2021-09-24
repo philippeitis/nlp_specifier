@@ -1,25 +1,25 @@
-from doc_parser import Parser, SpacyModel, GRAMMAR_PATH
+from tokenizer import Tokenizer, SpacyModel, GRAMMAR_PATH
 
 
 class NaiveSimilarity:
-    def __init__(self, parser: Parser):
-        self.parser = parser
+    def __init__(self, tokenizer: Tokenizer):
+        self.tokenizer = tokenizer
 
     def __call__(self, sent1: str, sent2: str):
-        s1 = self.parser.tokenize(sent1)
-        s2 = self.parser.tokenize(sent2)
+        s1 = self.tokenizer.tokenize(sent1)
+        s2 = self.tokenizer.tokenize(sent2)
         return s1.doc.similarity(s2.doc)
 
 
 class SimilarityFilter:
-    def __init__(self, parser: Parser, filter_fn):
-        self.parser = parser
+    def __init__(self, tokenizer: Tokenizer, filter_fn):
+        self.tokenizer = tokenizer
         self.filter_fn = filter_fn
 
     def filtered_sentence(self, sent):
-        s = self.parser.tokenize(sent)
+        s = self.tokenizer.tokenize(sent)
         sent = " ".join(str(t) for t in s.doc if self.filter_fn(t))
-        return self.parser.tokenize(sent)
+        return self.tokenizer.tokenize(sent)
 
     def __call__(self, sent1: str, sent2: str):
         s1 = self.filtered_sentence(sent1)
@@ -28,13 +28,13 @@ class SimilarityFilter:
 
 
 class SimilarityNoStop(SimilarityFilter):
-    def __init__(self, parser: Parser):
-        super().__init__(parser, lambda t: not t.is_stop)
+    def __init__(self, tokenizer: Tokenizer):
+        super().__init__(tokenizer, lambda t: not t.is_stop)
 
 
 class SimilarityNouns(SimilarityFilter):
-    def __init__(self, parser: Parser):
-        super().__init__(parser, lambda t: t.pos_ in {'NOUN', 'PROPN', "VERB"})
+    def __init__(self, tokenizer: Tokenizer):
+        super().__init__(tokenizer, lambda t: t.pos_ in {'NOUN', 'PROPN', "VERB"})
 
 
 def transformers_similarity():
@@ -60,7 +60,7 @@ def transformers_similarity():
 
 
 def spacy_similarity():
-    p = Parser.from_path(GRAMMAR_PATH, model=SpacyModel.EN_LG)
+    p = Tokenizer.from_path(GRAMMAR_PATH, model=SpacyModel.EN_LG)
     s_naive = NaiveSimilarity(p)
     s_nostop = SimilarityNoStop(p)
     s_nouns = SimilarityNouns(p)

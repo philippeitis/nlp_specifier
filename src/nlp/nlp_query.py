@@ -3,11 +3,11 @@ import re
 import itertools
 
 try:
-    from doc_parser import Parser
+    from tokenizer import Tokenizer
     from lemmatizer import is_synonym, lemmatize
 except ImportError:
-    from doc_parser.doc_parser import Parser
-    from doc_parser.lemmatizer import is_synonym, lemmatize
+    from nlp.tokenizer import Tokenizer
+    from nlp.lemmatizer import is_synonym, lemmatize
 
 
 def peek(it):
@@ -66,8 +66,8 @@ class Word:
 class Phrase:
     EVAL_COST = 1.
 
-    def __init__(self, phrase: List[Word], parser: Parser):
-        self.parser = parser
+    def __init__(self, phrase: List[Word], tokenizer: Tokenizer):
+        self.tokenizer = tokenizer
         self.phrase = phrase
         regex_str = ""
         for word in self.phrase:
@@ -98,7 +98,7 @@ class Phrase:
 
         if docs:
             for sentx in docs[0].sentences:
-                sent = self.parser.tokenize(sentx, idents=idents)
+                sent = self.tokenizer.tokenize(sentx, idents=idents)
                 s = " ".join(tag for tag in sent.tags)
                 for match in self.tag_regex.finditer(s):
                     prev, curr = split_str(s, match.start(0))
@@ -136,7 +136,7 @@ class Phrase:
         return " ".join(str(x) for x in self.phrase)
 
 
-def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> "Query":
+def query_from_sentence(sentence, tokenizer: Tokenizer, *args, **kwargs) -> "Query":
     """Forms a query from a sentence.
 
     Stopwords (per Wordnet's stopwords), and words which are not verbs, nouns, adverbs, or adjectives, are all removed.
@@ -144,7 +144,7 @@ def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> "Query":
     """
     phrases = [[]]
 
-    sent = parser.tokenize(sentence)
+    sent = tokenizer.tokenize(sentence)
 
     for token in sent.doc:
         if token.is_stop or token.tag_ in {"CODE", "LIT"}:
@@ -157,15 +157,15 @@ def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> "Query":
             is_describer = is_one_of(token.tag_, {"RB", "JJ"})
             phrases[-1].append(
                 Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
-    return Query([Phrase(block, parser) for block in phrases if block], *args, **kwargs)
+    return Query([Phrase(block, tokenizer) for block in phrases if block], *args, **kwargs)
 
 
 class SimPhrase:
     EVAL_COST = 0.8
 
-    def __init__(self, phrase: str, parser: Parser, cutoff=0.85):
-        self.parser = parser
-        self.phrase = parser.tokenize(phrase).doc
+    def __init__(self, phrase: str, tokenizer: Tokenizer, cutoff=0.85):
+        self.tokenizer = tokenizer
+        self.phrase = tokenizer.tokenize(phrase).doc
         self.cutoff = cutoff
         self.similarity_cache = {}
         self.sents_seen = 0
@@ -193,7 +193,7 @@ class SimPhrase:
         """Determines whether the phrase matches the provided fn.
         To match the phrase, the function must contain at least one sentence which is sufficiently
          similar to the query string."""
-        sent = self.parser.tokenize(sent, idents=idents).doc
+        sent = self.tokenizer.tokenize(sent, idents=idents).doc
         similarity = sent.similarity(self.phrase)
         return similarity
 
@@ -204,7 +204,7 @@ class SimPhrase:
         max_sim = -1.0
         for sent in sents:
             self.sents_seen += 1
-            sent = self.parser.tokenize(sent, idents=idents).doc
+            sent = self.tokenizer.tokenize(sent, idents=idents).doc
             similarity = sent.similarity(self.phrase)
             if similarity > cutoff:
                 return True
