@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::collections::HashSet;
 
 use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
@@ -6,7 +6,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::exceptions::PyStopIteration;
 
 use syn::visit_mut::VisitMut;
-use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn};
+use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn, PatPath};
 use syn::parse::{Parse, ParseStream};
 
 use chartparse::{TreeWrapper, ChartParser, ContextFreeGrammar};
@@ -30,6 +30,7 @@ use crate::nl_ir::Specification;
 use crate::parse_tree::{SymbolTree, Terminal, Symbol};
 use crate::grammar::AsSpec;
 use crate::parse_tree::tree::TerminalSymbol;
+use serde_json::to_string;
 
 
 #[macro_use]
@@ -382,6 +383,43 @@ fn specify_sentence() {
     }
 }
 
+fn specify_file<P: AsRef<Path>>(path: P) {
+    let mut specifier = Specifier::from_path(&path).unwrap();
+
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let parser = ChartParser::from_grammar(&cfg);
+    let output_path = path.as_ref()
+        .to_owned()
+        .with_file_name(
+            format!("{}_specified.rs", path.as_ref().file_stem().unwrap().to_string_lossy()
+            )
+        );
+
+    let tokens = Python::with_gil(|py| -> PyResult<()> {
+        let tokparser = Parser::new(py);
+
+        // Do ahead of time to take advantage of parallelism
+        let mut sentences = Vec::new();
+        for value in specifier.searcher.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
+            sentences.extend(&value.docs.sections[0].sentences);
+        }
+
+        let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
+
+        let _ = tokparser.tokenize_sents(&sentences)?;
+        specifier.specify(&tokparser, &parser);
+        let file = &specifier.file;
+        let output = quote::quote! {#file}.to_string();
+        std::fs::write(&output_path, output).unwrap();
+        Ok(())
+    }).unwrap();
+    if std::process::Command::new("rustfmt").arg(&output_path).spawn().is_ok() {
+        println!("Formatted output file, result available at {}", output_path.display())
+    } else {
+        println!("Output file {} could not be formatted", output_path.display())
+    }
+}
+
 fn main() {
-    specify_docs()
+    specify_file("../../data/test4.rs")
 }
