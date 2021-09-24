@@ -3,11 +3,13 @@ Python 3.6+ and Rust should already be installed for the parsing steps. To perfo
 Dependencies for individual components of the system are specified below, or are otherwise manually installed using provided `setup.sh` scripts.
 Note that all .sh files and commands provided are specific to Linux. 
 
+## Python Implementation
+The python implement is available at https://github.com/philippeitis/nlp_specifier/tree/b42778e2cb51e5d8edf08c0cc7a5060225468d92.
 ## HTML Documentation Mining
 This project provides functionality for extracting Rust documentation from pages output by cargo docs, and for documentation downloaded via `rustup`.
-To set up parsing of HTML documentation, use [doc_json/setup.sh](doc_json/setup.sh):
+To set up parsing of HTML documentation, build [src/rs_doc_parser/](src/rs_doc_parser/):
 ```bash
-cd ./doc_json/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+cd ./src/rs_doc_parser/ && cargo build --release ; cd ..
 ```
 
 ## NLP Parser
@@ -40,9 +42,9 @@ http://erwinkomen.ruhosting.nl/eng/2014_Longdale-Labels.htm
 
 ## Rust AST Parser
 The Rust AST parser transforms input Rust files into an AST, which is used in the NLP parser to generate specifications.
-To set up the Rust AST parser, follow the instructions at [pyrs_ast/README.md](pyrs_ast/README.md):
+To set up the Rust AST parser, build [src/rs_doc_parser/](src/rs_doc_parser/):
 ```bash
-cd ./pyrs_ast/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+cd ./src/rs_doc_parser/ && cargo build --release ; cd ..
 ```
 
 ## Named-entity Recognition and Semantic Role Labelling
