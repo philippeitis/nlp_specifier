@@ -2,9 +2,6 @@ from typing import List, Collection
 import re
 import itertools
 
-from pyrs_ast.lib import Fn
-from pyrs_ast.query import Query, QueryField
-
 try:
     from doc_parser import Parser
     from lemmatizer import is_synonym, lemmatize
@@ -46,7 +43,7 @@ def get_regex_for_tag(tag: str) -> str:
     return tag
 
 
-class Word(QueryField):
+class Word:
     EVAL_COST = 1e-3
 
     def __init__(self, word: str, tag: str, allow_synonyms: bool, is_optional: bool, lemma: str = None):
@@ -66,7 +63,7 @@ class Word(QueryField):
         return self._lemma
 
 
-class Phrase(QueryField):
+class Phrase:
     EVAL_COST = 1.
 
     def __init__(self, phrase: List[Word], parser: Parser):
@@ -139,7 +136,7 @@ class Phrase(QueryField):
         return " ".join(str(x) for x in self.phrase)
 
 
-def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> Query:
+def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> "Query":
     """Forms a query from a sentence.
 
     Stopwords (per Wordnet's stopwords), and words which are not verbs, nouns, adverbs, or adjectives, are all removed.
@@ -163,7 +160,7 @@ def query_from_sentence(sentence, parser: Parser, *args, **kwargs) -> Query:
     return Query([Phrase(block, parser) for block in phrases if block], *args, **kwargs)
 
 
-class SimPhrase(QueryField):
+class SimPhrase:
     EVAL_COST = 0.8
 
     def __init__(self, phrase: str, parser: Parser, cutoff=0.85):

@@ -1,4 +1,0 @@
-### Building
-```bash
-./setup.sh
-```

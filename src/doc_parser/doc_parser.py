@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 
 import nltk
-from nltk.tree import Tree
 import spacy
 from spacy.tokens import Doc
 import unidecode
@@ -24,55 +23,6 @@ LOGGER = logging.getLogger(__name__)
 
 def is_quote(word: str) -> bool:
     return word[0] in "\"'`"
-
-
-def replace_leaf_nodes(tree: Tree, values: Iterator[str]):
-    """Modifies `tree` in place, by assigning each word in `words` to the leaf nodes in `tree``,
-    in sequential order from left to right.
-
-    :param tree: nltk.Tree
-    :param values: An iterator of strings.
-    :return: modified tree
-    """
-    if len(tree) == 1 and isinstance(tree[0], str):
-        tree[0] = next(values)
-    else:
-        for sub_tree in tree:
-            replace_leaf_nodes(sub_tree, values)
-    return tree
-
-
-class ParseStorage:
-    def __init__(self, parse_iter):
-        self.parse_iter = parse_iter
-        self.items = []
-
-    def add_item(self) -> bool:
-        try:
-            self.items.append(next(self.parse_iter))
-            return True
-        except StopIteration:
-            return False
-
-    def __iter__(self):
-        return ParseIter(self)
-
-
-class ParseIter:
-    def __init__(self, parse_storage):
-        self.index = 0
-        self.parse_storage = parse_storage
-
-    def __next__(self):
-        if self.index < len(self.parse_storage.items):
-            index = self.index
-            self.index += 1
-            return self.parse_storage.items[index]
-        if self.parse_storage.add_item():
-            index = self.index
-            self.index += 1
-            return self.parse_storage.items[index]
-        raise StopIteration()
 
 
 class Sentence:
@@ -154,26 +104,6 @@ class Parser:
             sentence_dict[i] = tokenized
 
         return [Sentence(doc) for doc in sentence_dict.values()]
-
-    def parse_tree(self, sentence: str, idents=None, attach_tags=True) -> Tree:
-        """Parses the sentence, using `idents` to detect values in the text.
-        If `idents` is not provided, no IDENT literals will appear in the tree.
-        If `attach_tags` is set, labels will transformed for usage in an augmented CFG.
-        Otherwise, labels will remain unmodified.
-        """
-        sent = self.tokenize(sentence, idents)
-        if attach_tags:
-            nltk_sent = [label if is_quote(word) or word in ".,\"'`!()[]{}-" else f"{word}_{label}"
-                         for label, word in zip(sent.tags, sent.words)]
-        else:
-            nltk_sent = sent.tags
-
-        nltk_str = " ".join(nltk_sent)
-        if nltk_str not in self.tree_cache:
-            self.tree_cache[nltk_str] = ParseStorage(self.tree_parser.parse(nltk_sent))
-
-        for tree in self.tree_cache[nltk_str]:
-            yield replace_leaf_nodes(tree, iter(sent.words))
 
     def entities(self, sentence: str) -> dict:
         """Performs NER and SRL analysis of the given sentence, using the models from

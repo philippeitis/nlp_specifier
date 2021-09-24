@@ -39,10 +39,7 @@ extern crate lazy_static;
 static DOC_PARSER: &str = include_str!("../../doc_parser/doc_parser.py");
 static FIX_TOKENS: &str = include_str!("../../doc_parser/fix_tokens.py");
 static NER: &str = include_str!("../../doc_parser/ner.py");
-static FN_CALLS: &str = include_str!("../../doc_parser/fn_calls.py");
-static GRAMMAR: &str = include_str!("../../doc_parser/grammar.py");
 static CFG: &str = include_str!("../../doc_parser/codegrammar.cfg");
-static LEMMATIZER: &str = include_str!("../../doc_parser/lemmatizer.py");
 
 #[derive(Debug)]
 pub enum SpecError {
@@ -275,7 +272,7 @@ fn specify_docs() {
 
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
@@ -345,7 +342,7 @@ fn specify_docs() {
 }
 
 fn specify_sentence() {
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
@@ -386,7 +383,7 @@ fn specify_sentence() {
 fn specify_file<P: AsRef<Path>>(path: P) {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(std::fs::read_to_string("../doc_parser/codegrammar.cfg").unwrap()).unwrap();
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
     let output_path = path.as_ref()
         .to_owned()
