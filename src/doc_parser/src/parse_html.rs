@@ -1,20 +1,20 @@
-use std::path::{Path, PathBuf};
-use std::collections::{HashSet, HashMap};
-use std::process::Command;
-use std::fmt::{Display, Formatter};
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use scraper::{ElementRef, Html, Node, Selector};
-use scraper::node::Element;
-use selectors::attr::CaseSensitivity;
 use home::rustup_home;
-use syn::{ItemStruct, ItemFn, ImplItemMethod, Visibility, Type, TypePath, ImplItem};
-use syn::Path as SynPath;
 use rayon::prelude::*;
+use scraper::node::Element;
+use scraper::{ElementRef, Html, Node, Selector};
+use selectors::attr::CaseSensitivity;
+use syn::Path as SynPath;
+use syn::{ImplItem, ImplItemMethod, ItemFn, ItemStruct, Type, TypePath, Visibility};
 
-use crate::docs::{RawDocs, Docs};
+use crate::docs::{Docs, RawDocs};
+use crate::search_tree::{SearchItem, SearchItemImpl, SearchItemMod, SearchTree, SearchValue};
 use crate::SpecError;
-use crate::search_tree::{SearchItemMod, SearchItem, SearchTree, SearchItemImpl, SearchValue};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -61,7 +61,8 @@ lazy_static! {
     static ref H1_FQN: Selector = Selector::parse("h1.fqn").unwrap();
     static ref DETAILS_DIV: Selector = Selector::parse("details.top-doc>div.docblock").unwrap();
     static ref DIV_DOCBLOCK: Selector = Selector::parse("div.docblock").unwrap();
-    static ref STRUCT_IMPL_BLOCK: Selector = Selector::parse("details.implementors-toggle>div.impl-items").unwrap();
+    static ref STRUCT_IMPL_BLOCK: Selector =
+        Selector::parse("details.implementors-toggle>div.impl-items").unwrap();
     static ref METHOD_NAME: Selector = Selector::parse("summary>div>h4").unwrap();
     static ref FN_NAME: Selector = Selector::parse("pre.fn").unwrap();
     static ref FN_DOC: Selector = Selector::parse("details.rustdoc-toggle>div.docblock").unwrap();
@@ -114,7 +115,9 @@ fn stringify(e: &ElementRef) -> String {
                     s.push_str(&stringify(&ElementRef::wrap(item).unwrap()));
                 }
                 "div" => {
-                    if has_class(child_element, "code-attribute") || has_class(child_element, "example-wrap") {
+                    if has_class(child_element, "code-attribute")
+                        || has_class(child_element, "example-wrap")
+                    {
                         continue;
                     }
 
@@ -152,7 +155,7 @@ fn parse_list(e: &ElementRef) -> Vec<String> {
         .collect()
 }
 
-fn parse_example(e: &ElementRef) -> String {
+fn parse_example(_e: &ElementRef) -> String {
     "```CODE```".to_string()
 }
 
@@ -200,7 +203,10 @@ fn parse_doc(e: &ElementRef) -> Docs {
 
 impl DocStruct {
     fn from_primitive_block(block: &ElementRef) -> Result<Self, ParseError> {
-        let decl_block = block.select(&H1_FQN).next().ok_or_else(|| ParseError::RustDoc("No header"))?;
+        let decl_block = block
+            .select(&H1_FQN)
+            .next()
+            .ok_or_else(|| ParseError::RustDoc("No header"))?;
         let docs = match block.select(&DETAILS_DIV).next() {
             None => RawDocs::default().consolidate(),
             Some(b) => parse_doc(&b),
@@ -219,7 +225,10 @@ impl DocStruct {
     }
 
     fn from_struct_block(block: &ElementRef) -> Result<Self, ParseError> {
-        let decl_block = block.select(&DIV_DOCBLOCK).next().ok_or_else(|| ParseError::RustDoc("No header"))?;
+        let decl_block = block
+            .select(&DIV_DOCBLOCK)
+            .next()
+            .ok_or_else(|| ParseError::RustDoc("No header"))?;
         let docs = match block.select(&DETAILS_DIV).next() {
             None => RawDocs::default().consolidate(),
             Some(b) => parse_doc(&b),
@@ -249,7 +258,9 @@ impl DocStruct {
                     };
                     self.methods
                         .push(format!("{}\n{} {{}}", docs, stringify(&name)));
-                } else if has_class(item.value(), "method") {} else {}
+                } else if has_class(item.value(), "method") {
+                } else {
+                }
             }
         }
     }
@@ -257,7 +268,10 @@ impl DocStruct {
 
 impl DocFn {
     fn from_block(block: &ElementRef) -> Result<Self, ParseError> {
-        let decl_block = block.select(&FN_NAME).next().ok_or_else(|| ParseError::RustDoc("Fn has no name"))?;
+        let decl_block = block
+            .select(&FN_NAME)
+            .next()
+            .ok_or_else(|| ParseError::RustDoc("Fn has no name"))?;
 
         let docs = match block.select(&FN_DOC).next() {
             None => RawDocs::default().consolidate(),
@@ -280,7 +294,7 @@ pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<DocItem, ParseError> {
 
     let lhs = match path_type.split_once(".") {
         None => return Err(ParseError::RustDoc("Path is invalid")),
-        Some((lhs, _)) => lhs
+        Some((lhs, _)) => lhs,
     };
 
     let block = match document.select(&TITLE).next() {
@@ -316,19 +330,33 @@ pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<DocItem, ParseError> {
     }
 }
 
-fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(dir: P, paths: &mut Vec<PathBuf>) -> std::io::Result<()> {
+fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(
+    dir: P,
+    paths: &mut Vec<PathBuf>,
+) -> std::io::Result<()> {
     let dir = dir.as_ref();
     match dir.file_name() {
         None => {}
         Some(s) => match s.to_str() {
             None => {}
-            Some(s) => if RUST_DOC_IGNORE_MAP.contains(&s) {
-                return Ok(());
+            Some(s) => {
+                if RUST_DOC_IGNORE_MAP.contains(&s) {
+                    return Ok(());
+                }
             }
-        }
+        },
     }
 
-    let choices = ["struct.", "fn.", "enum.", "primitive.", "constant.", "macro.", "trait.", "keyword."];
+    let choices = [
+        "struct.",
+        "fn.",
+        "enum.",
+        "primitive.",
+        "constant.",
+        "macro.",
+        "trait.",
+        "keyword.",
+    ];
 
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
@@ -338,8 +366,10 @@ fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(dir: P, paths: &mut Vec<Pat
         } else if let Some(file_name) = path.file_name() {
             match file_name.to_str() {
                 None => continue,
-                Some(path_type) => if choices.iter().any(|choice| path_type.starts_with(choice)) {
-                    paths.push(path);
+                Some(path_type) => {
+                    if choices.iter().any(|choice| path_type.starts_with(choice)) {
+                        paths.push(path);
+                    }
                 }
             }
         }
@@ -351,23 +381,24 @@ fn find_all_files_in_root_dir_helper<P: AsRef<Path>>(dir: P, paths: &mut Vec<Pat
 pub fn get_toolchain_dirs() -> Result<Vec<PathBuf>, ParseError> {
     let path = rustup_home()?.join("toolchains");
 
-    match String::from_utf8(Command::new("rustup").args(&["toolchain", "list"]).output()?.stdout) {
-        Ok(s) => {
-            Ok(s
-                .lines()
-                .map(|line|
-                    line.strip_suffix(" (override)")
-                        .unwrap_or(line)
-                        .strip_suffix(" (default)")
-                        .unwrap_or(line)
-                        .trim()
-                )
-                .map(|s| path.join(s))
-                .collect())
-        }
-        Err(e) => {
-            Err(ParseError::RustUp(e.to_string()))
-        }
+    match String::from_utf8(
+        Command::new("rustup")
+            .args(&["toolchain", "list"])
+            .output()?
+            .stdout,
+    ) {
+        Ok(s) => Ok(s
+            .lines()
+            .map(|line| {
+                line.strip_suffix(" (override)")
+                    .unwrap_or(line)
+                    .strip_suffix(" (default)")
+                    .unwrap_or(line)
+                    .trim()
+            })
+            .map(|s| path.join(s))
+            .collect()),
+        Err(e) => Err(ParseError::RustUp(e.to_string())),
     }
 }
 
@@ -380,7 +411,6 @@ pub fn find_all_files_in_root_dir<P: AsRef<Path>>(dir: P) -> std::io::Result<Vec
     find_all_files_in_root_dir_helper(dir, &mut paths)?;
     Ok(paths)
 }
-
 
 pub enum ItemContainer {
     Fn(ItemFn),
@@ -403,26 +433,22 @@ fn parse_struct(s: String) -> Result<ItemStruct, syn::Error> {
 pub fn ast_from_item(item: DocItem) -> Result<ItemContainer, SpecError> {
     Ok(match item {
         DocItem::Fn(f) => ItemContainer::Fn(parse_fn(f.s)?),
-        DocItem::Struct(s) => {
-            ItemContainer::Struct(
-                parse_struct(s.s)?,
-                s.methods
-                    .into_iter()
-                    .map(|x| parse_impl_method(x.clone()))
-                    .filter_map(Result::ok)
-                    .collect(),
-            )
-        }
-        DocItem::Primitive(s) => {
-            ItemContainer::Primitive(
-                parse_struct(s.s)?,
-                s.methods
-                    .into_iter()
-                    .map(parse_impl_method)
-                    .filter_map(Result::ok)
-                    .collect(),
-            )
-        }
+        DocItem::Struct(s) => ItemContainer::Struct(
+            parse_struct(s.s)?,
+            s.methods
+                .into_iter()
+                .map(|x| parse_impl_method(x.clone()))
+                .filter_map(Result::ok)
+                .collect(),
+        ),
+        DocItem::Primitive(s) => ItemContainer::Primitive(
+            parse_struct(s.s)?,
+            s.methods
+                .into_iter()
+                .map(parse_impl_method)
+                .filter_map(Result::ok)
+                .collect(),
+        ),
     })
 }
 
@@ -430,19 +456,24 @@ fn parse_path(s: String) -> Result<SynPath, syn::Error> {
     syn::parse_str(&s)
 }
 
-pub fn parse_all_files<P: AsRef<Path>>(path: P) -> Result<Vec<(PathBuf, ItemContainer)>, ParseError> {
-    Ok(find_all_files_in_root_dir(path)?.into_par_iter()
+pub fn parse_all_files<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<(PathBuf, ItemContainer)>, ParseError> {
+    Ok(find_all_files_in_root_dir(path)?
+        .into_par_iter()
         .map(|path| parse_file(&path).map(|item| (path, item)))
         .filter_map(Result::ok)
         .collect::<Vec<_>>()
         .into_iter()
         .map(|(path, item)| ast_from_item(item).map(|item| (path, item)))
         .filter_map(Result::ok)
-        .collect()
-    )
+        .collect())
 }
 
-fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContainer>) -> Result<SearchItemMod, ParseError> {
+fn mod_from_dir<P: AsRef<Path>>(
+    dir: P,
+    items: &mut HashMap<PathBuf, ItemContainer>,
+) -> Result<SearchItemMod, ParseError> {
     let mut mod_items: Vec<SearchValue> = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
@@ -468,7 +499,12 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                                 qself: None,
                                 path: parse_path(s.ident.to_string()).unwrap(),
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect(),
+                            items: methods
+                                .into_iter()
+                                .map(ImplItem::Method)
+                                .map(SearchValue::try_from)
+                                .filter_map(Result::ok)
+                                .collect(),
                         };
                         mod_items.push(SearchItem::Struct(s).into());
                         mod_items.push(SearchItem::Impl(impl_item).into());
@@ -484,7 +520,12 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
                                 qself: None,
                                 path: parse_path(s.ident.to_string()).unwrap(),
                             })),
-                            items: methods.into_iter().map(ImplItem::Method).map(SearchValue::try_from).filter_map(Result::ok).collect(),
+                            items: methods
+                                .into_iter()
+                                .map(ImplItem::Method)
+                                .map(SearchValue::try_from)
+                                .filter_map(Result::ok)
+                                .collect(),
                         };
                         mod_items.push(SearchItem::Struct(s).into());
                         mod_items.push(SearchItem::Impl(impl_item).into());
@@ -493,7 +534,11 @@ fn mod_from_dir<P: AsRef<Path>>(dir: P, items: &mut HashMap<PathBuf, ItemContain
             }
         }
     }
-    let ident = dir.as_ref().file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or("???".to_string());
+    let ident = dir
+        .as_ref()
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or("???".to_string());
     Ok(SearchItemMod {
         docs: RawDocs::default().consolidate(),
         attrs: vec![],
@@ -511,10 +556,12 @@ pub fn file_from_root_dir<P: AsRef<Path>>(dir: P) -> Result<SearchTree, ParseErr
         None => {}
         Some(s) => match s.to_str() {
             None => {}
-            Some(s) => if RUST_DOC_IGNORE_MAP.contains(&s) {
-                return Err(ParseError::RustDoc("bad root dir"));
+            Some(s) => {
+                if RUST_DOC_IGNORE_MAP.contains(&s) {
+                    return Err(ParseError::RustDoc("bad root dir"));
+                }
             }
-        }
+        },
     }
 
     let mut items = vec![];

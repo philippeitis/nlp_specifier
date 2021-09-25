@@ -1,42 +1,38 @@
-use std::path::{Path, PathBuf};
 use std::collections::HashSet;
-use std::process::Stdio;
 use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
-use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
+use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::types::IntoPyDict;
-use pyo3::exceptions::{PyStopIteration, PyKeyboardInterrupt};
+use pyo3::{PyObject, PyResult, Python, ToPyObject};
 
 use syn::visit_mut::VisitMut;
-use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn, PatPath};
-use syn::parse::ParseStream;
+use syn::{parse_file, Attribute, File, ImplItemMethod, ItemFn};
 
-use chartparse::{TreeWrapper, ChartParser, ContextFreeGrammar};
-use chartparse::tree::TreeNode;
+use chartparse::{ChartParser, ContextFreeGrammar};
 
 use clap::{AppSettings, Clap};
 
-mod search_tree;
 mod docs;
-mod parse_html;
-mod type_match;
-mod jsonl;
 mod grammar;
+mod jsonl;
 mod nl_ir;
+mod parse_html;
 mod parse_tree;
+mod search_tree;
+mod type_match;
 mod visualization;
 
-
 use docs::Docs;
-use search_tree::{SearchTree, SearchItem, Depth};
-use type_match::{HasFnArg, FnArgLocation};
-use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root_dir};
-use nl_ir::Specification;
-use parse_tree::{SymbolTree, Terminal, Symbol, tree::TerminalSymbol};
 use grammar::AsSpec;
-use crate::visualization::tree::tag_color;
 use itertools::Itertools;
-
+use nl_ir::Specification;
+use parse_html::{file_from_root_dir, get_toolchain_dirs, toolchain_path_to_html_root};
+use parse_tree::{tree::TerminalSymbol, Symbol, SymbolTree, Terminal};
+use search_tree::{Depth, SearchItem, SearchTree};
+use type_match::{FnArgLocation, HasFnArg};
+use visualization::tree::tag_color;
 
 #[macro_use]
 extern crate lazy_static;
@@ -69,7 +65,6 @@ pub struct Specifier {
     pub searcher: SearchTree,
 }
 
-
 impl Specifier {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, SpecError> {
         let s = std::fs::read_to_string(path)?;
@@ -84,7 +79,12 @@ impl Specifier {
     }
 
     fn specify(&mut self, tokenizer: &Tokenizer, parser: &ChartParser<Symbol>) {
-        SpecifierX { searcher: &self.searcher, tokenizer, parser }.visit_file_mut(&mut self.file)
+        SpecifierX {
+            searcher: &self.searcher,
+            tokenizer,
+            parser,
+        }
+        .visit_file_mut(&mut self.file)
     }
 }
 
@@ -94,9 +94,12 @@ struct SpecifierX<'a, 'b, 'p> {
     parser: &'a ChartParser<'b, Symbol>,
 }
 
-
 fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
-    attrs.as_ref().iter().map(|attr| &attr.path).any(|x| quote::quote! {#x}.to_string() == "specify")
+    attrs
+        .as_ref()
+        .iter()
+        .map(|attr| &attr.path)
+        .any(|x| quote::quote! {#x}.to_string() == "specify")
 }
 
 impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
@@ -141,19 +144,25 @@ impl<'p> Tokenizer<'p> {
         let locals = [
             ("sys", py.import("sys").unwrap().to_object(py)),
             ("pathlib", py.import("pathlib").unwrap().to_object(py)),
-            ("root_dir", path.to_object(py))
-        ].into_py_dict(py);
+            ("root_dir", path.to_object(py)),
+        ]
+        .into_py_dict(py);
         // TODO: Make sure we fix path handling for the general case.
         let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
         py.eval(code, None, Some(locals)).unwrap();
 
         let locals = [("tokenizer", py.import("tokenizer").unwrap())].into_py_dict(py);
-        let parser: PyObject = py.eval("tokenizer.Tokenizer()", None, Some(locals)).unwrap().extract().unwrap();
+        let parser: PyObject = py
+            .eval("tokenizer.Tokenizer()", None, Some(locals))
+            .unwrap()
+            .extract()
+            .unwrap();
         Tokenizer { parser, py }
     }
 
     fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Vec<(String, String, String)>>> {
-        self.parser.call_method1(self.py, "stokenize", (sents.to_object(self.py), ))?
+        self.parser
+            .call_method1(self.py, "stokenize", (sents.to_object(self.py),))?
             .extract::<Vec<PyObject>>(self.py)?
             .into_iter()
             .map(|x| x.getattr(self.py, "metadata"))
@@ -177,45 +186,69 @@ impl<'p> SimMatcher<'p> {
             ("sent", sentence.to_object(py)),
             ("parser", parser.parser.clone()),
             ("cutoff", cutoff.to_object(py)),
-        ].into_py_dict(py);
+        ]
+        .into_py_dict(py);
         SimMatcher {
-            sim_matcher: py.eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals)).unwrap().to_object(py),
+            sim_matcher: py
+                .eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals))
+                .unwrap()
+                .to_object(py),
             cutoff,
             py,
         }
     }
 
     fn is_similar(&self, sent: &str) -> PyResult<bool> {
-        let sim: f32 = self.sim_matcher.call_method1(self.py, "sent_similarity", (sent, ))?.extract(self.py)?;
+        let sim: f32 = self
+            .sim_matcher
+            .call_method1(self.py, "sent_similarity", (sent,))?
+            .extract(self.py)?;
         Ok(sim > self.cutoff)
     }
 
     fn any_similar(&self, sents: &[String]) -> PyResult<bool> {
-        self
-            .sim_matcher
+        self.sim_matcher
             .call_method(
                 self.py,
                 "any_similar",
-                (sents.to_object(self.py),
-                 self.cutoff.to_object(self.py)),
+                (sents.to_object(self.py), self.cutoff.to_object(self.py)),
                 None,
-            )?.extract(self.py)
+            )?
+            .extract(self.py)
     }
 
     fn print_seen(&self) {
-        let sents_seen: usize = self.sim_matcher.getattr(self.py, "sents_seen").unwrap().extract(self.py).unwrap();
+        let sents_seen: usize = self
+            .sim_matcher
+            .getattr(self.py, "sents_seen")
+            .unwrap()
+            .extract(self.py)
+            .unwrap();
         println!("{}", sents_seen);
     }
 }
 
-fn sentence_to_trees(parser: &ChartParser<Symbol>, sentence: &[(String, String, String)]) -> Vec<SymbolTree> {
-    let tokens: Result<Vec<TerminalSymbol>, _> = sentence.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+fn sentence_to_trees(
+    parser: &ChartParser<Symbol>,
+    sentence: &[(String, String, String)],
+) -> Vec<SymbolTree> {
+    let tokens: Result<Vec<TerminalSymbol>, _> = sentence
+        .iter()
+        .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
+        .collect();
     let tokens: Vec<_> = match tokens {
         Ok(t) => t.into_iter().map(Symbol::from).collect(),
         Err(_) => return Vec::new(),
     };
 
-    let iter: Vec<_> = sentence.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+    let iter: Vec<_> = sentence
+        .iter()
+        .cloned()
+        .map(|(_tok, text, lemma)| Terminal {
+            word: text,
+            lemma: lemma.to_lowercase(),
+        })
+        .collect();
     match parser.parse(&tokens) {
         Ok(trees) => trees
             .into_iter()
@@ -225,28 +258,37 @@ fn sentence_to_trees(parser: &ChartParser<Symbol>, sentence: &[(String, String, 
     }
 }
 
-fn sentence_to_specifications(parser: &ChartParser<Symbol>, sentence: &[(String, String, String)]) -> (Vec<Specification>, usize) {
-    let tokens: Result<Vec<TerminalSymbol>, _> = sentence.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+fn sentence_to_specifications(
+    parser: &ChartParser<Symbol>,
+    sentence: &[(String, String, String)],
+) -> (Vec<Specification>, usize) {
+    let tokens: Result<Vec<TerminalSymbol>, _> = sentence
+        .iter()
+        .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
+        .collect();
     let tokens: Vec<_> = match tokens {
         Ok(t) => t.into_iter().map(Symbol::from).collect(),
-        Err(_) => return (Vec::new(), 0)
+        Err(_) => return (Vec::new(), 0),
     };
 
-    let iter: Vec<_> = sentence.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+    let iter: Vec<_> = sentence
+        .iter()
+        .cloned()
+        .map(|(_tok, text, lemma)| Terminal {
+            word: text,
+            lemma: lemma.to_lowercase(),
+        })
+        .collect();
     let trees: Vec<_> = match parser.parse(&tokens) {
         Ok(trees) => trees
             .into_iter()
             .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
             .map(parse_tree::tree::S::from)
             .collect(),
-        Err(_) => return (Vec::new(), 0)
+        Err(_) => return (Vec::new(), 0),
     };
     let len = trees.len();
-    (trees
-         .into_iter()
-         .map(Specification::from)
-         .collect(),
-     len)
+    (trees.into_iter().map(Specification::from).collect(), len)
 }
 
 fn search_demo() {
@@ -260,19 +302,34 @@ fn search_demo() {
         let parser = Tokenizer::new(py);
         let matcher = SimMatcher::new(py, "The minimum of two values", &parser, 0.85);
         let start = std::time::Instant::now();
-        let usize_first = HasFnArg { fn_arg_location: FnArgLocation::Output, fn_arg_type: Box::new("f32") };
-        println!("{:?}", tree.search(&|item| usize_first.item_matches(item) && match &item.item {
-            SearchItem::Fn(_) | SearchItem::Method(_) => {
-                item.docs
-                    .sections.first().map(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false)).unwrap_or(false)
-            }
-            _ => false,
-        }, Depth::Infinite).len());
+        let usize_first = HasFnArg {
+            fn_arg_location: FnArgLocation::Output,
+            fn_arg_type: Box::new("f32"),
+        };
+        println!(
+            "{:?}",
+            tree.search(
+                &|item| usize_first.item_matches(item)
+                    && match &item.item {
+                        SearchItem::Fn(_) | SearchItem::Method(_) => {
+                            item.docs
+                                .sections
+                                .first()
+                                .map(|sect| matcher.any_similar(&sect.sentences).unwrap_or(false))
+                                .unwrap_or(false)
+                        }
+                        _ => false,
+                    },
+                Depth::Infinite
+            )
+            .len()
+        );
         let end = std::time::Instant::now();
         println!("Search took {}s", (end - start).as_secs_f32());
         matcher.print_seen();
         Ok(())
-    }).unwrap();
+    })
+    .unwrap();
 }
 
 fn specify_docs<P: AsRef<Path>>(path: P) {
@@ -289,18 +346,33 @@ fn specify_docs<P: AsRef<Path>>(path: P) {
         let tokenizer = Tokenizer::new(py);
 
         let mut sentences = Vec::new();
-        for value in tree.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
+        for value in tree.search(
+            &|x| {
+                matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_))
+                    && !x.docs.sections.is_empty()
+            },
+            Depth::Infinite,
+        ) {
             sentences.extend(&value.docs.sections[0].sentences);
         }
 
-        let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
+        let sentences: Vec<_> = sentences
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(String::from)
+            .collect();
 
         let start = std::time::Instant::now();
         let tokens = tokenizer.tokenize_sents(&sentences)?;
         let end = std::time::Instant::now();
-        println!("Time to tokenize sentences: {}", (end - start).as_secs_f32());
+        println!(
+            "Time to tokenize sentences: {}",
+            (end - start).as_secs_f32()
+        );
         Ok(tokens)
-    }).unwrap();
+    })
+    .unwrap();
 
     let mut ntrees = 0;
     let mut nspecs = 0;
@@ -330,7 +402,11 @@ fn specify_docs<P: AsRef<Path>>(path: P) {
             unsucessful_sents += 1;
         }
         ntrees += trees_len;
-        let count = specs.iter().map(Specification::as_spec).filter(Result::is_ok).count();
+        let count = specs
+            .iter()
+            .map(Specification::as_spec)
+            .filter(Result::is_ok)
+            .count();
         if count != 0 {
             specified_sents += 1;
         }
@@ -357,16 +433,27 @@ fn specify_sentences(sentences: Vec<String>) {
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
         Tokenizer::new(py).tokenize_sents(&sentences)
-    }).unwrap();
+    })
+    .unwrap();
 
     for (metadata, sentence) in tokens.iter().zip(sentences.iter()) {
-        let tokens: Result<Vec<TerminalSymbol>, _> = metadata.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+        let tokens: Result<Vec<TerminalSymbol>, _> = metadata
+            .iter()
+            .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
+            .collect();
         let tokens: Vec<_> = match tokens {
             Ok(t) => t.into_iter().map(Symbol::from).collect(),
             Err(_) => continue,
         };
 
-        let iter: Vec<_> = metadata.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+        let iter: Vec<_> = metadata
+            .iter()
+            .cloned()
+            .map(|(_tok, text, lemma)| Terminal {
+                word: text,
+                lemma: lemma.to_lowercase(),
+            })
+            .collect();
         let trees: Vec<_> = match parser.parse(&tokens) {
             Ok(trees) => trees
                 .into_iter()
@@ -375,11 +462,7 @@ fn specify_sentences(sentences: Vec<String>) {
                 .collect(),
             Err(_) => continue,
         };
-        let specs: Vec<_> = trees
-            .clone()
-            .into_iter()
-            .map(Specification::from)
-            .collect();
+        let specs: Vec<_> = trees.clone().into_iter().map(Specification::from).collect();
         println!("{}", "=".repeat(80));
         println!("Sentence: {}", sentence);
         println!("{}", "=".repeat(80));
@@ -410,16 +493,28 @@ fn specify_file<P: AsRef<Path>>(path: P) -> File {
 
         // Do ahead of time to take advantage of parallelism
         let mut sentences = Vec::new();
-        for value in specifier.searcher.search(&|x| matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_)) && !x.docs.sections.is_empty(), Depth::Infinite) {
+        for value in specifier.searcher.search(
+            &|x| {
+                matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_))
+                    && !x.docs.sections.is_empty()
+            },
+            Depth::Infinite,
+        ) {
             sentences.extend(&value.docs.sections[0].sentences);
         }
 
-        let sentences: Vec<_> = sentences.into_iter().collect::<HashSet<_>>().into_iter().map(String::from).collect();
+        let sentences: Vec<_> = sentences
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(String::from)
+            .collect();
 
         let _ = tokenizer.tokenize_sents(&sentences)?;
         specifier.specify(&tokenizer, &parser);
         Ok(())
-    }).unwrap();
+    })
+    .unwrap();
     specifier.file
 }
 
@@ -437,7 +532,7 @@ enum SubCommand {
     #[clap(name = "specify")]
     Specify {
         #[clap(subcommand)]
-        sub_cmd: Specify
+        sub_cmd: Specify,
     },
     #[clap(name = "render")]
     Render {
@@ -461,13 +556,16 @@ struct EndToEnd {
 enum Specify {
     /// Specifies the sentence, and prints the result to the terminal.
     #[clap(setting = AppSettings::ColoredHelp)]
-    Sentence {
-        sentence: String
-    },
+    Sentence { sentence: String },
     /// Specifies the newline separated sentences in the provided file, and prints the results to the terminal.
     #[clap(setting = AppSettings::ColoredHelp)]
     Testcases {
-        #[clap(short, long, parse(from_os_str), default_value = "../../data/base_grammar_test_cases.txt")]
+        #[clap(
+            short,
+            long,
+            parse(from_os_str),
+            default_value = "../../data/base_grammar_test_cases.txt"
+        )]
         path: PathBuf,
     },
     /// Specifies the file at `path`, and writes the result to `dest`.
@@ -506,7 +604,12 @@ enum Render {
         /// Sentence to specify.
         sentence: String,
         /// Path to write output to.
-        #[clap(short, long, parse(from_os_str), default_value = "../../images/parse_tree.pdf")]
+        #[clap(
+            short,
+            long,
+            parse(from_os_str),
+            default_value = "../../images/parse_tree.pdf"
+        )]
         path: PathBuf,
         /// Open file in browser
         #[clap(short, long)]
@@ -530,24 +633,31 @@ fn repl(py: Python) -> PyResult<()> {
             break;
         }
         let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
-        println!("Tokens: {}", tokens.iter().map(|(token, _, _)| {
-            match TerminalSymbol::from_terminal(token) {
-                Ok(sym) => {
-                    let sym = Symbol::from(sym);
-                    let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
-                    if color == Color::black() {
-                        color = pastel::parser::parse_color("#24e3dd").unwrap();
+        println!(
+            "Tokens: {}",
+            tokens
+                .iter()
+                .map(|(token, _, _)| {
+                    match TerminalSymbol::from_terminal(token) {
+                        Ok(sym) => {
+                            let sym = Symbol::from(sym);
+                            let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
+                            if color == Color::black() {
+                                color = pastel::parser::parse_color("#24e3dd").unwrap();
+                            }
+                            brush.paint(token, color)
+                        }
+                        Err(_) => brush.paint(token, Color::white()),
                     }
-                    brush.paint(token, color)
-                }
-                Err(_) => {
-                    brush.paint(token, Color::white())
-                }
-            }
-        }).join(" "));
+                })
+                .join(" ")
+        );
         let (specs, _) = sentence_to_specifications(&parser, &tokens);
         if specs.is_empty() {
-            println!("{}", brush.paint("No specification generated", Color::red()));
+            println!(
+                "{}",
+                brush.paint("No specification generated", Color::red())
+            );
         }
         for (i, spec) in specs.iter().enumerate() {
             println!("Specification {}/{}", i + 1, specs.len());
@@ -597,7 +707,11 @@ fn main() {
                 .stdout(Stdio::piped())
                 .spawn()
                 .unwrap();
-            cmd.stdin.as_mut().unwrap().write(output.as_bytes()).unwrap();
+            cmd.stdin
+                .as_mut()
+                .unwrap()
+                .write(output.as_bytes())
+                .unwrap();
             let output = cmd.wait_with_output().unwrap();
             println!("{}", String::from_utf8(output.stdout).unwrap());
         }
@@ -616,16 +730,23 @@ fn main() {
                 let output = quote::quote! {#file}.to_string();
                 std::fs::write(&dest, output).unwrap();
 
-                if std::process::Command::new("rustfmt").arg(&dest).spawn().is_ok() {
-                    println!("Formatted output file, result available at {}", dest.display())
+                if std::process::Command::new("rustfmt")
+                    .arg(&dest)
+                    .spawn()
+                    .is_ok()
+                {
+                    println!(
+                        "Formatted output file, result available at {}",
+                        dest.display()
+                    )
                 } else {
                     println!("Output file {} could not be formatted", dest.display())
                 }
             }
             Specify::Docs { path } => {
-                let path = path.unwrap_or_else(||
+                let path = path.unwrap_or_else(|| {
                     toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0])
-                );
+                });
                 specify_docs(path);
             }
             Specify::Testcases { path } => {
@@ -645,7 +766,11 @@ fn main() {
             }
         },
         SubCommand::Render { sub_cmd } => match sub_cmd {
-            Render::ParseTree { sentence, path, open_browser } => {
+            Render::ParseTree {
+                sentence,
+                path,
+                open_browser,
+            } => {
                 let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
@@ -657,12 +782,16 @@ fn main() {
                         Some(tree) => visualization::tree::render_tree(tree, &path).unwrap(),
                     }
                     if open_browser {
-                        py.run("import webbrowser; webbrowser.open(path)", None, Some([("path", path.to_object(py))].into_py_dict(py)))?;
+                        py.run(
+                            "import webbrowser; webbrowser.open(path)",
+                            None,
+                            Some([("path", path.to_object(py))].into_py_dict(py)),
+                        )?;
                     }
                     Ok(())
-                }).unwrap();
+                })
+                .unwrap();
             }
-        }
+        },
     }
 }
-

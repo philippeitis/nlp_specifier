@@ -1,11 +1,12 @@
 use itertools::Itertools;
-
-use syn::{Expr, Attribute, Error};
 use syn::parse::{Parse, ParseStream};
-use serde_json::to_string;
+use syn::{Attribute, Expr};
 
-use crate::nl_ir::{Op, Code, Literal, Object, MReturn, Assert, Event, Specification, QuantAssert, QuantItem, IsPropMod, Lemma, BinOp, HardAssert, RangeMod, ReturnIf, BoolValue, IfExpr, PropertyOf, IsProperty, Range, UpperBound, MnnMod};
-use crate::parse_tree::tree::{MVB, MJJ};
+use crate::nl_ir::{
+    Assert, BoolValue, Code, Event, HardAssert, IfExpr, IsPropMod, IsProperty, Lemma, Literal,
+    MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, ReturnIf, Specification,
+};
+use crate::parse_tree::tree::{MJJ, MVB};
 
 #[derive(Debug)]
 pub enum SpecificationError {
@@ -42,17 +43,17 @@ impl AsCode for Literal {
     }
 }
 
-
 impl AsCode for Op {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
         let lhs = self.lhs.as_code()?;
         let op = syn::parse_str::<syn::BinOp>(&self.op.to_string())?;
         let rhs = self.rhs.as_code()?;
 
-        Ok(syn::parse_str(&quote::quote! {(#lhs) #op (#rhs)}.to_string())?)
+        Ok(syn::parse_str(
+            &quote::quote! {(#lhs) #op (#rhs)}.to_string(),
+        )?)
     }
 }
-
 
 impl AsCode for Object {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
@@ -63,36 +64,50 @@ impl AsCode for Object {
             Object::PropOf(prop, obj) => {
                 // TODO: Make this an error / resolve cases such as this.
                 let obj = obj.as_code()?;
-                Ok(syn::parse_str(&format!("{}.{}()", prop.prop.lemma(), quote::quote! {#obj}.to_string()))?)
+                Ok(syn::parse_str(&format!(
+                    "{}.{}()",
+                    prop.prop.lemma(),
+                    quote::quote! {#obj}.to_string()
+                ))?)
             }
             Object::Mnn(mnn) => {
                 // TODO: Make this an error / resolve cases such as this.
-                Ok(syn::parse_str(&mnn.adjs.iter().map(MnnMod::lemma).chain(std::iter::once(mnn.root_lemma())).join("_"))?)
+                Ok(syn::parse_str(
+                    &mnn.adjs
+                        .iter()
+                        .map(MnnMod::lemma)
+                        .chain(std::iter::once(mnn.root_lemma()))
+                        .join("_"),
+                )?)
             }
             Object::VbgMnn(vbg, mnn) => {
                 // TODO: Make this an error / resolve cases such as this.
-                Ok(syn::parse_str(&
-                    format!("{}.{}()",
-                        mnn.adjs.iter().map(MnnMod::lemma).chain(std::iter::once(mnn.root_lemma())).join("_"),
-                        vbg.lemma,
+                Ok(syn::parse_str(&format!(
+                    "{}.{}()",
+                    mnn.adjs
+                        .iter()
+                        .map(MnnMod::lemma)
+                        .chain(std::iter::once(mnn.root_lemma()))
+                        .join("_"),
+                    vbg.lemma,
                 ))?)
             }
             Object::Prp(_) => {
                 println!("Prp");
                 Err(SpecificationError::Unimplemented)
-            },
+            }
         }
     }
 }
 
-
 impl AsCode for MReturn {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
         let val = self.ret_val.as_code()?;
-        Ok(syn::parse_str(&quote::quote! {result == (#val)}.to_string())?)
+        Ok(syn::parse_str(
+            &quote::quote! {result == (#val)}.to_string(),
+        )?)
     }
 }
-
 
 impl AsCode for Event {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
@@ -112,7 +127,9 @@ impl Apply for IsProperty {
         let s = match &self.prop_type {
             IsPropMod::Obj(rhs) => {
                 if !["is", "be"].contains(&self.mvb.root_lemma()) {
-                    return Err(SpecificationError::UnsupportedSpec("Relationships between objects must be of the is or be format"));
+                    return Err(SpecificationError::UnsupportedSpec(
+                        "Relationships between objects must be of the is or be format",
+                    ));
                 };
 
                 let rhs = rhs.as_code()?;
@@ -125,7 +142,11 @@ impl Apply for IsProperty {
                     MJJ::JJR(rb, jj) => (rb.as_ref(), &jj.lemma),
                     MJJ::JJS(rb, jj) => (rb.as_ref(), &jj.lemma),
                 };
-                let sym = if rb.map(|x| x.lemma == "not").unwrap_or(false) { "!" } else { "" };
+                let sym = if rb.map(|x| x.lemma == "not").unwrap_or(false) {
+                    "!"
+                } else {
+                    ""
+                };
                 if ["modified", "altered", "changed"].contains(&lemma.as_str()) {
                     let lhs = quote::quote! {#lhs}.to_string();
                     format!("{}({} != old({}))", sym, lhs, lhs)
@@ -137,14 +158,18 @@ impl Apply for IsProperty {
                     format!("{}({}).{}()", sym, quote::quote! {#lhs}.to_string(), lemma)
                 }
             }
-            IsPropMod::Rel(rel) => {
+            IsPropMod::Rel(_rel) => {
                 // return ModRelation(self.tree[-1]).as_code(lhs)
                 println!("PropMod::REL");
                 return Err(SpecificationError::Unimplemented);
             }
             IsPropMod::RangeMod(range) => {
                 let rangex = &range.range;
-                match (rangex.ident.as_ref(), rangex.start.as_ref(), rangex.end.as_ref()) {
+                match (
+                    rangex.ident.as_ref(),
+                    rangex.start.as_ref(),
+                    rangex.end.as_ref(),
+                ) {
                     (None, Some(start), Some(end)) => {
                         let start = start.as_code()?;
                         let end = end.as_code()?;
@@ -170,7 +195,11 @@ impl Apply for IsProperty {
                     format!("overflows!({})", quote::quote! {#lhs}.to_string())
                 } else {
                     // TODO: Make this an error / resolve cases such as this.
-                    format!("({}).{}()", quote::quote! {#lhs}.to_string(), self.mvb.root_lemma())
+                    format!(
+                        "({}).{}()",
+                        quote::quote! {#lhs}.to_string(),
+                        self.mvb.root_lemma()
+                    )
                 }
             }
         };
@@ -194,17 +223,22 @@ impl Apply for IsProperty {
 
 impl AsCode for Assert {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
-        let s = self.objects.iter().map(|objs|
-            objs
-                .iter()
-                .map(Object::as_code)
-                .filter_map(Result::ok)
-                .map(|rhs| self.property.apply(&rhs))
-                .filter_map(Result::ok)
-                .join(" && ")
-        ).join(") || (");
+        let s = self
+            .objects
+            .iter()
+            .map(|objs| {
+                objs.iter()
+                    .map(Object::as_code)
+                    .filter_map(Result::ok)
+                    .map(|rhs| self.property.apply(&rhs))
+                    .filter_map(Result::ok)
+                    .join(" && ")
+            })
+            .join(") || (");
         if s.is_empty() {
-            return Err(SpecificationError::UnsupportedSpec("No valid elements found in specification"));
+            return Err(SpecificationError::UnsupportedSpec(
+                "No valid elements found in specification",
+            ));
         }
         Ok(syn::parse_str(&format!("({})", s))?)
     }
@@ -226,7 +260,6 @@ pub trait AsSpec {
     fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError>;
 }
 
-
 impl AsSpec for Specification {
     fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
         match self {
@@ -239,7 +272,7 @@ impl AsSpec for Specification {
             Specification::HAssert(hassert) => hassert.as_spec(),
             Specification::QAssert(qassert) => qassert.as_spec(),
             Specification::RetIf(returnif) => returnif.as_spec(),
-            Specification::Side => Err(SpecificationError::Unimplemented)
+            Specification::Side => Err(SpecificationError::Unimplemented),
         }
     }
 }
@@ -252,7 +285,11 @@ impl AsSpec for HardAssert {
             "requires"
         };
         let assert = self.assert.as_code()?;
-        let e: AttrHelper = syn::parse_str(&format!("#[{}({})]", cond, quote::quote! {#assert}.to_string()))?;
+        let e: AttrHelper = syn::parse_str(&format!(
+            "#[{}({})]",
+            cond,
+            quote::quote! {#assert}.to_string()
+        ))?;
         Ok(e.attrs)
     }
 }
@@ -290,7 +327,7 @@ pub struct ExprQuantifierU {
 impl ExprQBody {
     fn flip(&mut self) {
         match self {
-            ExprQBody::String(s) => {}
+            ExprQBody::String(_s) => {}
             ExprQBody::IffExpr(IffExpr { lhs, rhs }) => std::mem::swap(lhs, rhs),
         }
     }
@@ -324,7 +361,8 @@ impl AsCodeValue for QuantAssert {
                 let ident = match &range.range.ident {
                     Some(o) => o,
                     None => &self.quant_expr.quant.obj,
-                }.as_code()?;
+                }
+                .as_code()?;
                 let start = match &range.range.start {
                     // TODO: Type resolution and appropriate minimum detection here.
                     //     Ensure that we check specifically for numerical types which Prusti supports.
@@ -335,11 +373,23 @@ impl AsCodeValue for QuantAssert {
                 let cmp = range.upper_bound.lt().to_string();
                 let end = range.range.end.as_ref().unwrap().as_code()?;
                 let conditions = vec![vec![
-                    format!("{} <= {}", quote::quote! {#start}.to_string(), quote::quote! {#ident}.to_string()),
-                    format!("{} {} {}", quote::quote! {#ident}.to_string(), cmp, quote::quote! {#end}.to_string()),
+                    format!(
+                        "{} <= {}",
+                        quote::quote! {#start}.to_string(),
+                        quote::quote! {#ident}.to_string()
+                    ),
+                    format!(
+                        "{} {} {}",
+                        quote::quote! {#ident}.to_string(),
+                        cmp,
+                        quote::quote! {#end}.to_string()
+                    ),
                 ]];
 
-                let conditions = conditions.into_iter().map(|x| x.join(" && ")).join(") || (");
+                let conditions = conditions
+                    .into_iter()
+                    .map(|x| x.join(" && "))
+                    .join(") || (");
                 ExprQuantifierU {
                     universal: self.quant_expr.quant.universal,
                     bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
@@ -357,15 +407,17 @@ impl AsCodeValue for ExprQuantifierU {
     type Output = String;
 
     fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
-        let quant = if self.universal {
-            "forall"
-        } else {
-            "forsome"
-        };
-        let idents = self.bound_vars.iter().map(|(name, ty)| format!("{}: {}", name, ty)).join(", ");
+        let quant = if self.universal { "forall" } else { "forsome" };
+        let idents = self
+            .bound_vars
+            .iter()
+            .map(|(name, ty)| format!("{}: {}", name, ty))
+            .join(", ");
         Ok(match &self.body {
             ExprQBody::String(s) => format!("{}(|{}| {})", quant, idents, s),
-            ExprQBody::IffExpr(IffExpr { lhs, rhs }) => format!("{}(|{}| ({}) ==> ({}))", quant, idents, lhs, rhs),
+            ExprQBody::IffExpr(IffExpr { lhs, rhs }) => {
+                format!("{}(|{}| ({}) ==> ({}))", quant, idents, lhs, rhs)
+            }
         })
     }
 }
@@ -383,7 +435,10 @@ impl AsSpec for ReturnIf {
                     match cond.if_expr {
                         IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
                         IfExpr::Iff => {
-                            format!("#[ensures({} ==> {})]\n#[ensures({} ==> {})]", pred, ret_assert, ret_assert, pred)
+                            format!(
+                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
+                                pred, ret_assert, ret_assert, pred
+                            )
                         }
                     }
                 }
@@ -392,16 +447,15 @@ impl AsSpec for ReturnIf {
                     let new_body = match &mut body.body {
                         ExprQBody::String(s) => {
                             let s = std::mem::take(s);
-                            ExprQBody::IffExpr(IffExpr { lhs: s, rhs: ret_assert.clone() })
+                            ExprQBody::IffExpr(IffExpr {
+                                lhs: s,
+                                rhs: ret_assert.clone(),
+                            })
                         }
-                        ExprQBody::IffExpr(IffExpr { lhs, rhs }) => {
-                            ExprQBody::IffExpr(
-                                IffExpr {
-                                    lhs: std::mem::take(lhs),
-                                    rhs: format!("{} && {}", rhs, ret_assert),
-                                }
-                            )
-                        }
+                        ExprQBody::IffExpr(IffExpr { lhs, rhs }) => ExprQBody::IffExpr(IffExpr {
+                            lhs: std::mem::take(lhs),
+                            rhs: format!("{} && {}", rhs, ret_assert),
+                        }),
                     };
                     body.body = new_body;
 
@@ -411,12 +465,16 @@ impl AsSpec for ReturnIf {
                             let mut s = format!("#[ensures({})]", body.as_code_value()?);
                             let mut body = q.as_code_value()?;
                             let new_body = match &mut body.body {
-                                ExprQBody::String(s) => ExprQBody::IffExpr(
-                                    IffExpr { lhs: ret_assert, rhs: std::mem::take(s) }
-                                ),
-                                ExprQBody::IffExpr(IffExpr { lhs, rhs }) => ExprQBody::IffExpr(
-                                    IffExpr { lhs: ret_assert, rhs: format!("({} && {})", lhs, rhs) }
-                                )
+                                ExprQBody::String(s) => ExprQBody::IffExpr(IffExpr {
+                                    lhs: ret_assert,
+                                    rhs: std::mem::take(s),
+                                }),
+                                ExprQBody::IffExpr(IffExpr { lhs, rhs }) => {
+                                    ExprQBody::IffExpr(IffExpr {
+                                        lhs: ret_assert,
+                                        rhs: format!("({} && {})", lhs, rhs),
+                                    })
+                                }
                             };
                             body.body = new_body;
                             s.push_str(&format!("\n#[ensures({})]", body.as_code_value()?));
@@ -430,7 +488,10 @@ impl AsSpec for ReturnIf {
                     match cond.if_expr {
                         IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
                         IfExpr::Iff => {
-                            format!("#[ensures({} ==> {})]\n#[ensures({} ==> {})]", pred, ret_assert, ret_assert, pred)
+                            format!(
+                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
+                                pred, ret_assert, ret_assert, pred
+                            )
                         }
                     }
                 }

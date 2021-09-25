@@ -1,11 +1,11 @@
-use std::io::{Write, BufWriter};
-use std::path::Path;
-use std::fs::OpenOptions;
 use std::collections::HashSet;
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
+use std::path::Path;
 
+use serde::{Deserialize, Serialize};
 use syn::visit::Visit;
-use syn::{ItemFn, ImplItemMethod};
-use serde::{Serialize, Deserialize};
+use syn::{ImplItemMethod, ItemFn};
 
 use crate::docs::Docs;
 
@@ -26,7 +26,10 @@ impl<'ast> Visit<'ast> for JsonLValues {
             None => {}
             Some(s) => {
                 for sentence in &s.sentences {
-                    self.lines.insert(JsonL { sentence: sentence.clone(), label: Vec::new() });
+                    self.lines.insert(JsonL {
+                        sentence: sentence.clone(),
+                        label: Vec::new(),
+                    });
                 }
             }
         }
@@ -38,7 +41,10 @@ impl<'ast> Visit<'ast> for JsonLValues {
             None => {}
             Some(s) => {
                 for sentence in &s.sentences {
-                    self.lines.insert(JsonL { sentence: sentence.clone(), label: Vec::new() });
+                    self.lines.insert(JsonL {
+                        sentence: sentence.clone(),
+                        label: Vec::new(),
+                    });
                 }
             }
         }
@@ -47,11 +53,19 @@ impl<'ast> Visit<'ast> for JsonLValues {
 
 impl JsonLValues {
     pub(crate) fn new() -> Self {
-        JsonLValues { lines: HashSet::new() }
+        JsonLValues {
+            lines: HashSet::new(),
+        }
     }
 
     pub(crate) fn write_to_path<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
-        let mut writer = BufWriter::new(OpenOptions::new().create(true).truncate(true).write(true).open(path)?);
+        let mut writer = BufWriter::new(
+            OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(path)?,
+        );
         for line in &self.lines {
             writer.write(serde_json::to_string(line).unwrap().as_bytes())?;
             writer.write(b"\n")?;

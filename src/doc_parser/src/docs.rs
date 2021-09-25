@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use syn::Attribute;
 
 #[derive(Default)]
@@ -30,17 +31,17 @@ pub fn split_string_on(s: &str, c: char) -> Vec<&str> {
     while let Some((ind, cx)) = char_inds.next() {
         match looking_for {
             Some(')') => match cx {
-                '"' | '`' | '\'' => while let Some((_, cx_)) = char_inds.next() {
-                    if cx_ == cx {
-                        break;
+                '"' | '`' | '\'' => {
+                    while let Some((_, cx_)) = char_inds.next() {
+                        if cx_ == cx {
+                            break;
+                        }
                     }
-                },
+                }
                 ')' => looking_for = None,
                 _ => continue,
             },
-            Some(x) if x == cx => {
-                looking_for = None
-            }
+            Some(x) if x == cx => looking_for = None,
             Some(_) => continue,
             None => match cx {
                 '"' | '`' | '\'' => looking_for = Some(cx),

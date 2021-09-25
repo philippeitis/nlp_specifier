@@ -1,8 +1,10 @@
-use itertools::Itertools;
-use crate::parse_tree::{SymbolTree, Symbol};
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
 use std::process::Stdio;
+
+use itertools::Itertools;
+
+use crate::parse_tree::{Symbol, SymbolTree};
 
 enum GraphvizSubcommand {
     Dot,
@@ -49,8 +51,14 @@ struct Node {
 
 impl Edge {
     fn prop_str(&self) -> String {
-        [("color", Some(&self.color)), ("arrowhead", Some(&self.arrowhead)), ("style", self.style.as_ref())]
-            .iter().filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val))).join(" ")
+        [
+            ("color", Some(&self.color)),
+            ("arrowhead", Some(&self.arrowhead)),
+            ("style", self.style.as_ref()),
+        ]
+            .iter()
+            .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
+            .join(" ")
     }
 
     fn to_dot(&self) -> String {
@@ -60,8 +68,15 @@ impl Edge {
 
 impl Node {
     fn prop_str(&self) -> String {
-        [("label", Some(&self.label)), ("shape", Some(&self.shape)), ("color", Some(&self.color)), ("fontcolor", Some(&self.fontcolor))]
-            .iter().filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val))).join(" ")
+        [
+            ("label", Some(&self.label)),
+            ("shape", Some(&self.shape)),
+            ("color", Some(&self.color)),
+            ("fontcolor", Some(&self.fontcolor)),
+        ]
+            .iter()
+            .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
+            .join(" ")
     }
 
     fn to_dot(&self) -> String {
@@ -74,13 +89,22 @@ enum Item {
     Edge(Edge),
 }
 
-fn tree_to_graph_helper(tree: &SymbolTree, counter: &mut Counter, leaf_color: Option<&str>, items: &mut Vec<Item>) {
+fn tree_to_graph_helper(
+    tree: &SymbolTree,
+    counter: &mut Counter,
+    leaf_color: Option<&str>,
+    items: &mut Vec<Item>,
+) {
     let id = counter.peek();
     match tree {
         SymbolTree::Terminal(t) => {
-            items.push(
-                Item::Node(Node { id: id.to_string(), label: t.word.clone(), shape: "box".to_string(), color: leaf_color.unwrap().to_string(), fontcolor: leaf_color.unwrap().to_string() })
-            );
+            items.push(Item::Node(Node {
+                id: id.to_string(),
+                label: t.word.clone(),
+                shape: "box".to_string(),
+                color: leaf_color.unwrap().to_string(),
+                fontcolor: leaf_color.unwrap().to_string(),
+            }));
         }
         SymbolTree::Branch(pos, branches) => {
             let color = tag_color(pos);
@@ -95,7 +119,14 @@ fn tree_to_graph_helper(tree: &SymbolTree, counter: &mut Counter, leaf_color: Op
                 let child_id = counter.next();
                 let (style, child_color) = match child {
                     SymbolTree::Terminal(_) => (None, color),
-                    SymbolTree::Branch(sym, _) => (Some("bold".to_string()), if color == tag_color(sym) { color } else { "#000000" })
+                    SymbolTree::Branch(sym, _) => (
+                        Some("bold".to_string()),
+                        if color == tag_color(sym) {
+                            color
+                        } else {
+                            "#000000"
+                        },
+                    ),
                 };
                 items.push(Item::Edge(Edge {
                     color: child_color.to_string(),
@@ -118,10 +149,13 @@ fn tree_to_graph(tree: &SymbolTree) -> Vec<Item> {
 }
 
 pub(crate) fn render_tree<P: AsRef<Path>>(tree: &SymbolTree, path: P) -> std::io::Result<()> {
-    let dot_str = tree_to_graph(tree).into_iter().map(|x| match x {
-        Item::Node(n) => n.to_dot(),
-        Item::Edge(e) => e.to_dot(),
-    }).join("\n");
+    let dot_str = tree_to_graph(tree)
+        .into_iter()
+        .map(|x| match x {
+            Item::Node(n) => n.to_dot(),
+            Item::Edge(e) => e.to_dot(),
+        })
+        .join("\n");
     let file_format = match path.as_ref().extension() {
         None => "pdf",
         Some(ext) => ext.to_str().unwrap_or("pdf"),
@@ -132,7 +166,10 @@ pub(crate) fn render_tree<P: AsRef<Path>>(tree: &SymbolTree, path: P) -> std::io
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
-    cmd.stdin.as_mut().unwrap().write(format!("digraph {{ {}}}\n", dot_str).as_bytes())?;
+    cmd.stdin
+        .as_mut()
+        .unwrap()
+        .write(format!("digraph {{ {}}}\n", dot_str).as_bytes())?;
     println!("digraph {{ {}}}\n", dot_str);
     let output = cmd.wait_with_output().unwrap();
     std::fs::write(path, output.stdout)
@@ -149,7 +186,7 @@ pub fn tag_color(sym: &Symbol) -> &'static str {
         DT | CC => "#b0b0b0",
         QASSERT | HASSERT | COND => "#E3242B",
         FOR => "#b0b0b0",
-        _ => "#000000"
+        _ => "#000000",
     }
 }
 // Rendering digraphs for production rules (using circo)

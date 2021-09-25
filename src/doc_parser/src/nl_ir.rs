@@ -1,9 +1,12 @@
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use crate::parse_tree::{SymbolTree, Symbol, Terminal};
-use crate::parse_tree::tree::{S, MRET, OBJ, OP, BITOP, ARITHOP, SHIFTOP, LIT, CODE, RANGE, RANGEMOD, QUANT, PROP_OF, MNN, MJJ, VBG, JJ, VBN, RETIF, BOOL_EXPR, COND, ASSERT, MVB, PROP, REL, MREL, TJJ, RB, QASSERT, QUANT_EXPR, HASSERT, EVENT, VBD, MD, PRP};
-
+use crate::parse_tree::tree::{
+    ARITHOP, ASSERT, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, JJ, LIT, MD, MJJ, MNN, MREL,
+    MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE, RANGEMOD, RB, REL,
+    RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN,
+};
+use crate::parse_tree::Terminal;
 
 #[derive(Clone)]
 pub struct Code {
@@ -13,16 +16,14 @@ pub struct Code {
 impl Code {
     fn new(s: &str) -> Self {
         Code {
-            code: s.to_string()
+            code: s.to_string(),
         }
     }
 }
 
 impl From<CODE> for Code {
     fn from(c: CODE) -> Self {
-        Code {
-            code: c.word
-        }
+        Code { code: c.word }
     }
 }
 
@@ -33,17 +34,13 @@ pub struct Literal {
 
 impl From<LIT> for Literal {
     fn from(l: LIT) -> Self {
-        Literal {
-            s: l.word
-        }
+        Literal { s: l.word }
     }
 }
 
 impl Literal {
     fn new(s: &str) -> Self {
-        Literal {
-            s: s.to_string()
-        }
+        Literal { s: s.to_string() }
     }
 }
 
@@ -73,7 +70,7 @@ impl BinOp {
             (BinOp::Or, "logical") => BinOp::Or,
             (BinOp::Or, "boolean") => BinOp::BitOr,
             (BinOp::Or, "bitwise") => BinOp::BitOr,
-            _ => self
+            _ => self,
         }
     }
 
@@ -90,36 +87,28 @@ impl From<OP> for BinOp {
     fn from(op: OP) -> Self {
         match op {
             OP::Bitop(bitop) => match bitop {
-                BITOP::_0(jj, cc) => {
-                    BinOp::from_str(&cc.lemma).unwrap().apply_jj(&jj.lemma)
-                }
-                BITOP::_1(nn, cc) => {
-                    BinOp::from_str(&cc.lemma).unwrap().apply_jj(&nn.lemma)
-                }
+                BITOP::_0(jj, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&jj.lemma),
+                BITOP::_1(nn, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&nn.lemma),
             },
             OP::Arithop(a) => match a {
-                ARITHOP::ARITH(arith, Some(inx)) => if inx.lemma == "from" {
-                    let op = BinOp::from_str(&arith.lemma).unwrap();
-                    if op == BinOp::Sub {
-                        BinOp::SubFrom
+                ARITHOP::ARITH(arith, Some(inx)) => {
+                    if inx.lemma == "from" {
+                        let op = BinOp::from_str(&arith.lemma).unwrap();
+                        if op == BinOp::Sub {
+                            BinOp::SubFrom
+                        } else {
+                            op
+                        }
                     } else {
-                        op
+                        BinOp::from_str(&arith.lemma).unwrap()
                     }
-                } else {
-                    BinOp::from_str(&arith.lemma).unwrap()
                 }
-                ARITHOP::ARITH(arith, None) => {
-                    BinOp::from_str(&arith.lemma).unwrap()
-                }
-            }
+                ARITHOP::ARITH(arith, None) => BinOp::from_str(&arith.lemma).unwrap(),
+            },
             OP::Shiftop(shift) => match shift {
-                SHIFTOP::_0(_, _, _, nn, _) => {
-                    BinOp::shift_with_dir(&nn.lemma).unwrap()
-                }
-                SHIFTOP::_1(jj, _) => {
-                    BinOp::shift_with_dir(&jj.lemma).unwrap()
-                }
-            }
+                SHIFTOP::_0(_, _, _, nn, _) => BinOp::shift_with_dir(&nn.lemma).unwrap(),
+                SHIFTOP::_1(jj, _) => BinOp::shift_with_dir(&jj.lemma).unwrap(),
+            },
         }
     }
 }
@@ -150,7 +139,7 @@ impl FromStr for BinOp {
             "xor" => BinOp::BitXor,
             "and" => BinOp::And,
             "or" => BinOp::Or,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -213,34 +202,24 @@ impl From<OBJ> for Object {
         match obj {
             OBJ::Code(code) => Object::Code(code.into()),
             OBJ::LIT(_, lit) => Object::Lit(lit.into()),
-            OBJ::_0(lhs, op, rhs) => {
-                Object::Op(Op::new(lhs.into(), op.into(), rhs.into()))
-            }
-            OBJ::MNN(_, mnn) => {
-                Object::Mnn(mnn.into())
-            }
-            OBJ::_1(_, vbg, mnn) => {
-                Object::VbgMnn(vbg, mnn.into())
-            }
+            OBJ::_0(lhs, op, rhs) => Object::Op(Op::new(lhs.into(), op.into(), rhs.into())),
+            OBJ::MNN(_, mnn) => Object::Mnn(mnn.into()),
+            OBJ::_1(_, vbg, mnn) => Object::VbgMnn(vbg, mnn.into()),
             OBJ::_2(prop, obj) => {
                 let prop = PropertyOf::from(prop);
                 match Object::from(obj) {
-                    Object::Op(op) => {
-                        match op.op {
-                            BinOp::Sub => match prop.prop.lemma() {
-                                "remainder" => Object::Op(op),
-                                _ => Object::PropOf(prop, Box::new(Object::Op(op))),
-                            }
-                            BinOp::Div => match prop.prop.lemma() {
-                                "remainder" => Object::Op(Op::new(*op.lhs, BinOp::Rem, *op.rhs)),
-                                _ => Object::PropOf(prop, Box::new(Object::Op(op))),
-                            }
+                    Object::Op(op) => match op.op {
+                        BinOp::Sub => match prop.prop.lemma() {
+                            "remainder" => Object::Op(op),
                             _ => Object::PropOf(prop, Box::new(Object::Op(op))),
-                        }
-                    }
-                    x => {
-                        Object::PropOf(prop, Box::new(x))
-                    }
+                        },
+                        BinOp::Div => match prop.prop.lemma() {
+                            "remainder" => Object::Op(Op::new(*op.lhs, BinOp::Rem, *op.rhs)),
+                            _ => Object::PropOf(prop, Box::new(Object::Op(op))),
+                        },
+                        _ => Object::PropOf(prop, Box::new(Object::Op(op))),
+                    },
+                    x => Object::PropOf(prop, Box::new(x)),
                 }
             }
             OBJ::Prp(prp) => Object::Prp(prp),
@@ -269,7 +248,7 @@ impl PropOfMod {
                 MJJ::JJ(_, jj) => &jj.lemma,
                 MJJ::JJR(_, jj) => &jj.lemma,
                 MJJ::JJS(_, jj) => &jj.lemma,
-            }
+            },
         }
     }
 }
@@ -282,16 +261,12 @@ pub struct PropertyOf {
 impl From<PROP_OF> for PropertyOf {
     fn from(prop_of: PROP_OF) -> Self {
         match prop_of {
-            PROP_OF::_0(_, mnn, _, _) | PROP_OF::_1(_, mnn, _) => {
-                PropertyOf {
-                    prop: PropOfMod::Mnn(mnn.into()),
-                }
-            }
-            PROP_OF::_2(_, mjj, _) | PROP_OF::_3(_, mjj, _, _) => {
-                PropertyOf {
-                    prop: PropOfMod::Mjj(mjj),
-                }
-            }
+            PROP_OF::_0(_, mnn, _, _) | PROP_OF::_1(_, mnn, _) => PropertyOf {
+                prop: PropOfMod::Mnn(mnn.into()),
+            },
+            PROP_OF::_2(_, mjj, _) | PROP_OF::_3(_, mjj, _, _) => PropertyOf {
+                prop: PropOfMod::Mjj(mjj),
+            },
         }
     }
 }
@@ -314,36 +289,26 @@ pub enum IsPropMod {
 impl From<PROP> for IsProperty {
     fn from(prop: PROP) -> Self {
         match prop {
-            PROP::_0(mvb, mjj) => {
-                IsProperty {
-                    mvb,
-                    prop_type: IsPropMod::Mjj(mjj.into()),
-                }
-            }
-            PROP::_1(mvb, mrel) => {
-                IsProperty {
-                    mvb,
-                    prop_type: IsPropMod::Rel(mrel.into()),
-                }
-            }
-            PROP::_2(mvb, obj) => {
-                IsProperty {
-                    mvb,
-                    prop_type: IsPropMod::Obj(obj.into()),
-                }
-            }
-            PROP::Mvb(mvb) => {
-                IsProperty {
-                    mvb,
-                    prop_type: IsPropMod::None,
-                }
-            }
-            PROP::_3(mvb, rangemod) => {
-                IsProperty {
-                    mvb,
-                    prop_type: IsPropMod::RangeMod(rangemod.into()),
-                }
-            }
+            PROP::_0(mvb, mjj) => IsProperty {
+                mvb,
+                prop_type: IsPropMod::Mjj(mjj.into()),
+            },
+            PROP::_1(mvb, mrel) => IsProperty {
+                mvb,
+                prop_type: IsPropMod::Rel(mrel.into()),
+            },
+            PROP::_2(mvb, obj) => IsProperty {
+                mvb,
+                prop_type: IsPropMod::Obj(obj.into()),
+            },
+            PROP::Mvb(mvb) => IsProperty {
+                mvb,
+                prop_type: IsPropMod::None,
+            },
+            PROP::_3(mvb, rangemod) => IsProperty {
+                mvb,
+                prop_type: IsPropMod::RangeMod(rangemod.into()),
+            },
         }
     }
 }
@@ -393,7 +358,7 @@ impl Comparator {
         match self {
             Comparator::Lt => Comparator::Lte,
             Comparator::Gt => Comparator::Gte,
-            x => x
+            x => x,
         }
     }
 
@@ -425,20 +390,16 @@ pub struct BoolCond {
 impl From<COND> for BoolCond {
     fn from(cond: COND) -> Self {
         match cond {
-            COND::_0(_if, value) => {
-                BoolCond {
-                    if_expr: IfExpr::If,
-                    negated: false,
-                    value: value.into(),
-                }
-            }
-            COND::_1(_iff, value) => {
-                BoolCond {
-                    if_expr: IfExpr::Iff,
-                    negated: false,
-                    value: value.into(),
-                }
-            }
+            COND::_0(_if, value) => BoolCond {
+                if_expr: IfExpr::If,
+                negated: false,
+                value: value.into(),
+            },
+            COND::_1(_iff, value) => BoolCond {
+                if_expr: IfExpr::Iff,
+                negated: false,
+                value: value.into(),
+            },
         }
     }
 }
@@ -454,18 +415,10 @@ pub enum BoolValue {
 impl From<BOOL_EXPR> for BoolValue {
     fn from(boolexpr: BOOL_EXPR) -> Self {
         match boolexpr {
-            BOOL_EXPR::Assert(a) => {
-                BoolValue::Assert(a.into())
-            }
-            BOOL_EXPR::Qassert(q) => {
-                BoolValue::QAssert(q.into())
-            }
-            BOOL_EXPR::Code(c) => {
-                BoolValue::Code(c.into())
-            }
-            BOOL_EXPR::Event(e) => {
-                BoolValue::Event(e.into())
-            }
+            BOOL_EXPR::Assert(a) => BoolValue::Assert(a.into()),
+            BOOL_EXPR::Qassert(q) => BoolValue::QAssert(q.into()),
+            BOOL_EXPR::Code(c) => BoolValue::Code(c.into()),
+            BOOL_EXPR::Event(e) => BoolValue::Event(e.into()),
         }
     }
 }
@@ -479,7 +432,10 @@ pub struct Event {
 impl From<EVENT> for Event {
     fn from(e: EVENT) -> Self {
         match e {
-            EVENT::_0(mnn, vbd) => Event { mnn: mnn.into(), vbd }
+            EVENT::_0(mnn, vbd) => Event {
+                mnn: mnn.into(),
+                vbd,
+            },
         }
     }
 }
@@ -512,16 +468,18 @@ pub struct MReturn {
 impl From<MRET> for MReturn {
     fn from(mret: MRET) -> Self {
         match mret {
-            MRET::_0(_, ret_val) => {
-                MReturn { ret_val: ret_val.into() }
-            }
+            MRET::_0(_, ret_val) => MReturn {
+                ret_val: ret_val.into(),
+            },
             MRET::_1(ret_val, vbz, _) => {
                 assert!(["is", "be"].contains(&vbz.lemma.as_str()));
-                MReturn { ret_val: ret_val.into() }
+                MReturn {
+                    ret_val: ret_val.into(),
+                }
             }
-            MRET::_2(ret_val, _) => {
-                MReturn { ret_val: ret_val.into() }
-            }
+            MRET::_2(ret_val, _) => MReturn {
+                ret_val: ret_val.into(),
+            },
         }
     }
 }
@@ -558,18 +516,14 @@ pub struct QuantAssert {
 impl From<QASSERT> for QuantAssert {
     fn from(qassert: QASSERT) -> Self {
         match qassert {
-            QASSERT::_0(quant_expr, _, hassert) | QASSERT::_1(hassert, quant_expr) => {
-                QuantAssert {
-                    quant_expr: quant_expr.into(),
-                    assertion: QuantItem::HAssert(hassert.into()),
-                }
-            }
-            QASSERT::_2(code, quant_expr) => {
-                QuantAssert {
-                    quant_expr: quant_expr.into(),
-                    assertion: QuantItem::Code(code.into()),
-                }
-            }
+            QASSERT::_0(quant_expr, _, hassert) | QASSERT::_1(hassert, quant_expr) => QuantAssert {
+                quant_expr: quant_expr.into(),
+                assertion: QuantItem::HAssert(hassert.into()),
+            },
+            QASSERT::_2(code, quant_expr) => QuantAssert {
+                quant_expr: quant_expr.into(),
+                assertion: QuantItem::Code(code.into()),
+            },
         }
     }
 }
@@ -577,7 +531,7 @@ impl From<QASSERT> for QuantAssert {
 impl QuantAssert {
     pub(crate) fn is_precond(&self) -> bool {
         match &self.assertion {
-            QuantItem::Code(c) => false,
+            QuantItem::Code(_c) => false,
             QuantItem::HAssert(h) => h.md.lemma == "must",
         }
     }
@@ -592,12 +546,10 @@ pub struct HardAssert {
 impl From<HASSERT> for HardAssert {
     fn from(hassert: HASSERT) -> Self {
         match hassert {
-            HASSERT::_0(obj, md, prop) => {
-                HardAssert {
-                    md,
-                    assert: Assert::from(ASSERT::_0(obj, prop)),
-                }
-            }
+            HASSERT::_0(obj, md, prop) => HardAssert {
+                md,
+                assert: Assert::from(ASSERT::_0(obj, prop)),
+            },
             HASSERT::_1(obj, cc, hassert) => {
                 let mut hassert = HardAssert::from(hassert);
                 match CC::from_str(&cc.lemma).unwrap() {
@@ -626,13 +578,11 @@ pub struct QuantExpr {
 impl From<QUANT_EXPR> for QuantExpr {
     fn from(qexpr: QUANT_EXPR) -> Self {
         match qexpr {
-            QUANT_EXPR::QUANT(quant, rangemod) => {
-                QuantExpr {
-                    quant: quant.into(),
-                    range: rangemod.map(RangeMod::from),
-                    range_conds: vec![vec![]],
-                }
-            }
+            QUANT_EXPR::QUANT(quant, rangemod) => QuantExpr {
+                quant: quant.into(),
+                range: rangemod.map(RangeMod::from),
+                range_conds: vec![vec![]],
+            },
             QUANT_EXPR::_0(quantexpr, _, cc, mrel) => {
                 let mut quantexpr = QuantExpr::from(quantexpr);
                 match CC::from_str(&cc.lemma).unwrap() {
@@ -685,35 +635,37 @@ pub struct Relation {
 impl From<REL> for Relation {
     fn from(rel: REL) -> Self {
         match rel {
-            REL::_0(tjj, _in, obj) => {
-                Relation {
-                    objects: vec![vec![obj.into()]],
-                    op: Comparator::from_str(match tjj {
+            REL::_0(tjj, _in, obj) => Relation {
+                objects: vec![vec![obj.into()]],
+                op: Comparator::from_str(
+                    match tjj {
                         TJJ::JJ(_, jj) => jj.lemma,
                         TJJ::JJR(_, jjr) => jjr.lemma,
-                        TJJ::JJS(_, jjs) => jjs.lemma
-                    }.as_str()).unwrap_or(Comparator::Neq),
-                    modifier: None,
-                }
-            }
-            REL::_1(tjj, _eqto, obj) => {
-                Relation {
-                    objects: vec![vec![obj.into()]],
-                    op: Comparator::from_str(match tjj {
+                        TJJ::JJS(_, jjs) => jjs.lemma,
+                    }
+                    .as_str(),
+                )
+                .unwrap_or(Comparator::Neq),
+                modifier: None,
+            },
+            REL::_1(tjj, _eqto, obj) => Relation {
+                objects: vec![vec![obj.into()]],
+                op: Comparator::from_str(
+                    match tjj {
                         TJJ::JJ(_, jj) => jj.lemma,
                         TJJ::JJR(_, jjr) => jjr.lemma,
-                        TJJ::JJS(_, jjs) => jjs.lemma
-                    }.as_str()).unwrap_or(Comparator::Neq),
-                    modifier: None,
-                }
-            }
-            REL::_2(_in, obj) => {
-                Relation {
-                    objects: vec![vec![obj.into()]],
-                    op: Comparator::Lt,
-                    modifier: None,
-                }
-            }
+                        TJJ::JJS(_, jjs) => jjs.lemma,
+                    }
+                    .as_str(),
+                )
+                .unwrap_or(Comparator::Neq),
+                modifier: None,
+            },
+            REL::_2(_in, obj) => Relation {
+                objects: vec![vec![obj.into()]],
+                op: Comparator::Lt,
+                modifier: None,
+            },
             REL::_3(rel, cc, obj) => {
                 let mut rel = Relation::from(rel);
                 match CC::from_str(&cc.lemma).unwrap() {
@@ -735,9 +687,7 @@ impl From<MREL> for Relation {
                 rel.modifier = Some(rb);
                 rel
             }
-            MREL::REL(None, rel) => {
-                rel.into()
-            }
+            MREL::REL(None, rel) => rel.into(),
         }
     }
 }
@@ -785,27 +735,21 @@ pub struct Range {
 impl From<RANGE> for Range {
     fn from(r: RANGE) -> Self {
         match r {
-            RANGE::_0(ident, _, start, _, end) => {
-                Self {
-                    ident: Some(ident.into()),
-                    start: Some(start.into()),
-                    end: Some(end.into()),
-                }
-            }
-            RANGE::_1(_, start, _, end) => {
-                Self {
-                    ident: None,
-                    start: Some(start.into()),
-                    end: Some(end.into()),
-                }
-            }
-            RANGE::_2(_, _, end) => {
-                Self {
-                    ident: None,
-                    start: None,
-                    end: Some(end.into()),
-                }
-            }
+            RANGE::_0(ident, _, start, _, end) => Self {
+                ident: Some(ident.into()),
+                start: Some(start.into()),
+                end: Some(end.into()),
+            },
+            RANGE::_1(_, start, _, end) => Self {
+                ident: None,
+                start: Some(start.into()),
+                end: Some(end.into()),
+            },
+            RANGE::_2(_, _, end) => Self {
+                ident: None,
+                start: None,
+                end: Some(end.into()),
+            },
         }
     }
 }
@@ -819,18 +763,14 @@ pub struct RangeMod {
 impl From<RANGEMOD> for RangeMod {
     fn from(rmod: RANGEMOD) -> Self {
         match rmod {
-            RANGEMOD::Range(range) => {
-                Self {
-                    range: range.into(),
-                    upper_bound: UpperBound::Exclusive,
-                }
-            }
-            RANGEMOD::_0(range, _, jj) => {
-                Self {
-                    range: range.into(),
-                    upper_bound: UpperBound::from_str(&jj.lemma).unwrap(),
-                }
-            }
+            RANGEMOD::Range(range) => Self {
+                range: range.into(),
+                upper_bound: UpperBound::Exclusive,
+            },
+            RANGEMOD::_0(range, _, jj) => Self {
+                range: range.into(),
+                upper_bound: UpperBound::from_str(&jj.lemma).unwrap(),
+            },
         }
     }
 }
@@ -844,12 +784,10 @@ pub struct Quantifier {
 impl From<QUANT> for Quantifier {
     fn from(quant: QUANT) -> Self {
         match quant {
-            QUANT::_0(a, dt, obj) => {
-                Quantifier {
-                    universal: ["all", "each", "any"].contains(&dt.lemma.as_str()),
-                    obj: obj.into(),
-                }
-            }
+            QUANT::_0(_a, dt, obj) => Quantifier {
+                universal: ["all", "each", "any"].contains(&dt.lemma.as_str()),
+                obj: obj.into(),
+            },
         }
     }
 }
@@ -878,30 +816,22 @@ pub struct Mnn {
 impl From<MNN> for Mnn {
     fn from(mnn: MNN) -> Self {
         match mnn {
-            MNN::Nn(nn) => {
-                Mnn {
-                    adjs: Vec::with_capacity(0),
-                    root: nn.into(),
-                }
-            }
-            MNN::Nns(nn) => {
-                Mnn {
-                    adjs: Vec::with_capacity(0),
-                    root: nn.into(),
-                }
-            }
-            MNN::Nnp(nn) => {
-                Mnn {
-                    adjs: Vec::with_capacity(0),
-                    root: nn.into(),
-                }
-            }
-            MNN::Nnps(nn) => {
-                Mnn {
-                    adjs: Vec::with_capacity(0),
-                    root: nn.into(),
-                }
-            }
+            MNN::Nn(nn) => Mnn {
+                adjs: Vec::with_capacity(0),
+                root: nn.into(),
+            },
+            MNN::Nns(nn) => Mnn {
+                adjs: Vec::with_capacity(0),
+                root: nn.into(),
+            },
+            MNN::Nnp(nn) => Mnn {
+                adjs: Vec::with_capacity(0),
+                root: nn.into(),
+            },
+            MNN::Nnps(nn) => Mnn {
+                adjs: Vec::with_capacity(0),
+                root: nn.into(),
+            },
             MNN::_0(jj, mnn) => {
                 let mut mnn = Mnn::from(mnn);
                 mnn.adjs.insert(0, MnnMod::Jj(jj));
@@ -938,12 +868,10 @@ pub struct Assert {
 impl From<ASSERT> for Assert {
     fn from(a: ASSERT) -> Self {
         match a {
-            ASSERT::_0(obj, prop) => {
-                Assert {
-                    objects: vec![vec![obj.into()]],
-                    property: prop.into(),
-                }
-            }
+            ASSERT::_0(obj, prop) => Assert {
+                objects: vec![vec![obj.into()]],
+                property: prop.into(),
+            },
             ASSERT::_1(obj, cc, assert) => {
                 let mut assert = Assert::from(assert);
                 match CC::from_str(&cc.lemma).unwrap() {
@@ -973,7 +901,7 @@ impl From<RETIF> for ReturnIf {
             RETIF::_0(mret, cond) | RETIF::_1(cond, _, mret) => {
                 let mret = MReturn::from(mret);
                 ReturnIf {
-                    ret_pred: vec![(cond.into(), mret.ret_val)]
+                    ret_pred: vec![(cond.into(), mret.ret_val)],
                 }
             }
             RETIF::_2(retif1, _, rb, retif2) => {
@@ -998,7 +926,7 @@ impl From<RETIF> for ReturnIf {
                 let mut cond = ow_cond.clone();
                 cond.negated = true;
                 ReturnIf {
-                    ret_pred: vec![(ow_cond, ow_mret.ret_val), (cond, mret.ret_val)]
+                    ret_pred: vec![(ow_cond, ow_mret.ret_val), (cond, mret.ret_val)],
                 }
             }
         }

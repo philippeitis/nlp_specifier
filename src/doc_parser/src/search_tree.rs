@@ -1,10 +1,14 @@
-use crate::docs::Docs;
 use std::convert::TryFrom;
-
+use std::fmt::{Debug, Display, Formatter};
 use std::num::NonZeroUsize;
-use syn::{ItemConst, ItemEnum, ItemFn, ItemStruct, ImplItemConst, ImplItemMethod, Item, Attribute, Generics, Path, Type, ImplItem, ItemImpl, Visibility, ItemMod, File};
-use std::fmt::{Display, Formatter, Debug};
+
 use quote::ToTokens;
+use syn::{
+    Attribute, File, Generics, ImplItem, ImplItemConst, ImplItemMethod, Item, ItemConst, ItemEnum,
+    ItemFn, ItemImpl, ItemMod, ItemStruct, Path, Type, Visibility,
+};
+
+use crate::docs::Docs;
 
 pub enum SearchItem {
     Const(ItemConst),
@@ -133,8 +137,9 @@ impl TryFrom<&Item> for SearchValue {
             // Item::Use(_) => {}
             // Item::Verbatim(_) => {}
             // Item::__TestExhaustive(_) => {}
-            _ => return Err(())
-        }.into())
+            _ => return Err(()),
+        }
+        .into())
     }
 }
 
@@ -162,11 +167,11 @@ impl TryFrom<Item> for SearchValue {
             // Item::Use(_) => {}
             // Item::Verbatim(_) => {}
             // Item::__TestExhaustive(_) => {}
-            _ => return Err(())
-        }.into())
+            _ => return Err(()),
+        }
+        .into())
     }
 }
-
 
 #[derive(Debug)]
 pub struct SearchItemImpl {
@@ -187,7 +192,8 @@ impl TryFrom<&ImplItem> for SearchValue {
             ImplItem::Const(item) => SearchItem::ImplConst(item.clone()),
             ImplItem::Method(item) => SearchItem::Method(item.clone()),
             _ => return Err(()),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -199,7 +205,8 @@ impl TryFrom<ImplItem> for SearchValue {
             ImplItem::Const(item) => SearchItem::ImplConst(item),
             ImplItem::Method(item) => SearchItem::Method(item),
             _ => return Err(()),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -212,7 +219,12 @@ impl From<&ItemImpl> for SearchItemImpl {
             generics: impl_item.generics.clone(),
             trait_: impl_item.trait_.as_ref().map(|(_, path, _)| path.clone()),
             self_ty: impl_item.self_ty.clone(),
-            items: impl_item.items.iter().map(SearchValue::try_from).filter_map(Result::ok).collect(),
+            items: impl_item
+                .items
+                .iter()
+                .map(SearchValue::try_from)
+                .filter_map(Result::ok)
+                .collect(),
         }
     }
 }
@@ -230,9 +242,13 @@ pub struct SearchItemMod {
 impl From<&ItemMod> for SearchItemMod {
     fn from(mod_item: &ItemMod) -> Self {
         let docs = Docs::from(&mod_item.attrs);
-        let content = mod_item.content.as_ref().map(
-            |(_, content)| content.iter().map(SearchValue::try_from).filter_map(Result::ok).collect()
-        );
+        let content = mod_item.content.as_ref().map(|(_, content)| {
+            content
+                .iter()
+                .map(SearchValue::try_from)
+                .filter_map(Result::ok)
+                .collect()
+        });
         SearchItemMod {
             docs,
             attrs: mod_item.attrs.clone(),
@@ -275,18 +291,32 @@ impl SearchTree {
         SearchTree {
             docs: Docs::from(&file.attrs),
             attrs: file.attrs.clone(),
-            items: file.items.iter().map(SearchValue::try_from).filter_map(Result::ok).collect(),
+            items: file
+                .items
+                .iter()
+                .map(SearchValue::try_from)
+                .filter_map(Result::ok)
+                .collect(),
         }
     }
 
-    pub fn search<Q: Fn(&SearchValue) -> bool>(&self, query: &Q, depth: Depth) -> Vec<&SearchValue> {
+    pub fn search<Q: Fn(&SearchValue) -> bool>(
+        &self,
+        query: &Q,
+        depth: Depth,
+    ) -> Vec<&SearchValue> {
         let mut values = Vec::new();
         search(&self.items, query, depth, &mut values);
         values
     }
 }
 
-pub fn search<'a, Q: Fn(&SearchValue) -> bool>(items: &'a [SearchValue], query: &Q, depth: Depth, values: &mut Vec<&'a SearchValue>) {
+pub fn search<'a, Q: Fn(&SearchValue) -> bool>(
+    items: &'a [SearchValue],
+    query: &Q,
+    depth: Depth,
+    values: &mut Vec<&'a SearchValue>,
+) {
     if depth == Depth::Done {
         return;
     }
@@ -301,7 +331,7 @@ pub fn search<'a, Q: Fn(&SearchValue) -> bool>(items: &'a [SearchValue], query: 
                 Some(mod_items) => {
                     search(mod_items, query, depth.enter(), values);
                 }
-            }
+            },
             _ => {}
         }
         if query(item) {
