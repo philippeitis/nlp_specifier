@@ -1,7 +1,5 @@
-#![allow(clippy)]
-
+#![allow(non_camel_case_types)]
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
-use std::convert::TryFrom;
 
 #[derive(Clone)]
 pub enum S {

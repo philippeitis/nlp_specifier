@@ -1,8 +1,8 @@
-use std::fmt::{Formatter, Write};
+#![allow(non_camel_case_types)]
+use std::fmt::Formatter;
 use std::hash::Hash;
 
 use chartparse::grammar::ParseSymbol;
-use chartparse::production::{NonTerminal, Terminal as CTerminal};
 use chartparse::tree::TreeNode;
 use chartparse::TreeWrapper;
 
