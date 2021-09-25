@@ -18,8 +18,22 @@ cd ./src/doc_parser/ && cargo build --release ; cd ..
 ## NLP Processing
 The NLP parsing code tokenizes, assigns parts of speech tags to tokens, and detects named entities using spaCy. To set up the dependencies, run [src/setup.sh](src/setup.sh):
 ```bash
-cd ./nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+cd ./src/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
+
+This installs:
+
+| Dependency | Required | Purpose |
+| :--- | :---: | :--- |
+| python3-dev | Yes | embed a Python interpreter into the Rust executable |
+| spaCy (via pip) | Yes | NLP Processing |
+| spaCy.en_core_web_lg | Yes | Language model |
+| unidecode (via pip) | Yes | Cleaning input to spaCy and JML NLP |
+| requests (via pip) | Yes | Interfacing with JML NLP |
+| nltk (via pip) | No (dev) | code-generation | 
+| networkx (via pip) | No (dev) | detecting cycles in code-generation |
+| graphviz | No | Rendering parse-trees |
+| click | No | Visualization CLI interface |
 
 Optionally, it may be useful to review these links:
 
