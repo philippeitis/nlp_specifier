@@ -495,6 +495,7 @@ enum Specify {
     Repl,
 }
 
+/// Visualization of various components in the pipeline
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
 enum Render {

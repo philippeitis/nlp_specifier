@@ -60,28 +60,41 @@ After running this script, the SRL service will be available at 127.0.0.8:701, a
 The NER and SRL models are sourced from `Combining formal and machine learning techniques for the generation of JML specifications`.
 
 # Usage
-Once installation is complete, this project can be used through `doc_parser`. Run the following command to see a list of all possible commands.
+Once installation is complete, this project can be used through `doc_parser`. To run the program, use `./doc_parser`, or `cargo run --release` at the 
+appropriate locations. Run the following command to see a list of all possible commands.
 ```console
-foo@bar:~$ python -m doc_parser --help
-Usage: __main__.py [OPTIONS] COMMAND [ARGS]...
+foo@bar:~$ ./doc_parser -h
+doc_parser
 
-Options:
-  --help  Show this message and exit.
+USAGE:
+    doc_parser <SUBCOMMAND>
 
-Commands:
-  end-to-end  Demonstrates entire pipeline from end to end on provided file.
-  render      Visualization of various components in the system's pipeline.
-  specify     Creates specifications for a variety of sources.
+FLAGS:
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+SUBCOMMANDS:
+    end-to-end    Demonstrates entire pipeline from start to end on provided file, writing
+                  output to terminal
+    help          Print this message or the help of the given subcommand(s)
+    render        Visualization of various components in the system's pipeline
+    specify       Creates specifications for a variety of sources
 ```
 
 To see more specific help, do the following:
 ```console
-foo@bar:~$ python -m doc_parser end-to-end --help
-Usage: __main__.py end-to-end [OPTIONS]
+foo@bar:~$ ./doc_parser end-to-end --help
+doc_parser-end-to-end 
 
-  Demonstrates entire pipeline from end to end on provided file.
+Demonstrates entire pipeline from start to end on provided file, writing output to terminal
 
-Options:
-  -p, --path PATH  Source file to specify.
-  --help           Show this message and exit.
+USAGE:
+    doc_parser end-to-end [OPTIONS]
+
+FLAGS:
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+OPTIONS:
+    -p, --path <PATH>    Source file to specify [default: ../../data/test3.rs]
 ```
