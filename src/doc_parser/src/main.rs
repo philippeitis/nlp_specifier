@@ -5,7 +5,7 @@ use std::io::Write;
 
 use pyo3::{Python, PyResult, PyObject, ToPyObject, IntoPy};
 use pyo3::types::IntoPyDict;
-use pyo3::exceptions::PyStopIteration;
+use pyo3::exceptions::{PyStopIteration, PyKeyboardInterrupt};
 
 use syn::visit_mut::VisitMut;
 use syn::{File, parse_file, Attribute, ImplItemMethod, ItemFn, PatPath};
@@ -34,6 +34,8 @@ use parse_html::{toolchain_path_to_html_root, get_toolchain_dirs, file_from_root
 use nl_ir::Specification;
 use parse_tree::{SymbolTree, Terminal, Symbol, tree::TerminalSymbol};
 use grammar::AsSpec;
+use crate::visualization::tree::tag_color;
+use itertools::Itertools;
 
 
 #[macro_use]
@@ -146,7 +148,7 @@ impl<'p> Tokenizer<'p> {
         py.eval(code, None, Some(locals)).unwrap();
 
         let locals = [("tokenizer", py.import("tokenizer").unwrap())].into_py_dict(py);
-        let parser: PyObject = py.eval("tokenizer.Tokenizer.default()", None, Some(locals)).unwrap().extract().unwrap();
+        let parser: PyObject = py.eval("tokenizer.Tokenizer()", None, Some(locals)).unwrap().extract().unwrap();
         Tokenizer { parser, py }
     }
 
@@ -512,6 +514,58 @@ enum Render {
     },
 }
 
+fn repl(py: Python) -> PyResult<()> {
+    use pastel::Color;
+    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+    let parser = ChartParser::from_grammar(&cfg);
+    let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
+
+    println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
+    let tokenizer = Tokenizer::new(py);
+    println!("Finished loading parser.");
+    loop {
+        // Python hijacks stdin
+        let sent: String = py.eval("input(\'>>> \')", None, None)?.extract()?;
+        if ["exit", "quit"].contains(&sent.as_str()) {
+            break;
+        }
+        let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
+        println!("Tokens: {}", tokens.iter().map(|(token, _, _)| {
+            match TerminalSymbol::from_terminal(token) {
+                Ok(sym) => {
+                    let sym = Symbol::from(sym);
+                    let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
+                    if color == Color::black() {
+                        color = pastel::parser::parse_color("#24e3dd").unwrap();
+                    }
+                    brush.paint(token, color)
+                }
+                Err(_) => {
+                    brush.paint(token, Color::white())
+                }
+            }
+        }).join(" "));
+        let (specs, _) = sentence_to_specifications(&parser, &tokens);
+        if specs.is_empty() {
+            println!("{}", brush.paint("No specification generated", Color::red()));
+        }
+        for (i, spec) in specs.iter().enumerate() {
+            println!("Specification {}/{}", i + 1, specs.len());
+            match spec.as_spec() {
+                Ok(attrs) => {
+                    for attr in attrs {
+                        println!("{}", quote::quote! {#attr}.to_string());
+                    }
+                }
+                Err(e) => {
+                    println!("{}", brush.paint(format!("FAILURE: {:?}", e), Color::red()));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     let opts: Opts = Opts::parse();
     // TODO: Detect duplicate invocations.
@@ -579,40 +633,15 @@ fn main() {
                 specify_sentences(testcases.lines().into_iter().map(String::from).collect())
             }
             Specify::Repl => {
-                let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
-                let parser = ChartParser::from_grammar(&cfg);
-                Python::with_gil(|py| -> PyResult<()> {
-                    println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
-                    let tokenizer = Tokenizer::new(py);
-                    println!("Finished loading parser.");
-                    loop {
-                        // Python hijacks stdin
-                        let sent: String = py.eval("input(\'>>> \')", None, None)?.extract()?;
-                        if ["exit", "quit"].contains(&sent.as_str()) {
-                            break;
-                        }
-
-                        let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
-                        let (specs, _) = sentence_to_specifications(&parser, &tokens);
-                        if specs.is_empty() {
-                            println!("No specification generated")
-                        }
-                        for (i, spec) in specs.iter().enumerate() {
-                            println!("Specification {}/{}", i + 1, specs.len());
-                            match spec.as_spec() {
-                                Ok(attrs) => {
-                                    for attr in attrs {
-                                        println!("{}", quote::quote! {#attr}.to_string());
-                                    }
-                                }
-                                Err(e) => {
-                                    println!("FAILURE: {:?}", e);
-                                }
-                            }
-                        }
+                Python::with_gil(|py| match repl(py) {
+                    Ok(_) => {}
+                    Err(e) if e.is_instance::<PyKeyboardInterrupt>(py) => {
+                        println!()
                     }
-                    Ok(())
-                }).unwrap();
+                    Err(e) => {
+                        println!("Process failed due to {:?}", e);
+                    }
+                });
             }
         },
         SubCommand::Render { sub_cmd } => match sub_cmd {

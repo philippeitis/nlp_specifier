@@ -26,3 +26,4 @@ pyo3 = { version = "0.14.5", features = ["auto-initialize"]}
 
 itertools = "0.10.1"
 clap = "3.0.0-beta.4"
+pastel = "0.8.1"

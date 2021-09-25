@@ -138,7 +138,7 @@ pub(crate) fn render_tree<P: AsRef<Path>>(tree: &SymbolTree, path: P) -> std::io
     std::fs::write(path, output.stdout)
 }
 
-fn tag_color(sym: &Symbol) -> &'static str {
+pub fn tag_color(sym: &Symbol) -> &'static str {
     use Symbol::*;
     match sym {
         VB | VBP | VBZ | VBN | VBG | VBD | MVB | RET | MRET | RETIF | MD => "#FF8B3D",
