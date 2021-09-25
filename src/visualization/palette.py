@@ -43,7 +43,5 @@ def tag_color(pos: str) -> str:
         return PREP
     if is_one_of(pos, {"DT", "CC"}):
         return FADE
-    if is_one_of(pos, {"CC"}):
-        return COORD
 
     return TREE_COLORS.get(pos, "#000000")

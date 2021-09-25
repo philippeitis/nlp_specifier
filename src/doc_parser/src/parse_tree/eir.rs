@@ -1,4 +1,5 @@
 use std::hash::Hash;
+use std::fmt::{Write, Formatter};
 
 use chartparse::TreeWrapper;
 use chartparse::production::{NonTerminal, Terminal as CTerminal};
@@ -158,6 +159,78 @@ impl<S: AsRef<str>> From<S> for Symbol {
         }
     }
 }
+
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Symbol::S => "S",
+            Symbol::MNN => "MNN",
+            Symbol::TJJ => "TJJ",
+            Symbol::MJJ => "MJJ",
+            Symbol::MVB => "MVB",
+            Symbol::IFF => "IFF",
+            Symbol::EQTO => "EQTO",
+            Symbol::BITOP => "BITOP",
+            Symbol::ARITHOP => "ARITHOP",
+            Symbol::SHIFTOP => "SHIFTOP",
+            Symbol::OP => "OP",
+            Symbol::OBJ => "OBJ",
+            Symbol::REL => "REL",
+            Symbol::MREL => "MREL",
+            Symbol::PROP => "PROP",
+            Symbol::PROP_OF => "PROP_OF",
+            Symbol::RSEP => "RSEP",
+            Symbol::RANGE => "RANGE",
+            Symbol::RANGEMOD => "RANGEMOD",
+            Symbol::ASSERT => "ASSERT",
+            Symbol::HASSERT => "HASSERT",
+            Symbol::QUANT => "QUANT",
+            Symbol::QUANT_EXPR => "QUANT_EXPR",
+            Symbol::QASSERT => "QASSERT",
+            Symbol::MRET => "MRET",
+            Symbol::BOOL_EXPR => "BOOL_EXPR",
+            Symbol::COND => "COND",
+            Symbol::RETIF => "RETIF",
+            Symbol::SIDE => "SIDE",
+            Symbol::ASSIGN => "ASSIGN",
+            Symbol::EVENT => "EVENT",
+            Symbol::OBJV => "OBJV",
+            Symbol::NN => "NN",
+            Symbol::NNS => "NNS",
+            Symbol::NNP => "NNP",
+            Symbol::NNPS => "NNPS",
+            Symbol::VB => "VB",
+            Symbol::VBP => "VBP",
+            Symbol::VBZ => "VBZ",
+            Symbol::VBN => "VBN",
+            Symbol::VBG => "VBG",
+            Symbol::VBD => "VBD",
+            Symbol::JJ => "JJ",
+            Symbol::JJR => "JJR",
+            Symbol::JJS => "JJS",
+            Symbol::RB => "RB",
+            Symbol::PRP => "PRP",
+            Symbol::DT => "DT",
+            Symbol::IN => "IN",
+            Symbol::CC => "CC",
+            Symbol::MD => "MD",
+            Symbol::TO => "TO",
+            Symbol::RET => "RET",
+            Symbol::CODE => "CODE",
+            Symbol::LIT => "LIT",
+            Symbol::IF => "IF",
+            Symbol::FOR => "FOR",
+            Symbol::ARITH => "ARITH",
+            Symbol::SHIFT => "SHIFT",
+            Symbol::DOT => "DOT",
+            Symbol::COMMA => "COMMA",
+            Symbol::EXCL => "EXCL",
+            Symbol::STR => "STR",
+            Symbol::CHAR => "CHAR",
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum SymbolTree {
     Terminal(Terminal),

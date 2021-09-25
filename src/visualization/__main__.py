@@ -1,10 +1,10 @@
 from sys import path
 from pathlib import Path
 
-path.append(str(Path(__file__).parent))
-
-import click
 from spacy.tokens import Doc
+import click
+
+path.append(str(Path(__file__).parent))
 from nlp.doc_parser import Tokenizer
 
 
@@ -88,26 +88,6 @@ def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, 
         webbrowser.open(str(path))
 
 
-@render.command("parse-tree")
-@click.argument("sentence", nargs=1)
-@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
-@click.option('--path', default=Path("./images/parse_tree.pdf"), help="Output path", type=Path)
-# @click.option('--idents', nargs=-1, help="Idents in string")
-def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None):
-    """Renders the parse tree for the provided sentence."""
-    from treevis import render_tree
-    import webbrowser
-
-    tokenizer = Tokenizer.default()
-    tree = next(
-        tokenizer.parse_tree(sentence, idents=idents, attach_tags=False)
-    )
-
-    render_tree(tree, str(path))
-    if open_browser:
-        webbrowser.open(str(path))
-
-
 def render_entities(sentence: str, entity_type: str, open_browser: bool, path: Path):
     """Renders the NER or SRL entities in the provided sentence."""
     from spacy import displacy
@@ -132,26 +112,6 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
 
     path.write_text(html)
 
-    if open_browser:
-        webbrowser.open(str(path))
-
-
-@render.command("parse-tree")
-@click.argument("sentence", nargs=1)
-@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
-@click.option('--path', default=Path("./images/parse_tree.pdf"), help="Output path", type=Path)
-# @click.option('--idents', nargs=-1, help="Idents in string")
-def render_parse_tree(sentence: str, open_browser: bool, path: Path, idents=None):
-    """Renders the parse tree for the provided sentence."""
-    from treevis import render_tree
-    import webbrowser
-
-    tokenizer = Tokenizer.default()
-    tree = next(
-        tokenizer.parse_tree(sentence, idents=idents, attach_tags=False)
-    )
-
-    render_tree(tree, str(path))
     if open_browser:
         webbrowser.open(str(path))
 

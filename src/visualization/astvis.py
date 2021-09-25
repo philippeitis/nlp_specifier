@@ -147,6 +147,3 @@ def graph_from_rs_code(code: str, filename: str, root_name="root"):
 if __name__ == '__main__':
     with open("../data/test5.rs", "r") as file:
         graph_from_rs_code(file.read(), "ast_test5.pdf", "test5.rs")
-
-    # mention that documentation is incomplete spec
-    # explain that target is verifier, and not all things are supported (eg. sideeffectful operations)

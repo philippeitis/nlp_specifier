@@ -24,6 +24,7 @@ mod jsonl;
 mod grammar;
 mod nl_ir;
 mod parse_tree;
+mod visualization;
 
 
 use docs::Docs;
@@ -202,6 +203,23 @@ impl<'p> SimMatcher<'p> {
     fn print_seen(&self) {
         let sents_seen: usize = self.sim_matcher.getattr(self.py, "sents_seen").unwrap().extract(self.py).unwrap();
         println!("{}", sents_seen);
+    }
+}
+
+fn sentence_to_trees(parser: &ChartParser<Symbol>, sentence: &[(String, String, String)]) -> Vec<SymbolTree> {
+    let tokens: Result<Vec<TerminalSymbol>, _> = sentence.iter().map(|(t, _, _)| TerminalSymbol::from_terminal(t)).collect();
+    let tokens: Vec<_> = match tokens {
+        Ok(t) => t.into_iter().map(Symbol::from).collect(),
+        Err(_) => return Vec::new(),
+    };
+
+    let iter: Vec<_> = sentence.iter().cloned().map(|(tok, text, lemma)| Terminal { word: text, lemma: lemma.to_lowercase() }).collect();
+    match parser.parse(&tokens) {
+        Ok(trees) => trees
+            .into_iter()
+            .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
+            .collect(),
+        Err(_) => return Vec::new(),
     }
 }
 
@@ -419,6 +437,11 @@ enum SubCommand {
         #[clap(subcommand)]
         sub_cmd: Specify
     },
+    #[clap(name = "render")]
+    Render {
+        #[clap(subcommand)]
+        sub_cmd: Render,
+    },
 }
 
 /// Demonstrates entire pipeline from start to end on provided file, writing output to terminal.
@@ -472,6 +495,22 @@ enum Specify {
     Repl,
 }
 
+#[derive(Clap)]
+#[clap(setting = AppSettings::ColoredHelp)]
+enum Render {
+    #[clap(setting = AppSettings::ColoredHelp)]
+    ParseTree {
+        /// Sentence to specify.
+        sentence: String,
+        /// Path to write output to.
+        #[clap(short, long, parse(from_os_str), default_value = "../../images/parse_tree.pdf")]
+        path: PathBuf,
+        /// Open file in browser
+        #[clap(short, long)]
+        open_browser: bool,
+    },
+}
+
 fn main() {
     let opts: Opts = Opts::parse();
     // TODO: Detect duplicate invocations.
@@ -500,6 +539,7 @@ fn main() {
                 .arg("--emit")
                 .arg("stdout")
                 .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
                 .spawn()
                 .unwrap();
             cmd.stdin.as_mut().unwrap().write(output.as_bytes()).unwrap();
@@ -569,6 +609,25 @@ fn main() {
                                 }
                             }
                         }
+                    }
+                    Ok(())
+                }).unwrap();
+            }
+        },
+        SubCommand::Render { sub_cmd } => match sub_cmd {
+            Render::ParseTree { sentence, path, open_browser } => {
+                let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+                let parser = ChartParser::from_grammar(&cfg);
+                Python::with_gil(|py| -> PyResult<()> {
+                    let tokenizer = Tokenizer::new(py);
+                    let tokens = tokenizer.tokenize_sents(&vec![sentence])?.remove(0);
+                    let trees = sentence_to_trees(&parser, &tokens);
+                    match trees.first() {
+                        None => println!("No tree generated for the provided sentence."),
+                        Some(tree) => visualization::tree::render_tree(tree, &path).unwrap(),
+                    }
+                    if open_browser {
+                        py.run("import webbrowser; webbrowser.open(path)", None, Some([("path", path.to_object(py))].into_py_dict(py)))?;
                     }
                     Ok(())
                 }).unwrap();

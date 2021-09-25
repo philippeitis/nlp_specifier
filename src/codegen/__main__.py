@@ -1,3 +1,4 @@
+import itertools
 from pathlib import Path
 
 import networkx
@@ -283,6 +284,7 @@ if __name__ == '__main__':
     tree_rs += terminal_from + "\n"
 
     eir_rs = """use std::hash::Hash;
+use std::fmt::{Write, Formatter};
 
 use chartparse::TreeWrapper;
 use chartparse::production::{NonTerminal, Terminal as CTerminal};
@@ -326,7 +328,18 @@ pub enum Symbol {
 
     eir_rs += "        }\n"
     eir_rs += "    }\n"
-    eir_rs += "}\n"
+    eir_rs += "}\n\n"
+
+    eir_rs += """impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+"""
+    for lhs, _ in itertools.chain(non_terminals._lhs_index.items(), terminals):
+        eir_rs += " " * 12
+        eir_rs += f"Symbol::{lhs} => \"{lhs}\",\n"
+    eir_rs += "        })\n"
+    eir_rs += "    }\n"
+    eir_rs += "}\n\n"
 
     eir_rs += """#[derive(Clone, Debug)]
 pub enum SymbolTree {
