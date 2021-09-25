@@ -1,4 +1,4 @@
-from tokenizer import Tokenizer, SpacyModel, GRAMMAR_PATH
+from tokenizer import Tokenizer, SpacyModel
 
 
 class NaiveSimilarity:
@@ -60,7 +60,7 @@ def transformers_similarity():
 
 
 def spacy_similarity():
-    p = Tokenizer.from_path(GRAMMAR_PATH, model=SpacyModel.EN_LG)
+    p = Tokenizer(model=SpacyModel.EN_LG)
     s_naive = NaiveSimilarity(p)
     s_nostop = SimilarityNoStop(p)
     s_nouns = SimilarityNouns(p)

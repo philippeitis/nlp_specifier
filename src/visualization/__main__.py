@@ -26,7 +26,7 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
     from palette import tag_color
     import webbrowser
 
-    tokenizer = Tokenizer.default()
+    tokenizer = Tokenizer()
     if no_fix:
         sent = tokenizer.tagger(sentence)
     else:
@@ -65,7 +65,7 @@ def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, 
     from palette import tag_color
     import webbrowser
 
-    tokenizer = Tokenizer.default()
+    tokenizer = Tokenizer()
     if retokenize:
         sent = tokenizer.tokenize(sentence, idents)
     else:
@@ -94,7 +94,7 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
     from palette import ENTITY_COLORS
     import webbrowser
 
-    sent = Tokenizer.default().entities(sentence)
+    sent = Tokenizer().entities(sentence)
     entity_type = entity_type.lower()
 
     if entity_type == "ner":

@@ -1,11 +1,9 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator, Set, Union, List
+from typing import Iterator, List
 import logging
-from pathlib import Path
 
-import nltk
 import spacy
 from spacy.tokens import Doc
 import unidecode
@@ -17,7 +15,6 @@ except ModuleNotFoundError:
     from .ner import ner_and_srl
     from .fix_tokens import fix_tokens
 
-GRAMMAR_PATH = Path(__file__).parent / Path("codegrammar.cfg")
 LOGGER = logging.getLogger(__name__)
 
 
@@ -44,12 +41,11 @@ class SpacyModel(str, Enum):
 
 
 class Tokenizer:
-    TREE_CACHE = defaultdict(dict)
     TOKEN_CACHE = defaultdict(dict)
     ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
 
-    def __init__(self, grammar: str, model: SpacyModel = SpacyModel.EN_LG):
+    def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
         if model not in Tokenizer.TAGGER_CACHE:
             LOGGER.info(f"Loading spacy/{model}")
             nlp = spacy.load(str(model))
@@ -58,17 +54,7 @@ class Tokenizer:
 
         self.token_cache = Tokenizer.TOKEN_CACHE[model]
         self.entity_cache = Tokenizer.ENTITY_CACHE[model]
-        self.tree_cache = Tokenizer.TREE_CACHE[model]
         self.tagger = Tokenizer.TAGGER_CACHE[model]
-
-    @classmethod
-    def from_path(cls, grammar_path: Union[str, Path], model: SpacyModel = SpacyModel.EN_LG) -> "Tokenizer":
-        with open(grammar_path) as f:
-            return cls(f.read(), model)
-
-    @classmethod
-    def default(cls):
-        return cls.from_path(grammar_path=GRAMMAR_PATH)
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
         """Tokenizes and tags the given sentence."""
@@ -83,7 +69,10 @@ class Tokenizer:
         return Sentence(doc)
 
     def stokenize(self, sentences: Iterator[str], idents=None) -> List[Sentence]:
-        """Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items (all unique sentences in stdlib)."""
+        """
+        Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
+        (all unique sentences in stdlib).
+        """
         sentences = [unidecode.unidecode(sentence).rstrip(".") for sentence in sentences]
         sentence_dict = {i: copy(self.token_cache.get(sentence)) for i, sentence in enumerate(sentences)}
 
@@ -92,7 +81,6 @@ class Tokenizer:
 
         for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
             sent = sentences[i]
-            # fix_tokens(tokenized)
             self.token_cache[sent] = tokenized
             sentence_dict[i] = tokenized
 
@@ -102,7 +90,7 @@ class Tokenizer:
         """Performs NER and SRL analysis of the given sentence, using the models from
         `Combining Formal and Machine Learning Techniques for the Generation of JML Specifications`.
         Output is a dictionary, containing keys "ner" and "srl", corresponding to the NER and SRL entities,
-        respectively. The items are formatted as either a dictionary or list of dictionaries, formatted in the"""
+        respectively. The items are formatted as either a dictionary or list of dictionaries for spaCy display."""
         sentence = unidecode.unidecode(sentence).rstrip(".")
 
         if sentence not in self.entity_cache:
