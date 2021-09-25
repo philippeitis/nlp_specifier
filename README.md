@@ -3,19 +3,20 @@ Python 3.6+ and Rust should already be installed for the parsing steps. To perfo
 Dependencies for individual components of the system are specified below, or are otherwise manually installed using provided `setup.sh` scripts.
 Note that all .sh files and commands provided are specific to Linux. 
 
+Also note that to avoid contaminating your Python installation, it is best to use `venv`.
+
 ## Python Implementation
 The python implementation is available at https://github.com/philippeitis/nlp_specifier/tree/62d4d51a30c173f65daaf631b7acca0ffbf572a3
 
-## HTML Documentation Mining
-This project provides functionality for extracting Rust documentation from pages output by cargo docs, and for documentation downloaded via `rustup`.
-To set up parsing of HTML documentation, build [src/doc_parser/](src/doc_parser/):
+## Specifying Documentation
+This project allows specifying both Rust documentation pages (produced through `cargo doc`, or downloaded from `rustup`) and Rust source code. This functionality
+is primarily available through [src/doc_parser/](src/doc_parser/). To build this executable for your system, use 
 ```bash
 cd ./src/doc_parser/ && cargo build --release ; cd ..
 ```
 
-## NLP Parser
-The NLP parsing code will tokenize, assign parts of speech tags, and generate parse-trees for selected functions in a particular file of Rust source code.
-To set up the NLP parser, use [doc_parser/setup.sh](doc_parser/setup.sh):
+## NLP Processing
+The NLP parsing code tokenizes, assigns parts of speech tags to tokens, and detects named entities using spaCy. To set up the dependencies, run [src/setup.sh](src/setup.sh):
 ```bash
 cd ./nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
@@ -23,7 +24,6 @@ cd ./nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 Optionally, it may be useful to review these links:
 
 https://www.nltk.org/install.html
-
 https://spacy.io/usage
 
 ### WordNet POS tags reference
@@ -41,17 +41,10 @@ http://erwinkomen.ruhosting.nl/eng/2014_Longdale-Labels.htm
 [comment]: <> (```)
 
 
-## Rust AST Parser
-The Rust AST parser transforms input Rust files into an AST, which is used in the NLP parser to generate specifications.
-To set up the Rust AST parser, build [src/doc_parser/](src/doc_parser/):
-```bash
-cd ./src/doc_parser/ && cargo build --release ; cd ..
-```
 
 ## Named-entity Recognition and Semantic Role Labelling
 ### Requirements
-To use NER and SRL analysis for documentation, Docker and Docker Compose must be installed. Additionally, downloading the relevant models requires installing Git,
-and Git LFS. All other dependencies for this are set up using [jml_nlp/setup.sh](jml_nlp/setup.sh).
+To use NER and SRL analysis for documentation, Docker and Docker Compose must be installed. Additionally, downloading the relevant models requires installing Git and Git LFS. All other dependencies for this are set up using [jml_nlp/setup.sh](jml_nlp/setup.sh).
 ```bash
 cd ./jml_nlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 ```
