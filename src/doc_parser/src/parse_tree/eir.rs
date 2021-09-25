@@ -1,48 +1,48 @@
+use std::fmt::{Formatter, Write};
 use std::hash::Hash;
-use std::fmt::{Write, Formatter};
 
-use chartparse::TreeWrapper;
+use chartparse::grammar::ParseSymbol;
 use chartparse::production::{NonTerminal, Terminal as CTerminal};
 use chartparse::tree::TreeNode;
-use chartparse::grammar::ParseSymbol;
+use chartparse::TreeWrapper;
 
-use crate::parse_tree::Terminal;
 use crate::parse_tree::tree::TerminalSymbol;
+use crate::parse_tree::Terminal;
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Symbol {
-   S,
-   MNN,
-   TJJ,
-   MJJ,
-   MVB,
-   IFF,
-   EQTO,
-   BITOP,
-   ARITHOP,
-   SHIFTOP,
-   OP,
-   OBJ,
-   REL,
-   MREL,
-   PROP,
-   PROP_OF,
-   RSEP,
-   RANGE,
-   RANGEMOD,
-   ASSERT,
-   HASSERT,
-   QUANT,
-   QUANT_EXPR,
-   QASSERT,
-   MRET,
-   BOOL_EXPR,
-   COND,
-   RETIF,
-   SIDE,
-   ASSIGN,
-   EVENT,
-   OBJV,
+    S,
+    MNN,
+    TJJ,
+    MJJ,
+    MVB,
+    IFF,
+    EQTO,
+    BITOP,
+    ARITHOP,
+    SHIFTOP,
+    OP,
+    OBJ,
+    REL,
+    MREL,
+    PROP,
+    PROP_OF,
+    RSEP,
+    RANGE,
+    RANGEMOD,
+    ASSERT,
+    HASSERT,
+    QUANT,
+    QUANT_EXPR,
+    QASSERT,
+    MRET,
+    BOOL_EXPR,
+    COND,
+    RETIF,
+    SIDE,
+    ASSIGN,
+    EVENT,
+    OBJV,
     NN,
     NNS,
     NNP,
@@ -121,7 +121,7 @@ impl<S: AsRef<str>> From<S> for Symbol {
         if let Ok(termsym) = TerminalSymbol::from_terminal(&nt) {
             return termsym.into();
         }
-        
+
         match nt.as_ref() {
             "S" => Symbol::S,
             "MNN" => Symbol::MNN,
@@ -238,7 +238,13 @@ pub enum SymbolTree {
 }
 
 impl SymbolTree {
-    pub(crate) fn from_iter<I: Iterator<Item=Terminal>, S: Eq + Clone + Hash + PartialEq + Into<Symbol>>(tree: TreeWrapper<S>, iter: &mut I) -> Self {
+    pub(crate) fn from_iter<
+        I: Iterator<Item = Terminal>,
+        S: Eq + Clone + Hash + PartialEq + Into<Symbol>,
+    >(
+        tree: TreeWrapper<S>,
+        iter: &mut I,
+    ) -> Self {
         match tree.inner {
             TreeNode::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
             TreeNode::Branch(nt, rest) => {
@@ -246,10 +252,7 @@ impl SymbolTree {
                 for item in rest {
                     sym_trees.push(SymbolTree::from_iter(item, iter));
                 }
-                SymbolTree::Branch(
-                    nt.symbol.into(),
-                    sym_trees
-                )
+                SymbolTree::Branch(nt.symbol.into(), sym_trees)
             }
         }
     }

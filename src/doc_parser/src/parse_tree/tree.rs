@@ -1,7 +1,7 @@
 #![allow(clippy)]
 
+use crate::parse_tree::{Symbol, SymbolTree, Terminal};
 use std::convert::TryFrom;
-use crate::parse_tree::{SymbolTree, Symbol, Terminal};
 
 #[derive(Clone)]
 pub enum S {
@@ -1121,13 +1121,20 @@ pub struct NN {
 
 impl From<Vec<SymbolTree>> for NN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<NN> for Terminal {
     fn from(val: NN) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1139,13 +1146,20 @@ pub struct NNS {
 
 impl From<Vec<SymbolTree>> for NNS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<NNS> for Terminal {
     fn from(val: NNS) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1157,13 +1171,20 @@ pub struct NNP {
 
 impl From<Vec<SymbolTree>> for NNP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<NNP> for Terminal {
     fn from(val: NNP) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1175,13 +1196,20 @@ pub struct NNPS {
 
 impl From<Vec<SymbolTree>> for NNPS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<NNPS> for Terminal {
     fn from(val: NNPS) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1193,13 +1221,20 @@ pub struct VB {
 
 impl From<Vec<SymbolTree>> for VB {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VB> for Terminal {
     fn from(val: VB) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1211,13 +1246,20 @@ pub struct VBP {
 
 impl From<Vec<SymbolTree>> for VBP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VBP> for Terminal {
     fn from(val: VBP) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1229,13 +1271,20 @@ pub struct VBZ {
 
 impl From<Vec<SymbolTree>> for VBZ {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VBZ> for Terminal {
     fn from(val: VBZ) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1247,13 +1296,20 @@ pub struct VBN {
 
 impl From<Vec<SymbolTree>> for VBN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VBN> for Terminal {
     fn from(val: VBN) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1265,13 +1321,20 @@ pub struct VBG {
 
 impl From<Vec<SymbolTree>> for VBG {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VBG> for Terminal {
     fn from(val: VBG) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1283,13 +1346,20 @@ pub struct VBD {
 
 impl From<Vec<SymbolTree>> for VBD {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<VBD> for Terminal {
     fn from(val: VBD) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1301,13 +1371,20 @@ pub struct JJ {
 
 impl From<Vec<SymbolTree>> for JJ {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<JJ> for Terminal {
     fn from(val: JJ) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1319,13 +1396,20 @@ pub struct JJR {
 
 impl From<Vec<SymbolTree>> for JJR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<JJR> for Terminal {
     fn from(val: JJR) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1337,13 +1421,20 @@ pub struct JJS {
 
 impl From<Vec<SymbolTree>> for JJS {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<JJS> for Terminal {
     fn from(val: JJS) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1355,13 +1446,20 @@ pub struct RB {
 
 impl From<Vec<SymbolTree>> for RB {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<RB> for Terminal {
     fn from(val: RB) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1373,13 +1471,20 @@ pub struct PRP {
 
 impl From<Vec<SymbolTree>> for PRP {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<PRP> for Terminal {
     fn from(val: PRP) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1391,13 +1496,20 @@ pub struct DT {
 
 impl From<Vec<SymbolTree>> for DT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<DT> for Terminal {
     fn from(val: DT) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1409,13 +1521,20 @@ pub struct IN {
 
 impl From<Vec<SymbolTree>> for IN {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<IN> for Terminal {
     fn from(val: IN) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1427,13 +1546,20 @@ pub struct CC {
 
 impl From<Vec<SymbolTree>> for CC {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<CC> for Terminal {
     fn from(val: CC) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1445,13 +1571,20 @@ pub struct MD {
 
 impl From<Vec<SymbolTree>> for MD {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<MD> for Terminal {
     fn from(val: MD) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1463,13 +1596,20 @@ pub struct TO {
 
 impl From<Vec<SymbolTree>> for TO {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<TO> for Terminal {
     fn from(val: TO) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1481,13 +1621,20 @@ pub struct RET {
 
 impl From<Vec<SymbolTree>> for RET {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<RET> for Terminal {
     fn from(val: RET) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1499,13 +1646,20 @@ pub struct CODE {
 
 impl From<Vec<SymbolTree>> for CODE {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<CODE> for Terminal {
     fn from(val: CODE) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1517,13 +1671,20 @@ pub struct LIT {
 
 impl From<Vec<SymbolTree>> for LIT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<LIT> for Terminal {
     fn from(val: LIT) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1535,13 +1696,20 @@ pub struct IF {
 
 impl From<Vec<SymbolTree>> for IF {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<IF> for Terminal {
     fn from(val: IF) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1553,13 +1721,20 @@ pub struct FOR {
 
 impl From<Vec<SymbolTree>> for FOR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<FOR> for Terminal {
     fn from(val: FOR) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1571,13 +1746,20 @@ pub struct ARITH {
 
 impl From<Vec<SymbolTree>> for ARITH {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<ARITH> for Terminal {
     fn from(val: ARITH) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1589,13 +1771,20 @@ pub struct SHIFT {
 
 impl From<Vec<SymbolTree>> for SHIFT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<SHIFT> for Terminal {
     fn from(val: SHIFT) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1607,13 +1796,20 @@ pub struct DOT {
 
 impl From<Vec<SymbolTree>> for DOT {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<DOT> for Terminal {
     fn from(val: DOT) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1625,13 +1821,20 @@ pub struct COMMA {
 
 impl From<Vec<SymbolTree>> for COMMA {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<COMMA> for Terminal {
     fn from(val: COMMA) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1643,13 +1846,20 @@ pub struct EXCL {
 
 impl From<Vec<SymbolTree>> for EXCL {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<EXCL> for Terminal {
     fn from(val: EXCL) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1661,13 +1871,20 @@ pub struct STR {
 
 impl From<Vec<SymbolTree>> for STR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<STR> for Terminal {
     fn from(val: STR) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1679,13 +1896,20 @@ pub struct CHAR {
 
 impl From<Vec<SymbolTree>> for CHAR {
     fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();        Self { word: t.word, lemma: t.lemma }
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
     }
 }
 
 impl From<CHAR> for Terminal {
     fn from(val: CHAR) -> Self {
-        Self { word: val.word, lemma: val.lemma }
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
     }
 }
 
@@ -1763,4 +1987,3 @@ impl TerminalSymbol {
         }
     }
 }
-

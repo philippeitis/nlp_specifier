@@ -1,4 +1,5 @@
 import itertools
+import subprocess
 from pathlib import Path
 
 import networkx
@@ -393,5 +394,10 @@ impl ParseSymbol for Symbol {
     }
 }"""
     (Path(__file__).parent / Path("../nlp/codegrammar.cfg")).write_text(cfg)
-    (Path(__file__).parent / Path("../doc_parser/src/parse_tree/tree.rs")).write_text(tree_rs)
-    (Path(__file__).parent / Path("../doc_parser/src/parse_tree/eir.rs")).write_text(eir_rs)
+    tree_rs_path = (Path(__file__).parent / Path("../doc_parser/src/parse_tree/tree.rs"))
+    tree_rs_path.write_text(tree_rs)
+    subprocess.Popen(["rustfmt", tree_rs_path])
+    eir_rs_path = (Path(__file__).parent / Path("../doc_parser/src/parse_tree/eir.rs"))
+    eir_rs_path.write_text(eir_rs)
+    subprocess.Popen(["rustfmt", eir_rs_path])
+
