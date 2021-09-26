@@ -37,9 +37,6 @@ use visualization::tree::tag_color;
 #[macro_use]
 extern crate lazy_static;
 
-static TOKENIZER: &str = include_str!("../../nlp/tokenizer.py");
-static FIX_TOKENS: &str = include_str!("../../nlp/fix_tokens.py");
-static NER: &str = include_str!("../../nlp/ner.py");
 static CFG: &str = include_str!("../../nlp/codegrammar.cfg");
 
 #[derive(Debug)]
