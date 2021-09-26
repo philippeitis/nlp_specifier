@@ -320,7 +320,7 @@ fn search_demo() {
                         }
                         _ => false,
                     },
-                Depth::Infinite
+                Depth::Infinite,
             )
             .len()
         );
@@ -676,6 +676,22 @@ fn repl(py: Python) -> PyResult<()> {
     Ok(())
 }
 
+/// Formats the given Rust file (in byte format) using rustfmt if possible.
+fn rustfmt<S: AsRef<[u8]>>(bytes: S) -> std::io::Result<String> {
+    let mut cmd = std::process::Command::new("rustfmt")
+        .arg("--emit")
+        .arg("stdout")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    cmd.stdin.as_mut().unwrap().write_all(bytes.as_ref())?;
+    let output = cmd.wait_with_output()?;
+    match String::from_utf8(output.stdout) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
+    }
+}
+
 fn main() {
     let opts: Opts = Opts::parse();
     // TODO: Detect duplicate invocations.
@@ -700,20 +716,10 @@ fn main() {
         SubCommand::EndToEnd(EndToEnd { path }) => {
             let file = specify_file(path);
             let output = quote::quote! {#file}.to_string();
-            let mut cmd = std::process::Command::new("rustfmt")
-                .arg("--emit")
-                .arg("stdout")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()
-                .unwrap();
-            cmd.stdin
-                .as_mut()
-                .unwrap()
-                .write(output.as_bytes())
-                .unwrap();
-            let output = cmd.wait_with_output().unwrap();
-            println!("{}", String::from_utf8(output.stdout).unwrap());
+            match rustfmt(&output) {
+                Ok(output) => println!("{}", output),
+                Err(_) => println!("{}", output),
+            }
         }
         SubCommand::Specify { sub_cmd } => match sub_cmd {
             Specify::Sentence { sentence } => specify_sentences(vec![sentence]),
@@ -728,19 +734,18 @@ fn main() {
                 };
                 let file = specify_file(path);
                 let output = quote::quote! {#file}.to_string();
-                std::fs::write(&dest, output).unwrap();
-
-                if std::process::Command::new("rustfmt")
-                    .arg(&dest)
-                    .spawn()
-                    .is_ok()
-                {
-                    println!(
-                        "Formatted output file, result available at {}",
-                        dest.display()
-                    )
-                } else {
-                    println!("Output file {} could not be formatted", dest.display())
+                match rustfmt(&output) {
+                    Ok(output) => {
+                        std::fs::write(&dest, output).unwrap();
+                        println!("Formatted output file written to {}", dest.display())
+                    }
+                    Err(_) => {
+                        std::fs::write(&dest, output).unwrap();
+                        println!(
+                            "Output file written to {} (could not be formatted)",
+                            dest.display()
+                        )
+                    }
                 }
             }
             Specify::Docs { path } => {

@@ -56,9 +56,9 @@ impl Edge {
             ("arrowhead", Some(&self.arrowhead)),
             ("style", self.style.as_ref()),
         ]
-            .iter()
-            .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
-            .join(" ")
+        .iter()
+        .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
+        .join(" ")
     }
 
     fn to_dot(&self) -> String {
@@ -74,9 +74,9 @@ impl Node {
             ("color", Some(&self.color)),
             ("fontcolor", Some(&self.fontcolor)),
         ]
-            .iter()
-            .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
-            .join(" ")
+        .iter()
+        .filter_map(|(key, val)| val.map(|val| format!("{}=\"{}\"", key, val)))
+        .join(" ")
     }
 
     fn to_dot(&self) -> String {
