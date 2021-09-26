@@ -152,6 +152,9 @@ WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, 
     (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("TO"), IS_OBJ]),
     (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
     (0, {"tag_": "ENCODING"}, [{"TEXT": {"REGEX": "^(?i)UTF(_|-)?(8|16)$"}}]),
+    (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)((i|u)(8|16|32|64|128|size))?$"}}]),
+    (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)(\.([\d_]*))?(e([-+]?)(\d*_))?(f32|f64)?$"}}]),
+    (0, {"tag_": "LIT"}, [{"LOWER": "nan"}])
 ]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
 
 
@@ -185,10 +188,6 @@ def get_literal_tag(word: str) -> Optional[str]:
 
 @English.component("doc_tokens")
 def fix_tokens(doc: Doc):
-    for i, token in enumerate(doc):
-        if get_literal_tag(token.text):
-            token.tag_ = "LIT"
-
     # for idx, substitute, matcher in WORD_MATCHERS_0:
     #     for _, start, end in matcher(doc):
     #         for attr, val in substitute.items():
