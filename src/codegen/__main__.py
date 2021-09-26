@@ -257,7 +257,11 @@ if __name__ == '__main__':
         tree_rs += f"}}\n\n"
         cfg += f"{term} -> \"{term}\"\n"
 
-    terminal = "pub enum TerminalSymbol {\n"
+    terminal = "#[derive(Copy, Clone)]\npub enum TerminalSymbol {\n"
+
+    # phf stub - worth considering in future
+    # phf_terminal = "static TERMINALSYMBOLS: phf::Map<&'static str, TerminalSymbol> = phf_map! {\n"
+
     terminal_from = "impl TerminalSymbol {\n"
     terminal_from += "    pub fn from_terminal<S: AsRef<str>>(s: S) -> Result<Self, String> {\n"
     terminal_from += "        match s.as_ref() {\n"
@@ -265,11 +269,13 @@ if __name__ == '__main__':
         terminal += f"    {term},\n"
 
         terminal_from += " " * 12
-        if term == sym:
-            opts = f"\"{sym}\""
-        else:
-            opts = f"\"{term}\" | \"{sym}\""
-        terminal_from += f"{opts} => Ok(TerminalSymbol::{term}),\n"
+        terminal_from += f"\"{sym}\" => Ok(TerminalSymbol::{term}),\n"
+        # phf_terminal += f"    \"{sym}\" => TerminalSymbol::{term},\n"
+        if sym != term:
+            terminal_from += " " * 12
+            terminal_from += f"\"{term}\" => Ok(TerminalSymbol::{term}),\n"
+            # phf_terminal += f"    \"{term}\" => TerminalSymbol::{term},\n"
+    # phf_terminal += "};\n"
 
     terminal += "}\n"
     terminal_from += " " * 12
@@ -277,10 +283,14 @@ if __name__ == '__main__':
     terminal_from += "        }\n"
     terminal_from += "    }\n"
     terminal_from += "}\n"
-
+#     terminal_from = """impl TerminalSymbol {
+#     pub fn from_terminal<S: AsRef<str>>(s: S) -> Result<Self, String> {
+#         TERMINALSYMBOLS.get(s.as_ref()).cloned().ok_or(format!("Terminal {} is not supported.", s.as_ref()))
+#     }
+# }"""
     tree_rs += terminal + "\n"
+    # tree_rs += phf_terminal + "\n"
     tree_rs += terminal_from + "\n"
-
     eir_rs = """#![allow(non_camel_case_types)]
 use std::hash::Hash;
 use std::fmt::Formatter;
