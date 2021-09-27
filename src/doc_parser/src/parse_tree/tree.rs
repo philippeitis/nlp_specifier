@@ -1025,8 +1025,6 @@ pub enum ASSIGN {
     _0(VBZ, OBJ, IN, OBJ),
     _1(VBZ, OBJ, TO, OBJ),
     _2(VBZ, OBJ),
-    _3(VBZ, DT, OBJ),
-    _4(VBZ, DT, JJ, OBJ),
 }
 
 impl From<SymbolTree> for ASSIGN {
@@ -1048,12 +1046,6 @@ impl From<Vec<SymbolTree>> for ASSIGN {
             },
             (Some((Symbol::VBZ, vbz_0)), Some((Symbol::OBJ, obj_1)), None, None) => {
                 ASSIGN::_2(VBZ::from(vbz_0), OBJ::from(obj_1))
-            },
-            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::OBJ, obj_2)), None) => {
-                ASSIGN::_3(VBZ::from(vbz_0), DT::from(dt_1), OBJ::from(obj_2))
-            },
-            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::JJ, jj_2)), Some((Symbol::OBJ, obj_3))) => {
-                ASSIGN::_4(VBZ::from(vbz_0), DT::from(dt_1), JJ::from(jj_2), OBJ::from(obj_3))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
@@ -1911,6 +1903,7 @@ impl From<CHAR> for Terminal {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum TerminalSymbol {
     NN,
     NNS,
@@ -1976,9 +1969,12 @@ impl TerminalSymbol {
             "FOR" => Ok(TerminalSymbol::FOR),
             "ARITH" => Ok(TerminalSymbol::ARITH),
             "SHIFT" => Ok(TerminalSymbol::SHIFT),
-            "DOT" | "." => Ok(TerminalSymbol::DOT),
-            "COMMA" | "," => Ok(TerminalSymbol::COMMA),
-            "EXCL" | "!" => Ok(TerminalSymbol::EXCL),
+            "." => Ok(TerminalSymbol::DOT),
+            "DOT" => Ok(TerminalSymbol::DOT),
+            "," => Ok(TerminalSymbol::COMMA),
+            "COMMA" => Ok(TerminalSymbol::COMMA),
+            "!" => Ok(TerminalSymbol::EXCL),
+            "EXCL" => Ok(TerminalSymbol::EXCL),
             "STR" => Ok(TerminalSymbol::STR),
             "CHAR" => Ok(TerminalSymbol::CHAR),
             x => Err(format!("Terminal {} is not supported.", x)),

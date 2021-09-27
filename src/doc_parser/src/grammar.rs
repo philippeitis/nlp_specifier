@@ -3,8 +3,8 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr};
 
 use crate::nl_ir::{
-    Assert, BoolValue, Code, Event, HardAssert, IfExpr, IsPropMod, IsProperty, Lemma, Literal,
-    MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, ReturnIf, Specification,
+    ActionObj, Assert, BoolValue, Code, Event, HardAssert, IfExpr, IsPropMod, IsProperty, Lemma,
+    Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, ReturnIf, Specification,
 };
 use crate::parse_tree::tree::{MJJ, MVB};
 
@@ -96,6 +96,8 @@ impl AsCode for Object {
                 println!("Prp");
                 Err(SpecificationError::Unimplemented)
             }
+            Object::Str(s) => Ok(syn::parse_str(s)?),
+            Object::Char(c) => Ok(syn::parse_str(&format!("'{}'", c))?),
         }
     }
 }
@@ -272,6 +274,7 @@ impl AsSpec for Specification {
             Specification::HAssert(hassert) => hassert.as_spec(),
             Specification::QAssert(qassert) => qassert.as_spec(),
             Specification::RetIf(returnif) => returnif.as_spec(),
+            Specification::Action(action_obj) => action_obj.as_spec(),
             Specification::Side => Err(SpecificationError::Unimplemented),
         }
     }
@@ -515,4 +518,29 @@ impl AsSpec for ReturnIf {
     }
 }
 
+impl AsSpec for ActionObj {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        match self {
+            ActionObj::Action1(action, target) => {
+                let target = target.as_code()?;
+                let e: AttrHelper = syn::parse_str(&format!(
+                    "#[ensures(called!({}({})))]",
+                    action.lemma,
+                    quote::quote! {#target}.to_string()
+                ))?;
+                Ok(e.attrs)
+            }
+            ActionObj::Action2(_, _, _) => Err(SpecificationError::Unimplemented),
+            ActionObj::Set { target, value } => {
+                let target = target.as_code()?;
+                let value = value.as_code()?;
+                let e: AttrHelper = syn::parse_str(&format!(
+                    "#[ensures({})]",
+                    quote::quote! {(#target) == (#value)}.to_string()
+                ))?;
+                Ok(e.attrs)
+            }
+        }
+    }
+}
 // TODO: Build a tool to simplify brackets and !

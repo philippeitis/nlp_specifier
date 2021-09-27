@@ -2,9 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use crate::parse_tree::tree::{
-    ARITHOP, ASSERT, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, JJ, LIT, MD, MJJ, MNN, MREL,
-    MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE, RANGEMOD, RB, REL,
-    RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN,
+    ARITHOP, ASSERT, ASSIGN, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, JJ, LIT, MD, MJJ, MNN,
+    MREL, MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE, RANGEMOD, RB,
+    REL, RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN, VBZ,
 };
 use crate::parse_tree::Terminal;
 
@@ -177,7 +177,6 @@ impl Op {
             std::mem::swap(&mut lhs, &mut rhs);
             op = BinOp::Sub;
         }
-
         Self {
             lhs: Box::new(lhs),
             op,
@@ -195,6 +194,8 @@ pub enum Object {
     Mnn(Mnn),
     VbgMnn(VBG, Mnn),
     Prp(PRP),
+    Str(String),
+    Char(char),
 }
 
 impl From<OBJ> for Object {
@@ -223,7 +224,8 @@ impl From<OBJ> for Object {
                 }
             }
             OBJ::Prp(prp) => Object::Prp(prp),
-            OBJ::Str(_) | OBJ::Char(_) => unimplemented!(),
+            OBJ::Str(s) => Object::Str(s.word),
+            OBJ::Char(c) => Object::Char(c.word.chars().skip(1).next().unwrap()),
         }
     }
 }
@@ -445,6 +447,7 @@ pub enum Specification {
     HAssert(HardAssert),
     QAssert(QuantAssert),
     Mret(MReturn),
+    Action(ActionObj),
     Side,
 }
 
@@ -455,7 +458,8 @@ impl From<S> for Specification {
             S::Retif(retif) => Specification::RetIf(retif.into()),
             S::Hassert(hassert) => Specification::HAssert(hassert.into()),
             S::Qassert(qassert) => Specification::QAssert(qassert.into()),
-            S::Side(_) | S::Assign(_) => unimplemented!(),
+            S::Assign(action_obj) => Specification::Action(action_obj.into()),
+            S::Side(_) => unimplemented!(),
         }
     }
 }
@@ -952,6 +956,61 @@ impl Lemma for MVB {
             MVB::VBN(_, vb) => &vb.lemma,
             MVB::VBG(_, vb) => &vb.lemma,
             MVB::VBD(_, vb) => &vb.lemma,
+        }
+    }
+}
+
+pub enum ActionObj {
+    // Action with one object
+    // eg. print item
+    Action1(VBZ, Object),
+    // eg. set x to y
+    // eg.
+    // action with two objects
+    Action2(VBZ, Object, Object),
+    // target, value
+    Set { target: Object, value: Object },
+}
+
+/// TODO: Target resolution scheme / loading from file? Default to first object being target?
+///    ("assign", "to"): 1,
+///    ("store", "in"): 1,
+///    ("set", "to"): 0,
+///    ("set", "to"): 0,
+///    ("add", "to"): 1,
+///    ("subtract", "to"): 1,
+///    ("multiply", "by"): 1,
+///    ("divide", "by"): 0,
+///    Investigate NN confusion issue and possible fixes
+impl From<ASSIGN> for ActionObj {
+    fn from(a: ASSIGN) -> Self {
+        match a {
+            ASSIGN::_0(vbz, obj0, _xin, obj1) => {
+                if ["set", "assign"].contains(&vbz.lemma.as_str()) {
+                    ActionObj::Set {
+                        target: obj0.into(),
+                        value: obj1.into(),
+                    }
+                } else {
+                    unimplemented!()
+                }
+            }
+            ASSIGN::_1(vbz, obj0, _to, obj1) => {
+                if vbz.lemma == "set" {
+                    ActionObj::Set {
+                        target: obj0.into(),
+                        value: obj1.into(),
+                    }
+                } else if vbz.lemma == "assign" {
+                    ActionObj::Set {
+                        target: obj1.into(),
+                        value: obj0.into(),
+                    }
+                } else {
+                    unimplemented!()
+                }
+            }
+            ASSIGN::_2(vbz, obj) => ActionObj::Action1(vbz, obj.into()),
         }
     }
 }
