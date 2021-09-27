@@ -14,7 +14,7 @@ use syn::{ImplItem, ImplItemMethod, ItemFn, ItemStruct, Type, TypePath, Visibili
 
 use crate::docs::{Docs, RawDocs};
 use crate::search_tree::{SearchItem, SearchItemImpl, SearchItemMod, SearchTree, SearchValue};
-use crate::SpecError;
+use crate::specifier::SpecError;
 
 #[derive(Debug)]
 pub enum ParseError {
