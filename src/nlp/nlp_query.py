@@ -4,10 +4,8 @@ import itertools
 
 try:
     from tokenizer import Tokenizer
-    from lemmatizer import is_synonym, lemmatize
 except ImportError:
     from nlp.tokenizer import Tokenizer
-    from nlp.lemmatizer import is_synonym, lemmatize
 
 
 def peek(it):
@@ -51,16 +49,10 @@ class Word:
         self.word = word
         self.tag = tag
         self.is_optional = is_optional
-        self._lemma = lemma
+        self.lemma = lemma
 
     def __str__(self):
         return self.word
-
-    @property
-    def lemma(self):
-        if not self._lemma:
-            self._lemma = lemmatize(self.word, self.tag)
-        return self._lemma
 
 
 class Phrase:

@@ -4,8 +4,9 @@ from pathlib import Path
 from spacy.tokens import Doc
 import click
 
-path.append(str(Path(__file__).parent))
-from nlp.doc_parser import Tokenizer
+path.append(str(Path(__file__).parent.parent))
+
+from nlp.tokenizer import Tokenizer
 
 
 @click.group()
@@ -21,18 +22,29 @@ def tags_as_ents(doc: Doc):
     doc.set_ents(spans)
 
 
-def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_browser=False):
+@cli.group()
+def render():
+    """Visualization of various components in the system's pipeline."""
+    pass
+
+
+@render.command("dep")
+@click.argument("sentence", nargs=1)
+@click.option('--open_browser', "-o", default=False, help="Opens file in browser", is_flag=True)
+@click.option('--retokenize/--no-retokenize', "-r/-R", default=True, help="Applies retokenization")
+@click.option('--path', default=Path("./images/pos_tags.html"), help="Output path", type=Path)
+def render_dep_graph(sentence: str, open_browser: bool, retokenize: bool, path: Path):
     from spacy import displacy
-    from palette import tag_color
+    from .palette import tag_color
     import webbrowser
 
     tokenizer = Tokenizer()
-    if no_fix:
+    if retokenize:
         sent = tokenizer.tagger(sentence)
     else:
-        sent = tokenizer.tokenize(sentence, idents)
+        sent = tokenizer.tokenize(sentence)
     tags_as_ents(sent.doc)
-    colors = {tag: tag_color(tag) for tag in tokenizer.tokens()}
+    colors = {tag: tag_color(tag.tag_) for tag in sent.doc}
 
     html = displacy.render(
         sent.doc,
@@ -40,17 +52,12 @@ def render_dep_graph(sentence: str, path: str, idents=None, no_fix=False, open_b
         options={"word_spacing": 30, "distance": 140, "colors": colors},
         page=True
     )
-    with open(path, "w") as file:
-        file.write(html)
+
+    path.parent.mkdir(exist_ok=True, parents=True)
+    path.write_text(html)
 
     if open_browser:
-        webbrowser.open(path)
-
-
-@cli.group()
-def render():
-    """Visualization of various components in the system's pipeline."""
-    pass
+        webbrowser.open(str(path))
 
 
 @render.command("pos")
@@ -59,15 +66,15 @@ def render():
 @click.option('--retokenize/--no-retokenize', "-r/-R", default=True, help="Applies retokenization")
 @click.option('--path', default=Path("./images/pos_tags.html"), help="Output path", type=Path)
 # @click.option('--idents', nargs=-1, help="Idents in string")
-def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, idents=None):
+def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path):
     """Renders the part of speech tags in the provided sentence."""
     from spacy import displacy
-    from palette import tag_color
+    from .palette import tag_color
     import webbrowser
 
     tokenizer = Tokenizer()
     if retokenize:
-        sent = tokenizer.tokenize(sentence, idents)
+        sent = tokenizer.tokenize(sentence)
     else:
         sent = tokenizer.tagger(sentence)
 
@@ -91,7 +98,7 @@ def render_pos(sentence: str, open_browser: bool, retokenize: bool, path: Path, 
 def render_entities(sentence: str, entity_type: str, open_browser: bool, path: Path):
     """Renders the NER or SRL entities in the provided sentence."""
     from spacy import displacy
-    from palette import ENTITY_COLORS
+    from .palette import ENTITY_COLORS
     import webbrowser
 
     sent = Tokenizer().entities(sentence)
@@ -110,6 +117,7 @@ def render_entities(sentence: str, entity_type: str, open_browser: bool, path: P
         manual=True,
     )
 
+    path.parent.mkdir(exist_ok=True, parents=True)
     path.write_text(html)
 
     if open_browser:
