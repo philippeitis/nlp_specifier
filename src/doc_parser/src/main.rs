@@ -376,7 +376,7 @@ fn repl(py: Python) -> PyResult<()> {
     println!("Finished loading parser.");
     loop {
         // Python hijacks stdin
-        let sent: String = py.eval("input(\'>>> \')", None, None)?.extract()?;
+        let sent: String = py.eval("input(\">>> \")", None, None)?.extract()?;
         if ["exit", "quit"].contains(&sent.as_str()) {
             break;
         }
@@ -438,12 +438,12 @@ fn main() {
     //  eg. #[invoke(str, arg1 = 1usize, arg2 = ?, arg3 = ?)]
     //
     // TODO:
-    //  1. parse sent into tokens (falliable)
-    //  2. parse tokens into trees (infalliable)
-    //  3. parse tree in initial type (infalliable)
-    //  4. unresolved code blocks (infalliable)
-    //  5. resolved code items (falliable)
-    //  6. final specification (infalliable)
+    //  1. parse sent into tokens (fallible)
+    //  2. parse tokens into trees (infallible)
+    //  3. parse tree in initial type (infallible)
+    //  4. unresolved code blocks (infallible)
+    //  5. resolved code items (fallible)
+    //  6. final specification (infallible)
     match opts.command {
         SubCommand::EndToEnd(EndToEnd { path }) => match specify_file(path).to_fmt_string() {
             FileOutput::Fmt(output) => println!("{}", output),
