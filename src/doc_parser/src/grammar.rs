@@ -362,7 +362,7 @@ impl AsCodeValue for QuantAssert {
                     Some(o) => o,
                     None => &self.quant_expr.quant.obj,
                 }
-                    .as_code()?;
+                .as_code()?;
                 let start = match &range.range.start {
                     // TODO: Type resolution and appropriate minimum detection here.
                     //     Ensure that we check specifically for numerical types which Prusti supports.
@@ -527,7 +527,30 @@ impl AsSpec for ActionObj {
                 ))?;
                 Ok(e.attrs)
             }
-            ActionObj::Action2(_, _, _) => Err(SpecificationError::Unimplemented),
+            ActionObj::Action2Ambiguous(action, target, value) => {
+                /// Should be performing compiler steps here to determine what is target and what
+                /// is value
+                let target = target.as_code()?;
+                let value = value.as_code()?;
+                let e: AttrHelper = syn::parse_str(&format!(
+                    "#[ensures(called!(({}).{}({})))]",
+                    quote::quote! { #target }.to_string(),
+                    action.lemma,
+                    quote::quote! { #value }.to_string()
+                ))?;
+                Ok(e.attrs)
+            }
+            ActionObj::Action2Resolved { vbz, target, value } => {
+                let target = target.as_code()?;
+                let value = value.as_code()?;
+                let e: AttrHelper = syn::parse_str(&format!(
+                    "#[ensures(called!(({}).{}({})))]",
+                    quote::quote! { #target }.to_string(),
+                    vbz.lemma,
+                    quote::quote! { #value }.to_string()
+                ))?;
+                Ok(e.attrs)
+            }
             ActionObj::Set { target, value } => {
                 let target = target.as_code()?;
                 let value = value.as_code()?;

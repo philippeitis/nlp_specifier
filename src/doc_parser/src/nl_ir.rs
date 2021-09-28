@@ -964,52 +964,57 @@ pub enum ActionObj {
     // Action with one object
     // eg. print item
     Action1(VBZ, Object),
-    // eg. set x to y
-    // eg.
+    // eg. add x to y
+    // eg. divide x by y
     // action with two objects
-    Action2(VBZ, Object, Object),
+    // Where the target is ambiguous
+    Action2Resolved {
+        vbz: VBZ,
+        target: Object,
+        value: Object,
+    },
+    // Where the target is resolved
+    Action2Ambiguous(VBZ, Object, Object),
     // target, value
-    Set { target: Object, value: Object },
+    Set {
+        target: Object,
+        value: Object,
+    },
 }
 
 /// TODO: Target resolution scheme / loading from file? Default to first object being target?
-///    ("assign", "to"): 1,
-///    ("store", "in"): 1,
-///    ("set", "to"): 0,
-///    ("set", "to"): 0,
-///    ("add", "to"): 1,
-///    ("subtract", "to"): 1,
-///    ("multiply", "by"): 1,
-///    ("divide", "by"): 0,
 ///    Investigate NN confusion issue and possible fixes
 impl From<ASSIGN> for ActionObj {
     fn from(a: ASSIGN) -> Self {
         match a {
-            ASSIGN::_0(vbz, obj0, _xin, obj1) => {
-                if ["set", "assign"].contains(&vbz.lemma.as_str()) {
-                    ActionObj::Set {
-                        target: obj0.into(),
-                        value: obj1.into(),
-                    }
-                } else {
-                    unimplemented!()
-                }
-            }
-            ASSIGN::_1(vbz, obj0, _to, obj1) => {
-                if vbz.lemma == "set" {
-                    ActionObj::Set {
-                        target: obj0.into(),
-                        value: obj1.into(),
-                    }
-                } else if vbz.lemma == "assign" {
-                    ActionObj::Set {
+            ASSIGN::_0(vbz, obj0, xin, obj1) => match (vbz.lemma.as_str(), xin.lemma.as_str()) {
+                ("store", "in") | ("subtract", "from") | ("divide", "from") => {
+                    ActionObj::Action2Resolved {
+                        vbz,
                         target: obj1.into(),
                         value: obj0.into(),
                     }
-                } else {
-                    unimplemented!()
                 }
-            }
+                ("divide", "by") | ("subtract", "by") | ("multiply", "by") => {
+                    ActionObj::Action2Resolved {
+                        vbz,
+                        target: obj0.into(),
+                        value: obj1.into(),
+                    }
+                }
+                _ => ActionObj::Action2Ambiguous(vbz, obj0.into(), obj1.into()),
+            },
+            ASSIGN::_1(vbz, obj0, _to, obj1) => match vbz.lemma.as_str() {
+                "set" => ActionObj::Set {
+                    target: obj0.into(),
+                    value: obj1.into(),
+                },
+                "assign" | "add" => ActionObj::Set {
+                    target: obj1.into(),
+                    value: obj0.into(),
+                },
+                _ => ActionObj::Action2Ambiguous(vbz, obj0.into(), obj1.into()),
+            },
             ASSIGN::_2(vbz, obj) => ActionObj::Action1(vbz, obj.into()),
         }
     }
