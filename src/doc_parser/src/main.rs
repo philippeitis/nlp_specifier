@@ -372,13 +372,25 @@ fn repl(py: Python) -> PyResult<()> {
     let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
 
     println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
+    println!("You can use !explain to explain a particular token.");
+
     let tokenizer = Tokenizer::new(py);
+    let spacy = py.import("spacy")?;
     println!("Finished loading parser.");
     loop {
         // Python hijacks stdin
         let sent: String = py.eval("input(\">>> \")", None, None)?.extract()?;
         if ["exit", "quit"].contains(&sent.as_str()) {
             break;
+        }
+        if sent.starts_with("!explain") {
+            if let Some((_, keyword)) = sent.split_once(' ') {
+                let explanation: Option<String> = spacy.getattr("explain")?.call1((keyword, ))?.extract()?;
+                if let Some(explanation) = explanation  {
+                    println!("{}", explanation);
+                }
+            }
+            continue;
         }
         let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
         println!(
