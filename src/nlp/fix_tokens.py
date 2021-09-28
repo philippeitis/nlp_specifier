@@ -37,7 +37,7 @@ def lower(text: str):
 
 RET_LEMMA = {'LEMMA': {"IN": ["return", "compute"]}}
 IS_OBJ = {
-    "TAG": {"REGEX": "^(CODE)|(LIT)|(NN.*)$"}
+    "TAG": {"REGEX": "^((CODE)|(LIT)|(NN.*)|(STR)|(CHAR))$"}
 }
 ANY_TEXT = {"TEXT": {"REGEX": ".*"}}
 
