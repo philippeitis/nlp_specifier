@@ -148,13 +148,14 @@ WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, 
     (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, tag("IN"), IS_OBJ]),
     (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, IS_OBJ]),
     (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, tag("IN"), IS_OBJ]),
-    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("IN"), IS_OBJ]),
-    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("TO"), IS_OBJ]),
-    (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
     (0, {"tag_": "ENCODING"}, [{"TEXT": {"REGEX": "^(?i)UTF(_|-)?(8|16)$"}}]),
+    (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
     (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)((i|u)(8|16|32|64|128|size))?$"}}]),
     (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)(\.([\d_]*))?(e([-+]?)(\d*_))?(f32|f64)?$"}}]),
-    (0, {"tag_": "LIT"}, [{"LOWER": "nan"}])
+    (0, {"tag_": "LIT"}, [{"LOWER": "nan"}]),
+    # Depends on model loaded - appears that TRF models handle this correctly (at 3x performance penalty)
+    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("IN"), IS_OBJ]),
+    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("TO"), IS_OBJ]),
 ]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
 
 

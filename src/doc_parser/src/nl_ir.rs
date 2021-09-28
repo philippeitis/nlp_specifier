@@ -1000,7 +1000,7 @@ impl From<ASSIGN> for ActionObj {
     fn from(a: ASSIGN) -> Self {
         match a {
             ASSIGN::_0(vbz, obj0, xin, obj1) => match (vbz.lemma.as_str(), xin.lemma.as_str()) {
-                ("store", "in") | ("subtract", "from") | ("divide", "from") => {
+                ("store", "in") | ("subtract", "from") | ("divide", "from") | ("add", "to") => {
                     ActionObj::Action2Resolved {
                         vbz,
                         target: obj1.into(),
@@ -1014,6 +1014,8 @@ impl From<ASSIGN> for ActionObj {
                         value: obj1.into(),
                     }
                 }
+                ("assign", "to") => ActionObj::Set { target: obj1.into(), value: obj0.into() },
+                ("set", "to") => ActionObj::Set { target: obj0.into(), value: obj1.into() },
                 _ => ActionObj::Action2Ambiguous(vbz, obj0.into(), obj1.into()),
             },
             ASSIGN::_1(vbz, obj0, _to, obj1) => match vbz.lemma.as_str() {

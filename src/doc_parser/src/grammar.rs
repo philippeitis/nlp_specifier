@@ -93,8 +93,8 @@ impl AsCode for Object {
                     vbg.lemma,
                 ))?)
             }
-            Object::Prp(_) => {
-                println!("Prp");
+            Object::Prp(prp) => {
+                println!("Object::Prp({})", prp.lemma);
                 Err(SpecificationError::Unimplemented)
             }
             Object::Str(s) => Ok(syn::parse_str(s)?),
