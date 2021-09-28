@@ -4,7 +4,8 @@ use syn::{Attribute, Expr};
 
 use crate::nl_ir::{
     ActionObj, Assert, BoolValue, Code, Event, HardAssert, IfExpr, IsPropMod, IsProperty, Lemma,
-    Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, ReturnIf, Specification,
+    Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, Relation, ReturnIf,
+    Specification,
 };
 use crate::parse_tree::tree::{MJJ, MVB};
 
@@ -119,7 +120,7 @@ impl AsCode for Event {
 }
 
 trait Apply {
-    fn apply(&self, rhs: &Expr) -> Result<String, SpecificationError>;
+    fn apply(&self, lhs: &Expr) -> Result<String, SpecificationError>;
 }
 
 impl Apply for IsProperty {
@@ -160,11 +161,7 @@ impl Apply for IsProperty {
                     format!("{}({}).{}()", sym, quote::quote! {#lhs}.to_string(), lemma)
                 }
             }
-            IsPropMod::Rel(_rel) => {
-                // return ModRelation(self.tree[-1]).as_code(lhs)
-                println!("PropMod::REL");
-                return Err(SpecificationError::Unimplemented);
-            }
+            IsPropMod::Rel(rel) => rel.apply(lhs)?,
             IsPropMod::RangeMod(range) => {
                 let rangex = &range.range;
                 match (
@@ -365,7 +362,7 @@ impl AsCodeValue for QuantAssert {
                     Some(o) => o,
                     None => &self.quant_expr.quant.obj,
                 }
-                .as_code()?;
+                    .as_code()?;
                 let start = match &range.range.start {
                     // TODO: Type resolution and appropriate minimum detection here.
                     //     Ensure that we check specifically for numerical types which Prusti supports.
@@ -543,4 +540,35 @@ impl AsSpec for ActionObj {
         }
     }
 }
+
+impl Apply for Relation {
+    fn apply(&self, lhs: &Expr) -> Result<String, SpecificationError> {
+        let op: syn::BinOp = syn::parse_str(&self.op.to_string())?;
+        let s = self
+            .objects
+            .iter()
+            .map(|group| {
+                group
+                    .iter()
+                    .map(Object::as_code)
+                    .filter_map(Result::ok)
+                    .map(|rhs| {
+                        quote::quote! {((#lhs) #op (#rhs))}
+                    })
+                    .join(" && ")
+            })
+            .join(") || (");
+        if self
+            .modifier
+            .as_ref()
+            .map(|x| x.lemma == "not")
+            .unwrap_or(false)
+        {
+            Ok(format!("!(({}))", s))
+        } else {
+            Ok(format!("(({}))", s))
+        }
+    }
+}
+
 // TODO: Build a tool to simplify brackets and !
