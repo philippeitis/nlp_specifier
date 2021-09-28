@@ -266,6 +266,7 @@ pub struct SearchTree {
     pub items: Vec<SearchValue>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Depth {
     Infinite,

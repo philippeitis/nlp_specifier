@@ -83,36 +83,6 @@ impl BinOp {
     }
 }
 
-impl From<OP> for BinOp {
-    fn from(op: OP) -> Self {
-        match op {
-            OP::Bitop(bitop) => match bitop {
-                BITOP::_0(jj, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&jj.lemma),
-                BITOP::_1(nn, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&nn.lemma),
-            },
-            OP::Arithop(a) => match a {
-                ARITHOP::ARITH(arith, Some(inx)) => {
-                    if inx.lemma == "from" {
-                        let op = BinOp::from_str(&arith.lemma).unwrap();
-                        if op == BinOp::Sub {
-                            BinOp::SubFrom
-                        } else {
-                            op
-                        }
-                    } else {
-                        BinOp::from_str(&arith.lemma).unwrap()
-                    }
-                }
-                ARITHOP::ARITH(arith, None) => BinOp::from_str(&arith.lemma).unwrap(),
-            },
-            OP::Shiftop(shift) => match shift {
-                SHIFTOP::_0(_, _, _, nn, _) => BinOp::shift_with_dir(&nn.lemma).unwrap(),
-                SHIFTOP::_1(jj, _) => BinOp::shift_with_dir(&jj.lemma).unwrap(),
-            },
-        }
-    }
-}
-
 impl FromStr for BinOp {
     type Err = ();
 
@@ -123,22 +93,30 @@ impl FromStr for BinOp {
             "increment" => BinOp::Add,
             "incremented" => BinOp::Add,
             "plus" => BinOp::Add,
+            "+" => BinOp::Add,
             "sub" => BinOp::Sub,
             "decremented" => BinOp::Sub,
             "decrement" => BinOp::Sub,
             "subtract" => BinOp::Sub,
             "subtracted" => BinOp::Sub,
+            "-" => BinOp::Sub,
             "div" => BinOp::Div,
             "divide" => BinOp::Div,
             "divided" => BinOp::Div,
+            "/" => BinOp::Div,
             "mul" => BinOp::Mul,
             "multiply" => BinOp::Mul,
             "multiplied" => BinOp::Mul,
+            "*" => BinOp::Mul,
             "rem" => BinOp::Rem,
             "remainder" => BinOp::Rem,
+            "%" => BinOp::Rem,
             "xor" => BinOp::BitXor,
+            "^" => BinOp::BitXor,
             "and" => BinOp::And,
+            "&" => BinOp::And,
             "or" => BinOp::Or,
+            "|" => BinOp::Or,
             _ => return Err(()),
         })
     }
@@ -161,6 +139,36 @@ impl Display for BinOp {
             BinOp::Shl => "<<",
             BinOp::BitOr => "|",
         })
+    }
+}
+
+impl From<OP> for BinOp {
+    fn from(op: OP) -> Self {
+        match op {
+            OP::Bitop(bitop) => match bitop {
+                BITOP::_0(jj, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&jj.lemma),
+                BITOP::_1(nn, cc) => BinOp::from_str(&cc.lemma).unwrap().apply_jj(&nn.lemma),
+            },
+            OP::Arithop(a) => match a {
+                ARITHOP::ARITH(arith, Some(inx)) => {
+                    if inx.lemma == "from" {
+                        let op = BinOp::from_str(&arith.lemma).unwrap();
+                        if op == BinOp::Sub {
+                            BinOp::SubFrom
+                        } else {
+                            op
+                        }
+                    } else {
+                        BinOp::from_str(&arith.lemma).unwrap()
+                    }
+                }
+                ARITHOP::ARITH(arith, None) => BinOp::from_str(&arith.lemma).expect(&arith.lemma),
+            },
+            OP::Shiftop(shift) => match shift {
+                SHIFTOP::_0(_, _, _, nn, _) => BinOp::shift_with_dir(&nn.lemma).unwrap(),
+                SHIFTOP::_1(jj, _) => BinOp::shift_with_dir(&jj.lemma).unwrap(),
+            },
+        }
     }
 }
 
