@@ -528,8 +528,8 @@ impl AsSpec for ActionObj {
                 Ok(e.attrs)
             }
             ActionObj::Action2Ambiguous(action, target, value) => {
-                /// Should be performing compiler steps here to determine what is target and what
-                /// is value
+                // Should be performing compiler steps here to determine what is target and what
+                // is value
                 let target = target.as_code()?;
                 let value = value.as_code()?;
                 let e: AttrHelper = syn::parse_str(&format!(
