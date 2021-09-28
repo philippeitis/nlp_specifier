@@ -332,8 +332,11 @@ impl FromStr for Comparator {
         Ok(match s.to_lowercase().as_str() {
             "less" => Comparator::Lt,
             "smaller" => Comparator::Lt,
+            "small" => Comparator::Lt,
             "greater" => Comparator::Gt,
+            "great" => Comparator::Gt,
             "larger" => Comparator::Gt,
+            "large" => Comparator::Gt,
             "equal" => Comparator::Eq,
             "unequal" => Comparator::Neq,
             "same" => Comparator::Eq,
@@ -662,7 +665,8 @@ impl From<REL> for Relation {
                     }
                     .as_str(),
                 )
-                .unwrap_or(Comparator::Neq),
+                .unwrap_or(Comparator::Neq)
+                .apply_eq(),
                 modifier: None,
             },
             REL::_2(_in, obj) => Relation {
