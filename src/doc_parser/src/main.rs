@@ -1,14 +1,12 @@
 use std::collections::HashSet;
-
 use std::path::{Path, PathBuf};
 
+use clap::{AppSettings, Clap};
 use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::types::IntoPyDict;
 use pyo3::{PyResult, Python, ToPyObject};
 
 use chartparse::{ChartParser, ContextFreeGrammar};
-
-use clap::{AppSettings, Clap};
 
 mod docs;
 mod grammar;
@@ -366,7 +364,7 @@ enum Render {
 }
 
 fn repl(py: Python) -> PyResult<()> {
-    use pastel::ansi::{Brush};
+    use pastel::ansi::Brush;
     use pastel::Color;
 
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
