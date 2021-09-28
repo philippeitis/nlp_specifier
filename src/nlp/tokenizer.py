@@ -47,6 +47,7 @@ class Tokenizer:
 
     def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
         if model not in Tokenizer.TAGGER_CACHE:
+            spacy.prefer_gpu(0)
             LOGGER.info(f"Loading spacy/{model}")
             nlp = spacy.load(str(model))
             nlp.add_pipe("doc_tokens")
