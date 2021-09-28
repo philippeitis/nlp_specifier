@@ -1077,33 +1077,6 @@ impl From<Vec<SymbolTree>> for EVENT {
 }
 
 #[derive(Clone)]
-pub enum OBJV {
-    _0(OBJ, Option<VBZ>, MVB),
-}
-
-impl From<SymbolTree> for OBJV {
-    fn from(tree: SymbolTree) -> Self {
-        let (_symbol, branches) = tree.unwrap_branch();
-        Self::from(branches)
-    }
-}
-
-impl From<Vec<SymbolTree>> for OBJV {
-    fn from(branches: Vec<SymbolTree>) -> Self {
-        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match (labels.next(), labels.next(), labels.next()) {
-            (Some((Symbol::OBJ, obj_0)), Some((Symbol::MVB, mvb_2)), None) => {
-                OBJV::_0(OBJ::from(obj_0), None, MVB::from(mvb_2))
-            },
-            (Some((Symbol::OBJ, obj_0)), Some((Symbol::VBZ, vbz_1)), Some((Symbol::MVB, mvb_2))) => {
-                OBJV::_0(OBJ::from(obj_0), Some(VBZ::from(vbz_1)), MVB::from(mvb_2))
-            },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct NN {
     pub word: String,
     pub lemma: String,

@@ -180,7 +180,7 @@ pub fn tag_color(sym: &Symbol) -> &'static str {
     match sym {
         VB | VBP | VBZ | VBN | VBG | VBD | MVB | RET | MRET | RETIF | MD => "#FF8B3D",
         RB => "#ff9a57",
-        PRP | NN | NNP | NNS | NNPS | MNN | BOOL_EXPR | CODE | OBJ | OBJV | LIT => "#00AA00",
+        PRP | NN | NNP | NNS | NNPS | MNN | BOOL_EXPR | CODE | OBJ | LIT => "#00AA00",
         JJ | JJS | JJR | TJJ | MJJ => "#00dd00",
         IN | TO | EQTO | IF | IFF => "#E3242B",
         DT | CC => "#b0b0b0",

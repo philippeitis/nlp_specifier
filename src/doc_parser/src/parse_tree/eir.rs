@@ -42,7 +42,6 @@ pub enum Symbol {
     SIDE,
     ASSIGN,
     EVENT,
-    OBJV,
     NN,
     NNS,
     NNP,
@@ -154,7 +153,6 @@ impl<S: AsRef<str>> From<S> for Symbol {
             "SIDE" => Symbol::SIDE,
             "ASSIGN" => Symbol::ASSIGN,
             "EVENT" => Symbol::EVENT,
-            "OBJV" => Symbol::OBJV,
             x => panic!("Unexpected symbol {}", x),
         }
     }
@@ -194,7 +192,6 @@ impl std::fmt::Display for Symbol {
             Symbol::SIDE => "SIDE",
             Symbol::ASSIGN => "ASSIGN",
             Symbol::EVENT => "EVENT",
-            Symbol::OBJV => "OBJV",
             Symbol::NN => "NN",
             Symbol::NNS => "NNS",
             Symbol::NNP => "NNP",
