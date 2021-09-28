@@ -366,13 +366,32 @@ enum Render {
 }
 
 fn repl(py: Python) -> PyResult<()> {
+    use pastel::ansi::{Brush};
     use pastel::Color;
+
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
     let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
 
+    let light_red = Color::from_rgb(255, 85, 85);
+    fn paint_string(brush: &Brush, text: &str, tag: &str) -> String {
+        match TerminalSymbol::from_terminal(tag) {
+            Ok(sym) => {
+                let sym = Symbol::from(sym);
+                let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
+                if color == Color::black() {
+                    color = pastel::parser::parse_color("#24e3dd").unwrap();
+                }
+                brush.paint(text, color)
+            }
+            Err(_) => brush.paint(text, Color::white()),
+        }
+    }
+
     println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
-    println!("You can use !explain to explain a particular token.");
+    println!("Commands:");
+    println!("!explain: explain a particular token");
+    println!("!lemma: display the lemmas in a particular sentence");
 
     let tokenizer = Tokenizer::new(py);
     let spacy = py.import("spacy")?;
@@ -385,10 +404,23 @@ fn repl(py: Python) -> PyResult<()> {
         }
         if sent.starts_with("!explain") {
             if let Some((_, keyword)) = sent.split_once(' ') {
-                let explanation: Option<String> = spacy.getattr("explain")?.call1((keyword, ))?.extract()?;
-                if let Some(explanation) = explanation  {
+                let explanation: Option<String> =
+                    spacy.getattr("explain")?.call1((keyword,))?.extract()?;
+                if let Some(explanation) = explanation {
                     println!("{}", explanation);
                 }
+            }
+            continue;
+        } else if sent.starts_with("!lemma") {
+            if let Some((_, keyword)) = sent.split_once(' ') {
+                let tokens = tokenizer.tokenize_sents(&[keyword.to_string()])?.remove(0);
+                println!(
+                    "{}",
+                    tokens
+                        .iter()
+                        .map(|(tag, _, lemma)| paint_string(&brush, lemma, tag))
+                        .join(" ")
+                );
             }
             continue;
         }
@@ -397,27 +429,12 @@ fn repl(py: Python) -> PyResult<()> {
             "Tokens: {}",
             tokens
                 .iter()
-                .map(|(token, _, _)| {
-                    match TerminalSymbol::from_terminal(token) {
-                        Ok(sym) => {
-                            let sym = Symbol::from(sym);
-                            let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
-                            if color == Color::black() {
-                                color = pastel::parser::parse_color("#24e3dd").unwrap();
-                            }
-                            brush.paint(token, color)
-                        }
-                        Err(_) => brush.paint(token, Color::white()),
-                    }
-                })
+                .map(|(tag, _, _)| paint_string(&brush, tag, tag))
                 .join(" ")
         );
         let (specs, _) = sentence_to_specifications(&parser, &tokens);
         if specs.is_empty() {
-            println!(
-                "{}",
-                brush.paint("No specification generated", Color::red())
-            );
+            println!("{}", brush.paint("No specification generated", &light_red));
         }
         for (i, spec) in specs.iter().enumerate() {
             println!("Specification {}/{}", i + 1, specs.len());
@@ -428,7 +445,7 @@ fn repl(py: Python) -> PyResult<()> {
                     }
                 }
                 Err(e) => {
-                    println!("{}", brush.paint(format!("FAILURE: {:?}", e), Color::red()));
+                    println!("{}", brush.paint(format!("FAILURE: {:?}", e), &light_red));
                 }
             }
         }
