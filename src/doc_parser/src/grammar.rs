@@ -114,8 +114,29 @@ impl AsCode for MReturn {
 
 impl AsCode for Event {
     fn as_code(&self) -> Result<Expr, SpecificationError> {
-        println!("Event");
-        Err(SpecificationError::Unimplemented)
+        let negations = self
+            .mnn
+            .adjs
+            .iter()
+            .filter(|x| match x {
+                MnnMod::Jj(jj) => jj.lemma == "not",
+                MnnMod::Vbn(_) => false,
+            })
+            .count();
+        let body = self.inner.as_code()?;
+        if negations % 2 == 0 {
+            Ok(syn::parse_str(&format!(
+                "{}s!({})",
+                self.mnn.root_lemma(),
+                quote::quote! {#body}.to_string()
+            ))?)
+        } else {
+            Ok(syn::parse_str(&format!(
+                "!{}s!({})",
+                self.mnn.root_lemma(),
+                quote::quote! {#body}.to_string()
+            ))?)
+        }
     }
 }
 
@@ -192,6 +213,11 @@ impl Apply for IsProperty {
                     format!("({} != old({}))", lhs, lhs)
                 } else if self.mvb.root_lemma() == "overflow" {
                     format!("overflows!({})", quote::quote! {#lhs}.to_string())
+                } else if self.mvb.root_lemma() == "panic" {
+                    format!("panics!({})", quote::quote! {#lhs}.to_string())
+                } else if self.mvb.root_lemma() == "occur" {
+                    // TODO: nn vbd - needs to be applied backwards
+                    format!("{}s!()", quote::quote! {#lhs}.to_string())
                 } else {
                     // TODO: Make this an error / resolve cases such as this.
                     format!(
@@ -495,16 +521,18 @@ impl AsSpec for ReturnIf {
                         }
                     }
                 }
-                BoolValue::Event(_) => {
-                    // s = "!" if isinstance(pred, Negated) else ""
-                    // overflow_item = pred.expr.root or ret_val
-                    // if pred.expr.resolve() == EventType.OVERFLOW:
-                    //     ret_assert = f"{s}overflows!({overflow_item.as_code()}) ==> (result == {ret_val})"
-                    // elif pred.expr.resolve() == EventType.NO_OVERFLOW:
-                    //     ret_assert = f"{s}!overflows!({overflow_item.as_code()}) ==> (result == {ret_val})"
-                    // return f"#[ensures({ret_assert})]"
-                    println!("EVENT");
-                    return Err(SpecificationError::Unimplemented);
+                BoolValue::Event(event) => {
+                    let event = event.as_code()?;
+                    let pred = quote::quote! {#event}.to_string();
+                    match cond.if_expr {
+                        IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
+                        IfExpr::Iff => {
+                            format!(
+                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
+                                pred, ret_assert, ret_assert, pred
+                            )
+                        }
+                    }
                 }
             };
             attrs.push_str(&s);

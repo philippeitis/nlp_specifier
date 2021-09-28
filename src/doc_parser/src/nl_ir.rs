@@ -400,18 +400,31 @@ pub struct BoolCond {
     pub value: BoolValue,
 }
 
-impl From<COND> for BoolCond {
+enum BoolCondIntermediate {
+    Complete(BoolCond),
+    Incomplete {
+        if_expr: IfExpr,
+        negated: bool,
+        value: BoolValueIncomplete,
+    },
+}
+
+impl From<COND> for BoolCondIntermediate {
     fn from(cond: COND) -> Self {
-        match cond {
-            COND::_0(_if, value) => BoolCond {
-                if_expr: IfExpr::If,
+        let (if_expr, value) = match cond {
+            COND::_0(_if, value) => (IfExpr::If, BoolValueIntermediate::from(value)),
+            COND::_1(_iff, value) => (IfExpr::Iff, BoolValueIntermediate::from(value)),
+        };
+        match value {
+            BoolValueIntermediate::Complete(value) => BoolCondIntermediate::Complete(BoolCond {
+                if_expr,
                 negated: false,
-                value: value.into(),
-            },
-            COND::_1(_iff, value) => BoolCond {
-                if_expr: IfExpr::Iff,
+                value,
+            }),
+            BoolValueIntermediate::Incomplete(value) => BoolCondIntermediate::Incomplete {
+                if_expr,
                 negated: false,
-                value: value.into(),
+                value,
             },
         }
     }
@@ -425,32 +438,58 @@ pub enum BoolValue {
     Event(Event),
 }
 
-impl From<BOOL_EXPR> for BoolValue {
+enum BoolValueIncomplete {
+    Event(EventIntermediate),
+}
+
+enum BoolValueIntermediate {
+    Complete(BoolValue),
+    Incomplete(BoolValueIncomplete),
+}
+
+impl From<BOOL_EXPR> for BoolValueIntermediate {
     fn from(boolexpr: BOOL_EXPR) -> Self {
+        use BoolValueIntermediate::*;
         match boolexpr {
-            BOOL_EXPR::Assert(a) => BoolValue::Assert(a.into()),
-            BOOL_EXPR::Qassert(q) => BoolValue::QAssert(q.into()),
-            BOOL_EXPR::Code(c) => BoolValue::Code(c.into()),
-            BOOL_EXPR::Event(e) => BoolValue::Event(e.into()),
+            BOOL_EXPR::Assert(a) => Complete(BoolValue::Assert(a.into())),
+            BOOL_EXPR::Qassert(q) => Complete(BoolValue::QAssert(q.into())),
+            BOOL_EXPR::Code(c) => Complete(BoolValue::Code(c.into())),
+            BOOL_EXPR::Event(e) => Incomplete(BoolValueIncomplete::Event(e.into())),
+        }
+    }
+}
+
+struct EventIntermediate {
+    mnn: Mnn,
+    vbd: VBD,
+}
+
+impl From<EVENT> for EventIntermediate {
+    fn from(e: EVENT) -> Self {
+        match e {
+            EVENT::_0(mnn, vbd) => EventIntermediate {
+                mnn: mnn.into(),
+                vbd,
+            },
+        }
+    }
+}
+
+impl EventIntermediate {
+    fn complete(self, inner: Object) -> Event {
+        Event {
+            mnn: self.mnn,
+            vbd: self.vbd,
+            inner,
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Event {
-    mnn: Mnn,
-    vbd: VBD,
-}
-
-impl From<EVENT> for Event {
-    fn from(e: EVENT) -> Self {
-        match e {
-            EVENT::_0(mnn, vbd) => Event {
-                mnn: mnn.into(),
-                vbd,
-            },
-        }
-    }
+    pub mnn: Mnn,
+    pub vbd: VBD,
+    pub inner: Object,
 }
 
 pub enum Specification {
@@ -916,8 +955,22 @@ impl From<RETIF> for ReturnIf {
         match retif {
             RETIF::_0(mret, cond) | RETIF::_1(cond, _, mret) => {
                 let mret = MReturn::from(mret);
+                let cond = match BoolCondIntermediate::from(cond) {
+                    BoolCondIntermediate::Complete(cond) => cond,
+                    BoolCondIntermediate::Incomplete {
+                        if_expr,
+                        negated,
+                        value,
+                    } => match value {
+                        BoolValueIncomplete::Event(e) => BoolCond {
+                            if_expr,
+                            negated,
+                            value: BoolValue::Event(e.complete(mret.ret_val.clone())),
+                        },
+                    },
+                };
                 ReturnIf {
-                    ret_pred: vec![(cond.into(), mret.ret_val)],
+                    ret_pred: vec![(cond, mret.ret_val)],
                 }
             }
             RETIF::_2(retif1, _, rb, retif2) => {
@@ -938,7 +991,21 @@ impl From<RETIF> for ReturnIf {
             RETIF::_4(mret, _, ow_mret, cond) => {
                 let mret = MReturn::from(mret);
                 let ow_mret = MReturn::from(ow_mret);
-                let ow_cond = BoolCond::from(cond);
+                let ow_cond = match BoolCondIntermediate::from(cond) {
+                    BoolCondIntermediate::Complete(cond) => cond,
+                    BoolCondIntermediate::Incomplete {
+                        if_expr,
+                        negated,
+                        value,
+                    } => match value {
+                        BoolValueIncomplete::Event(e) => BoolCond {
+                            if_expr,
+                            negated,
+                            value: BoolValue::Event(e.complete(mret.ret_val.clone())),
+                        },
+                    },
+                };
+
                 let mut cond = ow_cond.clone();
                 cond.negated = true;
                 ReturnIf {
@@ -1014,8 +1081,14 @@ impl From<ASSIGN> for ActionObj {
                         value: obj1.into(),
                     }
                 }
-                ("assign", "to") => ActionObj::Set { target: obj1.into(), value: obj0.into() },
-                ("set", "to") => ActionObj::Set { target: obj0.into(), value: obj1.into() },
+                ("assign", "to") => ActionObj::Set {
+                    target: obj1.into(),
+                    value: obj0.into(),
+                },
+                ("set", "to") => ActionObj::Set {
+                    target: obj0.into(),
+                    value: obj1.into(),
+                },
                 _ => ActionObj::Action2Ambiguous(vbz, obj0.into(), obj1.into()),
             },
             ASSIGN::_1(vbz, obj0, _to, obj1) => match vbz.lemma.as_str() {
