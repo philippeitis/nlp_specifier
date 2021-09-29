@@ -480,7 +480,7 @@ impl From<EVENT> for EventIntermediate {
             EVENT::_1(mnn, vbz) => EventIntermediate {
                 mnn: mnn.into(),
                 vb: EventVB::VBZ(vbz),
-            }
+            },
         }
     }
 }
@@ -519,7 +519,7 @@ impl From<S> for Specification {
             S::Hassert(hassert) => Specification::HAssert(hassert.into()),
             S::Qassert(qassert) => Specification::QAssert(qassert.into()),
             S::Assign(action_obj) => Specification::Action(action_obj.into()),
-            S::Side(_) => unimplemented!(),
+            S::Side(_) => Specification::Side,
         }
     }
 }
@@ -707,9 +707,9 @@ impl From<REL> for Relation {
                         TJJ::JJR(_, jjr) => jjr.lemma,
                         TJJ::JJS(_, jjs) => jjs.lemma,
                     }
-                        .as_str(),
+                    .as_str(),
                 )
-                    .unwrap_or(Comparator::Neq),
+                .unwrap_or(Comparator::Neq),
                 modifier: None,
             },
             REL::_1(tjj, _eqto, obj) => Relation {
@@ -720,10 +720,10 @@ impl From<REL> for Relation {
                         TJJ::JJR(_, jjr) => jjr.lemma,
                         TJJ::JJS(_, jjs) => jjs.lemma,
                     }
-                        .as_str(),
+                    .as_str(),
                 )
-                    .unwrap_or(Comparator::Neq)
-                    .apply_eq(),
+                .unwrap_or(Comparator::Neq)
+                .apply_eq(),
                 modifier: None,
             },
             REL::_2(_in, obj) => Relation {
@@ -1114,7 +1114,12 @@ impl From<ASSIGN> for ActionObj {
                 },
                 _ => ActionObj::Action2Ambiguous(vbz, obj0.into(), obj1.into()),
             },
-            ASSIGN::_2(vbz, obj) => ActionObj::Action1(vbz, obj.into()),
+            ASSIGN::_2(vbz, _dt, _jj, obj) => {
+                if _dt.is_some() {
+                    println!("{}", vbz.word);
+                }
+                ActionObj::Action1(vbz, obj.into())
+            }
         }
     }
 }

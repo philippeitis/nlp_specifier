@@ -94,6 +94,7 @@ impl AsCode for Object {
                 ))?)
             }
             Object::Prp(prp) => {
+                // personal pronoun - what is being referenced here?
                 println!("Object::Prp({})", prp.lemma);
                 Err(SpecificationError::Unimplemented)
             }

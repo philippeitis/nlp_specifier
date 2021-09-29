@@ -1024,7 +1024,7 @@ impl From<Vec<SymbolTree>> for SIDE {
 pub enum ASSIGN {
     _0(VBZ, OBJ, IN, OBJ),
     _1(VBZ, OBJ, TO, OBJ),
-    _2(VBZ, OBJ),
+    _2(VBZ, Option<DT>, Option<JJ>, OBJ),
 }
 
 impl From<SymbolTree> for ASSIGN {
@@ -1044,8 +1044,17 @@ impl From<Vec<SymbolTree>> for ASSIGN {
             (Some((Symbol::VBZ, vbz_0)), Some((Symbol::OBJ, obj_1)), Some((Symbol::TO, to_2)), Some((Symbol::OBJ, obj_3))) => {
                 ASSIGN::_1(VBZ::from(vbz_0), OBJ::from(obj_1), TO::from(to_2), OBJ::from(obj_3))
             },
-            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::OBJ, obj_1)), None, None) => {
-                ASSIGN::_2(VBZ::from(vbz_0), OBJ::from(obj_1))
+            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::OBJ, obj_3)), None, None) => {
+                ASSIGN::_2(VBZ::from(vbz_0), None, None, OBJ::from(obj_3))
+            },
+            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::OBJ, obj_3)), None) => {
+                ASSIGN::_2(VBZ::from(vbz_0), Some(DT::from(dt_1)), None, OBJ::from(obj_3))
+            },
+            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::JJ, jj_2)), Some((Symbol::OBJ, obj_3)), None) => {
+                ASSIGN::_2(VBZ::from(vbz_0), None, Some(JJ::from(jj_2)), OBJ::from(obj_3))
+            },
+            (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::JJ, jj_2)), Some((Symbol::OBJ, obj_3))) => {
+                ASSIGN::_2(VBZ::from(vbz_0), Some(DT::from(dt_1)), Some(JJ::from(jj_2)), OBJ::from(obj_3))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
