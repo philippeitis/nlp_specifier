@@ -1055,6 +1055,7 @@ impl From<Vec<SymbolTree>> for ASSIGN {
 #[derive(Clone)]
 pub enum EVENT {
     _0(MNN, VBD),
+    _1(MNN, VBZ),
 }
 
 impl From<SymbolTree> for EVENT {
@@ -1070,6 +1071,9 @@ impl From<Vec<SymbolTree>> for EVENT {
         match (labels.next(), labels.next()) {
             (Some((Symbol::MNN, mnn_0)), Some((Symbol::VBD, vbd_1))) => {
                 EVENT::_0(MNN::from(mnn_0), VBD::from(vbd_1))
+            },
+            (Some((Symbol::MNN, mnn_0)), Some((Symbol::VBZ, vbz_1))) => {
+                EVENT::_1(MNN::from(mnn_0), VBZ::from(vbz_1))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }

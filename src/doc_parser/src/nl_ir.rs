@@ -459,9 +459,15 @@ impl From<BOOL_EXPR> for BoolValueIntermediate {
     }
 }
 
+#[derive(Clone)]
+pub enum EventVB {
+    VBZ(VBZ),
+    VBD(VBD),
+}
+
 struct EventIntermediate {
     mnn: Mnn,
-    vbd: VBD,
+    vb: EventVB,
 }
 
 impl From<EVENT> for EventIntermediate {
@@ -469,8 +475,12 @@ impl From<EVENT> for EventIntermediate {
         match e {
             EVENT::_0(mnn, vbd) => EventIntermediate {
                 mnn: mnn.into(),
-                vbd,
+                vb: EventVB::VBD(vbd),
             },
+            EVENT::_1(mnn, vbz) => EventIntermediate {
+                mnn: mnn.into(),
+                vb: EventVB::VBZ(vbz),
+            }
         }
     }
 }
@@ -479,7 +489,7 @@ impl EventIntermediate {
     fn complete(self, inner: Object) -> Event {
         Event {
             mnn: self.mnn,
-            vbd: self.vbd,
+            vb: self.vb,
             inner,
         }
     }
@@ -488,7 +498,7 @@ impl EventIntermediate {
 #[derive(Clone)]
 pub struct Event {
     pub mnn: Mnn,
-    pub vbd: VBD,
+    pub vb: EventVB,
     pub inner: Object,
 }
 
@@ -697,9 +707,9 @@ impl From<REL> for Relation {
                         TJJ::JJR(_, jjr) => jjr.lemma,
                         TJJ::JJS(_, jjs) => jjs.lemma,
                     }
-                    .as_str(),
+                        .as_str(),
                 )
-                .unwrap_or(Comparator::Neq),
+                    .unwrap_or(Comparator::Neq),
                 modifier: None,
             },
             REL::_1(tjj, _eqto, obj) => Relation {
@@ -710,10 +720,10 @@ impl From<REL> for Relation {
                         TJJ::JJR(_, jjr) => jjr.lemma,
                         TJJ::JJS(_, jjs) => jjs.lemma,
                     }
-                    .as_str(),
+                        .as_str(),
                 )
-                .unwrap_or(Comparator::Neq)
-                .apply_eq(),
+                    .unwrap_or(Comparator::Neq)
+                    .apply_eq(),
                 modifier: None,
             },
             REL::_2(_in, obj) => Relation {
