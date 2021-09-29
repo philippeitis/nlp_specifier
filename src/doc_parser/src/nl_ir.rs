@@ -950,6 +950,8 @@ pub struct ReturnIf {
     pub ret_pred: Vec<(BoolCond, Object)>,
 }
 
+// TODO: Add "compiler" pass which detects overflow / panic / event occur syntax
+//  and pulls in relevant object from previous item
 impl From<RETIF> for ReturnIf {
     fn from(retif: RETIF) -> Self {
         match retif {

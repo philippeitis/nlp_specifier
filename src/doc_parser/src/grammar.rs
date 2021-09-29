@@ -217,6 +217,7 @@ impl Apply for IsProperty {
                     format!("panics!({})", quote::quote! {#lhs}.to_string())
                 } else if self.mvb.root_lemma() == "occur" {
                     // TODO: nn vbd - needs to be applied backwards
+                    //  Overlaps with EVENT case
                     format!("{}s!()", quote::quote! {#lhs}.to_string())
                 } else {
                     // TODO: Make this an error / resolve cases such as this.
