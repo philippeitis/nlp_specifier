@@ -3,9 +3,9 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr};
 
 use crate::nl_ir::{
-    ActionObj, Assert, BoolValue, Code, Event, HardAssert, IfExpr, IsPropMod, IsProperty, Lemma,
-    Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantItem, Relation, ReturnIf,
-    Specification,
+    ActionObj, Assert, BoolValue, Code, Event, HardAssert, HardQuantAssert, IfExpr, IsPropMod,
+    IsProperty, Lemma, Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantExpr, QuantItem,
+    Relation, ReturnIf, Specification,
 };
 use crate::parse_tree::tree::{MJJ, MVB};
 
@@ -322,7 +322,7 @@ impl AsSpec for HardAssert {
     }
 }
 
-impl AsSpec for QuantAssert {
+impl AsSpec for HardQuantAssert {
     fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
         let scope = if self.is_precond() {
             "requires"
@@ -330,7 +330,16 @@ impl AsSpec for QuantAssert {
             "ensures"
         };
 
-        let attr = format!("#[{}({})]", scope, self.as_code_value()?.as_code_value()?);
+        let expr = match &self.assertion {
+            QuantItem::Code(c) => c.as_code()?,
+            QuantItem::Assert(h) => h.assert.as_code()?,
+        };
+
+        let attr = format!(
+            "#[{}({})]",
+            scope,
+            assert_as_code_value(&self.quant_expr, &expr)?.as_code_value()?
+        );
         let e: AttrHelper = syn::parse_str(&attr)?;
         Ok(e.attrs)
     }
@@ -367,67 +376,73 @@ impl ExprQuantifierU {
     }
 }
 
+fn assert_as_code_value(
+    quant_expr: &QuantExpr,
+    expr: &Expr,
+) -> Result<ExprQuantifierU, SpecificationError> {
+    Ok(match &quant_expr.range {
+        None => {
+            let ident = quant_expr.quant.obj.as_code()?;
+            ExprQuantifierU {
+                universal: quant_expr.quant.universal,
+                bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
+                body: ExprQBody::String(quote::quote! {#expr}.to_string()),
+            }
+        }
+        Some(range) => {
+            let ident = match &range.range.ident {
+                Some(o) => o,
+                None => &quant_expr.quant.obj,
+            }
+            .as_code()?;
+            let start = match &range.range.start {
+                // TODO: Type resolution and appropriate minimum detection here.
+                //     Ensure that we check specifically for numerical types which Prusti supports.
+                //     Also, check that start < end
+                None => syn::parse_str("0")?,
+                Some(x) => x.as_code()?,
+            };
+            let cmp = range.upper_bound.lt().to_string();
+            let end = range.range.end.as_ref().unwrap().as_code()?;
+            let conditions = vec![vec![
+                format!(
+                    "{} <= {}",
+                    quote::quote! {#start}.to_string(),
+                    quote::quote! {#ident}.to_string()
+                ),
+                format!(
+                    "{} {} {}",
+                    quote::quote! {#ident}.to_string(),
+                    cmp,
+                    quote::quote! {#end}.to_string()
+                ),
+            ]];
+
+            let conditions = conditions
+                .into_iter()
+                .map(|x| x.join(" && "))
+                .join(") || (");
+            ExprQuantifierU {
+                universal: quant_expr.quant.universal,
+                bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
+                body: ExprQBody::IffExpr(IffExpr {
+                    lhs: format!("({})", conditions),
+                    rhs: quote::quote! {#expr}.to_string(),
+                }),
+            }
+        }
+    })
+}
+
 impl AsCodeValue for QuantAssert {
     type Output = ExprQuantifierU;
 
     fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
         let expr = match &self.assertion {
             QuantItem::Code(c) => c.as_code()?,
-            QuantItem::HAssert(h) => h.assert.as_code()?,
+            QuantItem::Assert(assert) => assert.as_code()?,
         };
-
-        Ok(match &self.quant_expr.range {
-            None => {
-                let ident = self.quant_expr.quant.obj.as_code()?;
-                ExprQuantifierU {
-                    universal: self.quant_expr.quant.universal,
-                    bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
-                    body: ExprQBody::String(quote::quote! {#expr}.to_string()),
-                }
-            }
-            Some(range) => {
-                let ident = match &range.range.ident {
-                    Some(o) => o,
-                    None => &self.quant_expr.quant.obj,
-                }
-                .as_code()?;
-                let start = match &range.range.start {
-                    // TODO: Type resolution and appropriate minimum detection here.
-                    //     Ensure that we check specifically for numerical types which Prusti supports.
-                    //     Also, check that start < end
-                    None => syn::parse_str("0")?,
-                    Some(x) => x.as_code()?,
-                };
-                let cmp = range.upper_bound.lt().to_string();
-                let end = range.range.end.as_ref().unwrap().as_code()?;
-                let conditions = vec![vec![
-                    format!(
-                        "{} <= {}",
-                        quote::quote! {#start}.to_string(),
-                        quote::quote! {#ident}.to_string()
-                    ),
-                    format!(
-                        "{} {} {}",
-                        quote::quote! {#ident}.to_string(),
-                        cmp,
-                        quote::quote! {#end}.to_string()
-                    ),
-                ]];
-
-                let conditions = conditions
-                    .into_iter()
-                    .map(|x| x.join(" && "))
-                    .join(") || (");
-                ExprQuantifierU {
-                    universal: self.quant_expr.quant.universal,
-                    bound_vars: vec![(quote::quote! {#ident}.to_string(), "int".to_string())],
-                    body: ExprQBody::IffExpr(IffExpr {
-                        lhs: format!("({})", conditions),
-                        rhs: quote::quote! {#expr}.to_string(),
-                    }),
-                }
-            }
-        })
+        assert_as_code_value(&self.quant_expr, &expr)
     }
 }
 

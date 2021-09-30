@@ -2,9 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use crate::parse_tree::tree::{
-    ARITHOP, ASSERT, ASSIGN, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, JJ, LIT, MD, MJJ, MNN,
-    MREL, MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE, RANGEMOD, RB,
-    REL, RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN, VBZ,
+    ARITHOP, ASSERT, ASSIGN, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, HQASSERT, JJ, LIT, MD,
+    MJJ, MNN, MREL, MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE,
+    RANGEMOD, RB, REL, RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN, VBZ,
 };
 use crate::parse_tree::Terminal;
 
@@ -505,7 +505,7 @@ pub struct Event {
 pub enum Specification {
     RetIf(ReturnIf),
     HAssert(HardAssert),
-    QAssert(QuantAssert),
+    QAssert(HardQuantAssert),
     Mret(MReturn),
     Action(ActionObj),
     Side,
@@ -517,7 +517,7 @@ impl From<S> for Specification {
             S::Mret(m) => Specification::Mret(m.into()),
             S::Retif(retif) => Specification::RetIf(retif.into()),
             S::Hassert(hassert) => Specification::HAssert(hassert.into()),
-            S::Qassert(qassert) => Specification::QAssert(qassert.into()),
+            S::Hqassert(hqassert) => Specification::QAssert(hqassert.into()),
             S::Assign(action_obj) => Specification::Action(action_obj.into()),
             S::Side(_) => Specification::Side,
         }
@@ -566,23 +566,23 @@ impl FromStr for UnaryOp {
 }
 
 #[derive(Clone)]
-pub enum QuantItem {
+pub enum QuantItem<V: Clone> {
     Code(Code),
-    HAssert(HardAssert),
+    Assert(V),
 }
 
 #[derive(Clone)]
 pub struct QuantAssert {
     pub quant_expr: QuantExpr,
-    pub assertion: QuantItem,
+    pub assertion: QuantItem<Assert>,
 }
 
 impl From<QASSERT> for QuantAssert {
     fn from(qassert: QASSERT) -> Self {
         match qassert {
-            QASSERT::_0(quant_expr, _, hassert) | QASSERT::_1(hassert, quant_expr) => QuantAssert {
+            QASSERT::_0(quant_expr, _, assert) | QASSERT::_1(assert, quant_expr) => QuantAssert {
                 quant_expr: quant_expr.into(),
-                assertion: QuantItem::HAssert(hassert.into()),
+                assertion: QuantItem::Assert(assert.into()),
             },
             QASSERT::_2(code, quant_expr) => QuantAssert {
                 quant_expr: quant_expr.into(),
@@ -592,15 +592,37 @@ impl From<QASSERT> for QuantAssert {
     }
 }
 
-impl QuantAssert {
-    pub(crate) fn is_precond(&self) -> bool {
-        match &self.assertion {
-            QuantItem::Code(_c) => false,
-            QuantItem::HAssert(h) => h.md.lemma == "must",
+#[derive(Clone)]
+pub struct HardQuantAssert {
+    pub quant_expr: QuantExpr,
+    pub assertion: QuantItem<HardAssert>,
+}
+
+impl From<HQASSERT> for HardQuantAssert {
+    fn from(qassert: HQASSERT) -> Self {
+        match qassert {
+            HQASSERT::_0(quant_expr, _, hassert) | HQASSERT::_1(hassert, quant_expr) => {
+                HardQuantAssert {
+                    quant_expr: quant_expr.into(),
+                    assertion: QuantItem::Assert(hassert.into()),
+                }
+            }
+            HQASSERT::_2(code, quant_expr) => HardQuantAssert {
+                quant_expr: quant_expr.into(),
+                assertion: QuantItem::Code(code.into()),
+            },
         }
     }
 }
 
+impl HardQuantAssert {
+    pub(crate) fn is_precond(&self) -> bool {
+        match &self.assertion {
+            QuantItem::Code(_c) => false,
+            QuantItem::Assert(h) => h.md.lemma == "must",
+        }
+    }
+}
 #[derive(Clone)]
 pub struct HardAssert {
     pub md: MD,

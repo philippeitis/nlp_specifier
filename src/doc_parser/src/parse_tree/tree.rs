@@ -6,7 +6,7 @@ pub enum S {
     Mret(MRET),
     Retif(RETIF),
     Hassert(HASSERT),
-    Qassert(QASSERT),
+    Hqassert(HQASSERT),
     Side(SIDE),
     Assign(ASSIGN),
 }
@@ -31,8 +31,8 @@ impl From<Vec<SymbolTree>> for S {
             Some((Symbol::HASSERT, hassert_0)) => {
                 S::Hassert(HASSERT::from(hassert_0))
             },
-            Some((Symbol::QASSERT, qassert_0)) => {
-                S::Qassert(QASSERT::from(qassert_0))
+            Some((Symbol::HQASSERT, hqassert_0)) => {
+                S::Hqassert(HQASSERT::from(hqassert_0))
             },
             Some((Symbol::SIDE, side_0)) => {
                 S::Side(SIDE::from(side_0))
@@ -815,8 +815,8 @@ impl From<Vec<SymbolTree>> for QUANT_EXPR {
 
 #[derive(Clone)]
 pub enum QASSERT {
-    _0(QUANT_EXPR, Option<COMMA>, HASSERT),
-    _1(HASSERT, QUANT_EXPR),
+    _0(QUANT_EXPR, Option<COMMA>, ASSERT),
+    _1(ASSERT, QUANT_EXPR),
     _2(CODE, QUANT_EXPR),
 }
 
@@ -831,17 +831,52 @@ impl From<Vec<SymbolTree>> for QASSERT {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
         match (labels.next(), labels.next(), labels.next()) {
-            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::HASSERT, hassert_2)), None) => {
-                QASSERT::_0(QUANT_EXPR::from(quant_expr_0), None, HASSERT::from(hassert_2))
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::ASSERT, assert_2)), None) => {
+                QASSERT::_0(QUANT_EXPR::from(quant_expr_0), None, ASSERT::from(assert_2))
             },
-            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::HASSERT, hassert_2))) => {
-                QASSERT::_0(QUANT_EXPR::from(quant_expr_0), Some(COMMA::from(comma_1)), HASSERT::from(hassert_2))
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::ASSERT, assert_2))) => {
+                QASSERT::_0(QUANT_EXPR::from(quant_expr_0), Some(COMMA::from(comma_1)), ASSERT::from(assert_2))
             },
-            (Some((Symbol::HASSERT, hassert_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
-                QASSERT::_1(HASSERT::from(hassert_0), QUANT_EXPR::from(quant_expr_1))
+            (Some((Symbol::ASSERT, assert_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
+                QASSERT::_1(ASSERT::from(assert_0), QUANT_EXPR::from(quant_expr_1))
             },
             (Some((Symbol::CODE, code_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
                 QASSERT::_2(CODE::from(code_0), QUANT_EXPR::from(quant_expr_1))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum HQASSERT {
+    _0(QUANT_EXPR, Option<COMMA>, HASSERT),
+    _1(HASSERT, QUANT_EXPR),
+    _2(CODE, QUANT_EXPR),
+}
+
+impl From<SymbolTree> for HQASSERT {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for HQASSERT {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::HASSERT, hassert_2)), None) => {
+                HQASSERT::_0(QUANT_EXPR::from(quant_expr_0), None, HASSERT::from(hassert_2))
+            },
+            (Some((Symbol::QUANT_EXPR, quant_expr_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::HASSERT, hassert_2))) => {
+                HQASSERT::_0(QUANT_EXPR::from(quant_expr_0), Some(COMMA::from(comma_1)), HASSERT::from(hassert_2))
+            },
+            (Some((Symbol::HASSERT, hassert_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
+                HQASSERT::_1(HASSERT::from(hassert_0), QUANT_EXPR::from(quant_expr_1))
+            },
+            (Some((Symbol::CODE, code_0)), Some((Symbol::QUANT_EXPR, quant_expr_1)), None) => {
+                HQASSERT::_2(CODE::from(code_0), QUANT_EXPR::from(quant_expr_1))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
@@ -945,46 +980,6 @@ impl From<Vec<SymbolTree>> for COND {
 }
 
 #[derive(Clone)]
-pub enum RETIF {
-    _0(MRET, COND),
-    _1(COND, COMMA, MRET),
-    _2(Box<RETIF>, COMMA, RB, Box<RETIF>),
-    _3(Box<RETIF>, COMMA, RB, OBJ),
-    _4(MRET, COMMA, MRET, COND),
-}
-
-impl From<SymbolTree> for RETIF {
-    fn from(tree: SymbolTree) -> Self {
-        let (_symbol, branches) = tree.unwrap_branch();
-        Self::from(branches)
-    }
-}
-
-impl From<Vec<SymbolTree>> for RETIF {
-    fn from(branches: Vec<SymbolTree>) -> Self {
-        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match (labels.next(), labels.next(), labels.next(), labels.next()) {
-            (Some((Symbol::MRET, mret_0)), Some((Symbol::COND, cond_1)), None, None) => {
-                RETIF::_0(MRET::from(mret_0), COND::from(cond_1))
-            },
-            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), None) => {
-                RETIF::_1(COND::from(cond_0), COMMA::from(comma_1), MRET::from(mret_2))
-            },
-            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::RETIF, retif_3))) => {
-                RETIF::_2(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), Box::new(RETIF::from(retif_3)))
-            },
-            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3))) => {
-                RETIF::_3(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), OBJ::from(obj_3))
-            },
-            (Some((Symbol::MRET, mret_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), Some((Symbol::COND, cond_3))) => {
-                RETIF::_4(MRET::from(mret_0), COMMA::from(comma_1), MRET::from(mret_2), COND::from(cond_3))
-            },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub enum SIDE {
     _0(OBJ, VBZ, MVB, IN, OBJ),
     _1(OBJ, VBZ, MVB),
@@ -1055,6 +1050,46 @@ impl From<Vec<SymbolTree>> for ASSIGN {
             },
             (Some((Symbol::VBZ, vbz_0)), Some((Symbol::DT, dt_1)), Some((Symbol::JJ, jj_2)), Some((Symbol::OBJ, obj_3))) => {
                 ASSIGN::_2(VBZ::from(vbz_0), Some(DT::from(dt_1)), Some(JJ::from(jj_2)), OBJ::from(obj_3))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum RETIF {
+    _0(MRET, COND),
+    _1(COND, COMMA, MRET),
+    _2(Box<RETIF>, COMMA, RB, Box<RETIF>),
+    _3(Box<RETIF>, COMMA, RB, OBJ),
+    _4(MRET, COMMA, MRET, COND),
+}
+
+impl From<SymbolTree> for RETIF {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for RETIF {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::MRET, mret_0)), Some((Symbol::COND, cond_1)), None, None) => {
+                RETIF::_0(MRET::from(mret_0), COND::from(cond_1))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), None) => {
+                RETIF::_1(COND::from(cond_0), COMMA::from(comma_1), MRET::from(mret_2))
+            },
+            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::RETIF, retif_3))) => {
+                RETIF::_2(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), Box::new(RETIF::from(retif_3)))
+            },
+            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3))) => {
+                RETIF::_3(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), OBJ::from(obj_3))
+            },
+            (Some((Symbol::MRET, mret_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), Some((Symbol::COND, cond_3))) => {
+                RETIF::_4(MRET::from(mret_0), COMMA::from(comma_1), MRET::from(mret_2), COND::from(cond_3))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
