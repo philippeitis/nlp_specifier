@@ -236,7 +236,7 @@ if __name__ == '__main__':
             cfg += f"{lhs} -> {rhs}\n"
         cfg += "\n"
 
-    cfg += "\n# Terminals\n\n"
+    cfg += "# Terminals\n\n"
 
     for term, sym in terminals:
         tree_rs += f"#[derive(Clone)]\n"
