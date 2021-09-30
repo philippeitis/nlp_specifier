@@ -5,10 +5,8 @@ use crate::parse_tree::{Symbol, SymbolTree, Terminal};
 pub enum S {
     Mret(MRET),
     Retif(RETIF),
-    Hassert(HASSERT),
-    Hqassert(HQASSERT),
-    Side(SIDE),
-    Assign(ASSIGN),
+    Spec_atom(SPEC_ATOM),
+    Spec_cond(SPEC_COND),
 }
 
 impl From<SymbolTree> for S {
@@ -28,17 +26,11 @@ impl From<Vec<SymbolTree>> for S {
             Some((Symbol::RETIF, retif_0)) => {
                 S::Retif(RETIF::from(retif_0))
             },
-            Some((Symbol::HASSERT, hassert_0)) => {
-                S::Hassert(HASSERT::from(hassert_0))
+            Some((Symbol::SPEC_ATOM, spec_atom_0)) => {
+                S::Spec_atom(SPEC_ATOM::from(spec_atom_0))
             },
-            Some((Symbol::HQASSERT, hqassert_0)) => {
-                S::Hqassert(HQASSERT::from(hqassert_0))
-            },
-            Some((Symbol::SIDE, side_0)) => {
-                S::Side(SIDE::from(side_0))
-            },
-            Some((Symbol::ASSIGN, assign_0)) => {
-                S::Assign(ASSIGN::from(assign_0))
+            Some((Symbol::SPEC_COND, spec_cond_0)) => {
+                S::Spec_cond(SPEC_COND::from(spec_cond_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
@@ -980,6 +972,46 @@ impl From<Vec<SymbolTree>> for COND {
 }
 
 #[derive(Clone)]
+pub enum RETIF {
+    _0(MRET, COND),
+    _1(COND, COMMA, MRET),
+    _2(Box<RETIF>, COMMA, RB, Box<RETIF>),
+    _3(Box<RETIF>, COMMA, RB, OBJ),
+    _4(MRET, COMMA, MRET, COND),
+}
+
+impl From<SymbolTree> for RETIF {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for RETIF {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::MRET, mret_0)), Some((Symbol::COND, cond_1)), None, None) => {
+                RETIF::_0(MRET::from(mret_0), COND::from(cond_1))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), None) => {
+                RETIF::_1(COND::from(cond_0), COMMA::from(comma_1), MRET::from(mret_2))
+            },
+            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::RETIF, retif_3))) => {
+                RETIF::_2(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), Box::new(RETIF::from(retif_3)))
+            },
+            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3))) => {
+                RETIF::_3(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), OBJ::from(obj_3))
+            },
+            (Some((Symbol::MRET, mret_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), Some((Symbol::COND, cond_3))) => {
+                RETIF::_4(MRET::from(mret_0), COMMA::from(comma_1), MRET::from(mret_2), COND::from(cond_3))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum SIDE {
     _0(OBJ, VBZ, MVB, IN, OBJ),
     _1(OBJ, VBZ, MVB),
@@ -1057,46 +1089,6 @@ impl From<Vec<SymbolTree>> for ASSIGN {
 }
 
 #[derive(Clone)]
-pub enum RETIF {
-    _0(MRET, COND),
-    _1(COND, COMMA, MRET),
-    _2(Box<RETIF>, COMMA, RB, Box<RETIF>),
-    _3(Box<RETIF>, COMMA, RB, OBJ),
-    _4(MRET, COMMA, MRET, COND),
-}
-
-impl From<SymbolTree> for RETIF {
-    fn from(tree: SymbolTree) -> Self {
-        let (_symbol, branches) = tree.unwrap_branch();
-        Self::from(branches)
-    }
-}
-
-impl From<Vec<SymbolTree>> for RETIF {
-    fn from(branches: Vec<SymbolTree>) -> Self {
-        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match (labels.next(), labels.next(), labels.next(), labels.next()) {
-            (Some((Symbol::MRET, mret_0)), Some((Symbol::COND, cond_1)), None, None) => {
-                RETIF::_0(MRET::from(mret_0), COND::from(cond_1))
-            },
-            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), None) => {
-                RETIF::_1(COND::from(cond_0), COMMA::from(comma_1), MRET::from(mret_2))
-            },
-            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::RETIF, retif_3))) => {
-                RETIF::_2(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), Box::new(RETIF::from(retif_3)))
-            },
-            (Some((Symbol::RETIF, retif_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3))) => {
-                RETIF::_3(Box::new(RETIF::from(retif_0)), COMMA::from(comma_1), RB::from(rb_2), OBJ::from(obj_3))
-            },
-            (Some((Symbol::MRET, mret_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2)), Some((Symbol::COND, cond_3))) => {
-                RETIF::_4(MRET::from(mret_0), COMMA::from(comma_1), MRET::from(mret_2), COND::from(cond_3))
-            },
-            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub enum EVENT {
     _0(MNN, VBD),
     _1(MNN, VBZ),
@@ -1118,6 +1110,73 @@ impl From<Vec<SymbolTree>> for EVENT {
             },
             (Some((Symbol::MNN, mnn_0)), Some((Symbol::VBZ, vbz_1))) => {
                 EVENT::_1(MNN::from(mnn_0), VBZ::from(vbz_1))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_ATOM {
+    Hassert(HASSERT),
+    Hqassert(HQASSERT),
+    Side(SIDE),
+    Assign(ASSIGN),
+}
+
+impl From<SymbolTree> for SPEC_ATOM {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_ATOM {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match labels.next() {
+            Some((Symbol::HASSERT, hassert_0)) => {
+                SPEC_ATOM::Hassert(HASSERT::from(hassert_0))
+            },
+            Some((Symbol::HQASSERT, hqassert_0)) => {
+                SPEC_ATOM::Hqassert(HQASSERT::from(hqassert_0))
+            },
+            Some((Symbol::SIDE, side_0)) => {
+                SPEC_ATOM::Side(SIDE::from(side_0))
+            },
+            Some((Symbol::ASSIGN, assign_0)) => {
+                SPEC_ATOM::Assign(ASSIGN::from(assign_0))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_COND {
+    _0(SPEC_ATOM, COND),
+    _1(COND, Option<COMMA>, SPEC_ATOM),
+}
+
+impl From<SymbolTree> for SPEC_COND {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_COND {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::SPEC_ATOM, spec_atom_0)), Some((Symbol::COND, cond_1)), None) => {
+                SPEC_COND::_0(SPEC_ATOM::from(spec_atom_0), COND::from(cond_1))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::SPEC_ATOM, spec_atom_2)), None) => {
+                SPEC_COND::_1(COND::from(cond_0), None, SPEC_ATOM::from(spec_atom_2))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::SPEC_ATOM, spec_atom_2))) => {
+                SPEC_COND::_1(COND::from(cond_0), Some(COMMA::from(comma_1)), SPEC_ATOM::from(spec_atom_2))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }

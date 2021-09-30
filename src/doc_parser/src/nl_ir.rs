@@ -4,21 +4,13 @@ use std::str::FromStr;
 use crate::parse_tree::tree::{
     ARITHOP, ASSERT, ASSIGN, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, HQASSERT, JJ, LIT, MD,
     MJJ, MNN, MREL, MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE,
-    RANGEMOD, RB, REL, RETIF, S, SHIFTOP, TJJ, VBD, VBG, VBN, VBZ,
+    RANGEMOD, RB, REL, RETIF, S, SHIFTOP, SPEC_ATOM, SPEC_COND, TJJ, VBD, VBG, VBN, VBZ,
 };
 use crate::parse_tree::Terminal;
 
 #[derive(Clone)]
 pub struct Code {
     pub(crate) code: String,
-}
-
-impl Code {
-    fn new(s: &str) -> Self {
-        Code {
-            code: s.to_string(),
-        }
-    }
 }
 
 impl From<CODE> for Code {
@@ -35,12 +27,6 @@ pub struct Literal {
 impl From<LIT> for Literal {
     fn from(l: LIT) -> Self {
         Literal { s: l.word }
-    }
-}
-
-impl Literal {
-    fn new(s: &str) -> Self {
-        Literal { s: s.to_string() }
     }
 }
 
@@ -504,11 +490,27 @@ pub struct Event {
 
 pub enum Specification {
     RetIf(ReturnIf),
+    Mret(MReturn),
+    SpecAtom(SpecAtom),
+    SpecCond(SpecCond),
+}
+
+pub enum SpecAtom {
     HAssert(HardAssert),
     QAssert(HardQuantAssert),
-    Mret(MReturn),
     Action(ActionObj),
     Side,
+}
+
+impl From<SPEC_ATOM> for SpecAtom {
+    fn from(atom: SPEC_ATOM) -> Self {
+        match atom {
+            SPEC_ATOM::Hassert(hassert) => SpecAtom::HAssert(hassert.into()),
+            SPEC_ATOM::Hqassert(hqassert) => SpecAtom::QAssert(hqassert.into()),
+            SPEC_ATOM::Assign(action_obj) => SpecAtom::Action(action_obj.into()),
+            SPEC_ATOM::Side(_) => SpecAtom::Side,
+        }
+    }
 }
 
 impl From<S> for Specification {
@@ -516,10 +518,39 @@ impl From<S> for Specification {
         match spec_tree {
             S::Mret(m) => Specification::Mret(m.into()),
             S::Retif(retif) => Specification::RetIf(retif.into()),
-            S::Hassert(hassert) => Specification::HAssert(hassert.into()),
-            S::Hqassert(hqassert) => Specification::QAssert(hqassert.into()),
-            S::Assign(action_obj) => Specification::Action(action_obj.into()),
-            S::Side(_) => Specification::Side,
+            S::Spec_atom(atom) => Specification::SpecAtom(atom.into()),
+            S::Spec_cond(cond) => Specification::SpecCond(cond.into()),
+        }
+    }
+}
+
+pub struct SpecCond {
+    pub cond: BoolCond,
+    pub atom: SpecAtom,
+}
+
+impl From<SPEC_COND> for SpecCond {
+    fn from(cond: SPEC_COND) -> Self {
+        match cond {
+            SPEC_COND::_0(atom, cond) | SPEC_COND::_1(cond, _, atom) => {
+                let atom = SpecAtom::from(atom);
+                let cond = match BoolCondIntermediate::from(cond) {
+                    BoolCondIntermediate::Complete(cond) => cond,
+                    BoolCondIntermediate::Incomplete {
+                        if_expr,
+                        negated,
+                        value,
+                    } => match value {
+                        BoolValueIncomplete::Event(e) => BoolCond {
+                            if_expr,
+                            negated,
+                            value: BoolValue::Event(e.complete(unimplemented!())),
+                        },
+                    },
+                };
+
+                SpecCond { cond, atom }
+            }
         }
     }
 }
@@ -616,13 +647,16 @@ impl From<HQASSERT> for HardQuantAssert {
 }
 
 impl HardQuantAssert {
-    pub(crate) fn is_precond(&self) -> bool {
+    pub(crate) fn spec_scope(&self) -> ConditionModifier {
         match &self.assertion {
-            QuantItem::Code(_c) => false,
-            QuantItem::Assert(h) => h.md.lemma == "must",
+            QuantItem::Code(_c) => ConditionModifier::Post,
+            QuantItem::Assert(h) => {
+                ConditionModifier::from_str(&h.md.lemma).unwrap_or(ConditionModifier::Post)
+            }
         }
     }
 }
+
 #[derive(Clone)]
 pub struct HardAssert {
     pub md: MD,
@@ -1142,6 +1176,32 @@ impl From<ASSIGN> for ActionObj {
                 }
                 ActionObj::Action1(vbz, obj.into())
             }
+        }
+    }
+}
+
+pub enum ConditionModifier {
+    Pre,
+    Post,
+}
+
+impl FromStr for ConditionModifier {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "will" => Ok(ConditionModifier::Post),
+            "must" => Ok(ConditionModifier::Pre),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ConditionModifier {
+    pub(crate) fn keyword(&self) -> &'static str {
+        match self {
+            ConditionModifier::Pre => "requires",
+            ConditionModifier::Post => "ensures",
         }
     }
 }

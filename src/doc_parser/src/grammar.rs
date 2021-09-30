@@ -1,11 +1,14 @@
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
 use itertools::Itertools;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr};
 
 use crate::nl_ir::{
-    ActionObj, Assert, BoolValue, Code, Event, HardAssert, HardQuantAssert, IfExpr, IsPropMod,
-    IsProperty, Lemma, Literal, MReturn, MnnMod, Object, Op, QuantAssert, QuantExpr, QuantItem,
-    Relation, ReturnIf, Specification,
+    ActionObj, Assert, BoolCond, BoolValue, Code, ConditionModifier, Event, HardAssert,
+    HardQuantAssert, IfExpr, IsPropMod, IsProperty, Lemma, Literal, MReturn, MnnMod, Object, Op,
+    QuantAssert, QuantExpr, QuantItem, Relation, ReturnIf, SpecAtom, SpecCond, Specification,
 };
 use crate::parse_tree::tree::{MJJ, MVB};
 
@@ -142,13 +145,13 @@ impl AsCode for Event {
 }
 
 trait Apply {
-    fn apply(&self, lhs: &Expr) -> Result<String, SpecificationError>;
+    fn apply(&self, lhs: &ExprString) -> Result<ExprString, SpecificationError>;
 }
 
 impl Apply for IsProperty {
     /// TODO: This is somewhat expensive, and when properties are tested repeatedly, it would be nice to
     ///     avoid repeating work. Benchmark whether this is an issue in reality.
-    fn apply(&self, lhs: &Expr) -> Result<String, SpecificationError> {
+    fn apply(&self, lhs: &ExprString) -> Result<ExprString, SpecificationError> {
         let s = match &self.prop_type {
             IsPropMod::Obj(rhs) => {
                 if !["is", "be"].contains(&self.mvb.root_lemma()) {
@@ -158,8 +161,7 @@ impl Apply for IsProperty {
                 };
 
                 let rhs = rhs.as_code()?;
-                let s = quote::quote! {(#lhs == #rhs)}.to_string();
-                s
+                format!("({} == {})", lhs, quote::quote! {#rhs}.to_string())
             }
             IsPropMod::Mjj(mjj) => {
                 let (rb, lemma) = match mjj {
@@ -173,17 +175,15 @@ impl Apply for IsProperty {
                     ""
                 };
                 if ["modified", "altered", "changed"].contains(&lemma.as_str()) {
-                    let lhs = quote::quote! {#lhs}.to_string();
                     format!("{}({} != old({}))", sym, lhs, lhs)
                 } else if ["modify", "alter", "change"].contains(&lemma.as_str()) {
-                    let lhs = quote::quote! {#lhs}.to_string();
                     format!("{}({} == old({}))", sym, lhs, lhs)
                 } else {
                     // TODO: Make this an error / resolve cases such as this.
-                    format!("{}({}).{}()", sym, quote::quote! {#lhs}.to_string(), lemma)
+                    format!("{}({}).{}()", sym, lhs, lemma)
                 }
             }
-            IsPropMod::Rel(rel) => rel.apply(lhs)?,
+            IsPropMod::Rel(rel) => rel.apply(lhs)?.to_string(),
             IsPropMod::RangeMod(range) => {
                 let rangex = &range.range;
                 match (
@@ -199,8 +199,8 @@ impl Apply for IsProperty {
                         format!(
                             "({} <= {} && {} {} {})",
                             quote::quote! {#start}.to_string(),
-                            quote::quote! {#lhs}.to_string(),
-                            quote::quote! {#lhs}.to_string(),
+                            lhs,
+                            lhs,
                             upper_bound,
                             quote::quote! {#end}.to_string(),
                         )
@@ -210,23 +210,18 @@ impl Apply for IsProperty {
             }
             IsPropMod::None => {
                 if ["modify", "alter", "change"].contains(&self.mvb.root_lemma()) {
-                    let lhs = quote::quote! {#lhs}.to_string();
                     format!("({} != old({}))", lhs, lhs)
                 } else if self.mvb.root_lemma() == "overflow" {
-                    format!("overflows!({})", quote::quote! {#lhs}.to_string())
+                    format!("overflows!({})", lhs)
                 } else if self.mvb.root_lemma() == "panic" {
-                    format!("panics!({})", quote::quote! {#lhs}.to_string())
+                    format!("panics!({})", lhs)
                 } else if self.mvb.root_lemma() == "occur" {
                     // TODO: nn vbd - needs to be applied backwards
                     //  Overlaps with EVENT case
-                    format!("{}s!()", quote::quote! {#lhs}.to_string())
+                    format!("{}s!()", lhs)
                 } else {
                     // TODO: Make this an error / resolve cases such as this.
-                    format!(
-                        "({}).{}()",
-                        quote::quote! {#lhs}.to_string(),
-                        self.mvb.root_lemma()
-                    )
+                    format!("({}).{}()", lhs, self.mvb.root_lemma())
                 }
             }
         };
@@ -241,9 +236,9 @@ impl Apply for IsProperty {
         };
 
         if rb.map(|x| x == "not").unwrap_or(false) ^ (self.mvb.root_lemma() == "not") {
-            Ok(format!("!{}", s))
+            Ok(ExprString::String(format!("!{}", s)))
         } else {
-            Ok(s)
+            Ok(ExprString::String(s))
         }
     }
 }
@@ -257,8 +252,9 @@ impl AsCode for Assert {
                 objs.iter()
                     .map(Object::as_code)
                     .filter_map(Result::ok)
-                    .map(|rhs| self.property.apply(&rhs))
+                    .map(|rhs| self.property.apply(&ExprString::Expr(rhs)))
                     .filter_map(Result::ok)
+                    .map(|x| x.to_string())
                     .join(" && ")
             })
             .join(") || (");
@@ -296,52 +292,218 @@ impl AsSpec for Specification {
                 let e: AttrHelper = syn::parse_str(&attrs)?;
                 Ok(e.attrs)
             }
-            Specification::HAssert(hassert) => hassert.as_spec(),
-            Specification::QAssert(qassert) => qassert.as_spec(),
             Specification::RetIf(returnif) => returnif.as_spec(),
-            Specification::Action(action_obj) => action_obj.as_spec(),
-            Specification::Side => Err(SpecificationError::Unimplemented),
+            Specification::SpecAtom(atom) => atom.as_spec(),
+            Specification::SpecCond(cond) => cond.as_spec(),
         }
+    }
+}
+
+impl AsSpec for SpecAtom {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        match self {
+            SpecAtom::HAssert(hassert) => hassert.as_spec(),
+            SpecAtom::QAssert(qassert) => qassert.as_spec(),
+            SpecAtom::Action(action_obj) => action_obj.as_spec(),
+            SpecAtom::Side => Err(SpecificationError::Unimplemented),
+        }
+    }
+}
+
+impl AsSpec for SpecCond {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        let spec = match &self.atom {
+            SpecAtom::HAssert(hassert) => hassert.as_code_value(),
+            SpecAtom::QAssert(qassert) => qassert.as_code_value(),
+            SpecAtom::Action(action_obj) => action_obj.as_code_value(),
+            SpecAtom::Side => return Err(SpecificationError::Unimplemented),
+        }?;
+
+        let exprs: Result<Vec<_>, _> = spec
+            .exprs
+            .into_iter()
+            .map(|(cmod, e)| self.cond.apply(&e).map(|val| (cmod, val)))
+            .collect();
+        SpecIntermediate::new(exprs?).as_spec()
+    }
+}
+
+impl Apply for BoolCond {
+    fn apply(&self, lhs: &ExprString) -> Result<ExprString, SpecificationError> {
+        let expr = lhs.to_string();
+        let s = match &self.value {
+            BoolValue::Assert(assert) => {
+                let assert = assert.as_code()?;
+                let pred = quote::quote! {#assert}.to_string();
+                match self.if_expr {
+                    IfExpr::If => format!("({} ==> {})", pred, expr),
+                    IfExpr::Iff => {
+                        format!("({} ==> {}) && ({} ==> {})", pred, expr, expr, pred)
+                    }
+                }
+            }
+            BoolValue::QAssert(q) => {
+                let mut body = q.as_code_value()?;
+                let new_body = match &mut body.body {
+                    ExprQBody::String(s) => {
+                        let s = std::mem::take(s);
+                        ExprQBody::IffExpr(IffExpr {
+                            lhs: s,
+                            rhs: expr.clone(),
+                        })
+                    }
+                    ExprQBody::IffExpr(IffExpr { lhs, rhs }) => ExprQBody::IffExpr(IffExpr {
+                        lhs: std::mem::take(lhs),
+                        rhs: format!("{} && {}", rhs, expr),
+                    }),
+                };
+                body.body = new_body;
+
+                match self.if_expr {
+                    IfExpr::If => format!("#({})", body.as_code_value()?),
+                    IfExpr::Iff => {
+                        let mut s = format!("({})", body.as_code_value()?);
+                        let mut body = q.as_code_value()?;
+                        let new_body = match &mut body.body {
+                            ExprQBody::String(s) => ExprQBody::IffExpr(IffExpr {
+                                lhs: expr,
+                                rhs: std::mem::take(s),
+                            }),
+                            ExprQBody::IffExpr(IffExpr { lhs, rhs }) => {
+                                ExprQBody::IffExpr(IffExpr {
+                                    lhs: expr,
+                                    rhs: format!("({} && {})", lhs, rhs),
+                                })
+                            }
+                        };
+                        body.body = new_body;
+                        s.push_str(&format!(" && ({})", body.as_code_value()?));
+                        s
+                    }
+                }
+            }
+            BoolValue::Code(code) => {
+                let code = code.as_code()?;
+                let pred = quote::quote! {#code}.to_string();
+                match self.if_expr {
+                    IfExpr::If => format!("({} ==> {})", pred, expr),
+                    IfExpr::Iff => {
+                        format!("#({} ==> {}) && ({} ==> {})", pred, expr, expr, pred)
+                    }
+                }
+            }
+            BoolValue::Event(event) => {
+                let event = event.as_code()?;
+                let pred = quote::quote! {#event}.to_string();
+                match self.if_expr {
+                    IfExpr::If => format!("({} ==> {})", pred, expr),
+                    IfExpr::Iff => {
+                        format!("({} ==> {}) && ({} ==> {})", pred, expr, expr, pred)
+                    }
+                }
+            }
+        };
+
+        Ok(ExprString::String(s))
+    }
+}
+
+impl AsSpec for ReturnIf {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        let mut exprs = Vec::new();
+        for (cond, expr) in &self.ret_pred {
+            let ret_val = expr.as_code()?;
+            let ret_assert = format!("result == {}", quote::quote! {#ret_val}.to_string());
+            exprs.push((
+                ConditionModifier::Post,
+                cond.apply(&ExprString::Expr(syn::parse_str(&ret_assert)?))?,
+            ));
+        }
+        SpecIntermediate::new(exprs).as_spec()
+    }
+}
+
+pub enum ExprString {
+    Expr(Expr),
+    String(String),
+}
+
+impl Display for ExprString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExprString::Expr(e) => f.write_str(&quote::quote! {#e}.to_string()),
+            ExprString::String(s) => f.write_str(s),
+        }
+    }
+}
+
+pub struct SpecIntermediate {
+    pub exprs: Vec<(ConditionModifier, ExprString)>,
+}
+
+impl SpecIntermediate {
+    fn new(exprs: Vec<(ConditionModifier, ExprString)>) -> Self {
+        Self { exprs }
+    }
+}
+
+impl AsSpec for SpecIntermediate {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        let e: AttrHelper = syn::parse_str(
+            &self
+                .exprs
+                .iter()
+                .map(|(cmod, e)| match e {
+                    ExprString::Expr(e) => {
+                        format!("#[{}({})]", cmod.keyword(), quote::quote! {#e}.to_string())
+                    }
+                    ExprString::String(s) => format!("#[{}({})]", cmod.keyword(), s),
+                })
+                .join("\n"),
+        )?;
+        Ok(e.attrs)
+    }
+}
+
+impl AsCodeValue for HardAssert {
+    type Output = SpecIntermediate;
+
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
+        let spec_scope = ConditionModifier::from_str(&self.md.lemma)
+            .map_err(|_| SpecificationError::UnsupportedSpec("Bad condition"))?;
+        let assert = self.assert.as_code()?;
+        Ok(SpecIntermediate::new(vec![(
+            spec_scope,
+            ExprString::Expr(assert),
+        )]))
     }
 }
 
 impl AsSpec for HardAssert {
     fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
-        let cond = if self.md.lemma == "will" {
-            "ensures"
-        } else {
-            "requires"
-        };
-        let assert = self.assert.as_code()?;
-        let e: AttrHelper = syn::parse_str(&format!(
-            "#[{}({})]",
-            cond,
-            quote::quote! {#assert}.to_string()
-        ))?;
-        Ok(e.attrs)
+        self.as_code_value()?.as_spec()
     }
 }
 
-impl AsSpec for HardQuantAssert {
-    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
-        let scope = if self.is_precond() {
-            "requires"
-        } else {
-            "ensures"
-        };
+impl AsCodeValue for HardQuantAssert {
+    type Output = SpecIntermediate;
 
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
         let expr = match &self.assertion {
             QuantItem::Code(c) => c.as_code()?,
             QuantItem::Assert(h) => h.assert.as_code()?,
         };
 
-        let attr = format!(
-            "#[{}({})]",
-            scope,
-            assert_as_code_value(&self.quant_expr, &expr)?.as_code_value()?
-        );
-        let e: AttrHelper = syn::parse_str(&attr)?;
-        Ok(e.attrs)
+        Ok(SpecIntermediate::new(vec![(
+            self.spec_scope(),
+            ExprString::String(assert_as_code_value(&self.quant_expr, &expr)?.as_code_value()?),
+        )]))
+    }
+}
+
+impl AsSpec for HardQuantAssert {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        self.as_code_value()?.as_spec()
     }
 }
 
@@ -465,153 +627,70 @@ impl AsCodeValue for ExprQuantifierU {
     }
 }
 
-impl AsSpec for ReturnIf {
-    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
-        let mut attrs = String::new();
-        for (cond, val) in &self.ret_pred {
-            let ret_val = val.as_code()?;
-            let ret_assert = format!("result == {}", quote::quote! {#ret_val}.to_string());
-            let s = match &cond.value {
-                BoolValue::Assert(assert) => {
-                    let assert = assert.as_code()?;
-                    let pred = quote::quote! {#assert}.to_string();
-                    match cond.if_expr {
-                        IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
-                        IfExpr::Iff => {
-                            format!(
-                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
-                                pred, ret_assert, ret_assert, pred
-                            )
-                        }
-                    }
-                }
-                BoolValue::QAssert(q) => {
-                    let mut body = q.as_code_value()?;
-                    let new_body = match &mut body.body {
-                        ExprQBody::String(s) => {
-                            let s = std::mem::take(s);
-                            ExprQBody::IffExpr(IffExpr {
-                                lhs: s,
-                                rhs: ret_assert.clone(),
-                            })
-                        }
-                        ExprQBody::IffExpr(IffExpr { lhs, rhs }) => ExprQBody::IffExpr(IffExpr {
-                            lhs: std::mem::take(lhs),
-                            rhs: format!("{} && {}", rhs, ret_assert),
-                        }),
-                    };
-                    body.body = new_body;
-
-                    match cond.if_expr {
-                        IfExpr::If => format!("#[ensures({})]", body.as_code_value()?),
-                        IfExpr::Iff => {
-                            let mut s = format!("#[ensures({})]", body.as_code_value()?);
-                            let mut body = q.as_code_value()?;
-                            let new_body = match &mut body.body {
-                                ExprQBody::String(s) => ExprQBody::IffExpr(IffExpr {
-                                    lhs: ret_assert,
-                                    rhs: std::mem::take(s),
-                                }),
-                                ExprQBody::IffExpr(IffExpr { lhs, rhs }) => {
-                                    ExprQBody::IffExpr(IffExpr {
-                                        lhs: ret_assert,
-                                        rhs: format!("({} && {})", lhs, rhs),
-                                    })
-                                }
-                            };
-                            body.body = new_body;
-                            s.push_str(&format!("\n#[ensures({})]", body.as_code_value()?));
-                            s
-                        }
-                    }
-                }
-                BoolValue::Code(code) => {
-                    let code = code.as_code()?;
-                    let pred = quote::quote! {#code}.to_string();
-                    match cond.if_expr {
-                        IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
-                        IfExpr::Iff => {
-                            format!(
-                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
-                                pred, ret_assert, ret_assert, pred
-                            )
-                        }
-                    }
-                }
-                BoolValue::Event(event) => {
-                    let event = event.as_code()?;
-                    let pred = quote::quote! {#event}.to_string();
-                    match cond.if_expr {
-                        IfExpr::If => format!("#[ensures({} ==> {})]", pred, ret_assert),
-                        IfExpr::Iff => {
-                            format!(
-                                "#[ensures({} ==> {})]\n#[ensures({} ==> {})]",
-                                pred, ret_assert, ret_assert, pred
-                            )
-                        }
-                    }
-                }
-            };
-            attrs.push_str(&s);
-            attrs.push('\n');
-        }
-        let e: AttrHelper = syn::parse_str(&attrs)?;
-        Ok(e.attrs)
-    }
-}
-
-impl AsSpec for ActionObj {
-    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+impl AsCodeValue for ActionObj {
+    type Output = SpecIntermediate;
+    fn as_code_value(&self) -> Result<Self::Output, SpecificationError> {
         match self {
             ActionObj::Action1(action, target) => {
                 let target = target.as_code()?;
-                let e: AttrHelper = syn::parse_str(&format!(
-                    "#[ensures(called!({}({})))]",
-                    action.lemma,
-                    quote::quote! {#target}.to_string()
-                ))?;
-                Ok(e.attrs)
+                Ok(SpecIntermediate::new(vec![(
+                    ConditionModifier::Post,
+                    ExprString::String(format!(
+                        "(called!({}({})))",
+                        action.lemma,
+                        quote::quote! {#target}.to_string()
+                    )),
+                )]))
             }
             ActionObj::Action2Ambiguous(action, target, value) => {
                 // Should be performing compiler steps here to determine what is target and what
                 // is value
                 let target = target.as_code()?;
                 let value = value.as_code()?;
-                let e: AttrHelper = syn::parse_str(&format!(
-                    "#[ensures(called!(({}).{}({})))]",
-                    quote::quote! { #target }.to_string(),
-                    action.lemma,
-                    quote::quote! { #value }.to_string()
-                ))?;
-                Ok(e.attrs)
+                Ok(SpecIntermediate::new(vec![(
+                    ConditionModifier::Post,
+                    ExprString::String(format!(
+                        "(called!(({}).{}({})))",
+                        quote::quote! { #target }.to_string(),
+                        action.lemma,
+                        quote::quote! { #value }.to_string()
+                    )),
+                )]))
             }
             ActionObj::Action2Resolved { vbz, target, value } => {
                 let target = target.as_code()?;
                 let value = value.as_code()?;
-                let e: AttrHelper = syn::parse_str(&format!(
-                    "#[ensures(called!(({}).{}({})))]",
-                    quote::quote! { #target }.to_string(),
-                    vbz.lemma,
-                    quote::quote! { #value }.to_string()
-                ))?;
-                Ok(e.attrs)
+                Ok(SpecIntermediate::new(vec![(
+                    ConditionModifier::Post,
+                    ExprString::String(format!(
+                        "(called!(({}).{}({})))",
+                        quote::quote! { #target }.to_string(),
+                        vbz.lemma,
+                        quote::quote! { #value }.to_string()
+                    )),
+                )]))
             }
             ActionObj::Set { target, value } => {
                 let target = target.as_code()?;
                 let value = value.as_code()?;
-                let e: AttrHelper = syn::parse_str(&format!(
-                    "#[ensures({})]",
-                    quote::quote! {(#target) == (#value)}.to_string()
-                ))?;
-                Ok(e.attrs)
+                Ok(SpecIntermediate::new(vec![(
+                    ConditionModifier::Post,
+                    ExprString::String(quote::quote! {(#target) == (#value)}.to_string()),
+                )]))
             }
         }
     }
 }
 
+impl AsSpec for ActionObj {
+    fn as_spec(&self) -> Result<Vec<Attribute>, SpecificationError> {
+        self.as_code_value()?.as_spec()
+    }
+}
+
 impl Apply for Relation {
-    fn apply(&self, lhs: &Expr) -> Result<String, SpecificationError> {
-        let op: syn::BinOp = syn::parse_str(&self.op.to_string())?;
+    fn apply(&self, lhs: &ExprString) -> Result<ExprString, SpecificationError> {
+        let op = self.op.to_string();
         let s = self
             .objects
             .iter()
@@ -620,9 +699,7 @@ impl Apply for Relation {
                     .iter()
                     .map(Object::as_code)
                     .filter_map(Result::ok)
-                    .map(|rhs| {
-                        quote::quote! {((#lhs) #op (#rhs))}
-                    })
+                    .map(|rhs| format!("(({}) {} ({}))", lhs, op, quote::quote! {#rhs}.to_string()))
                     .join(" && ")
             })
             .join(") || (");
@@ -632,9 +709,9 @@ impl Apply for Relation {
             .map(|x| x.lemma == "not")
             .unwrap_or(false)
         {
-            Ok(format!("!(({}))", s))
+            Ok(ExprString::String(format!("!(({}))", s)))
         } else {
-            Ok(format!("(({}))", s))
+            Ok(ExprString::String(format!("(({}))", s)))
         }
     }
 }
