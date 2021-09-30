@@ -1,11 +1,12 @@
 from collections import defaultdict
 from copy import copy
 from enum import Enum
-from typing import Iterator, List
+from pathlib import Path
+from typing import Iterator, List, Union
 import logging
 
 import spacy
-from spacy.tokens import Doc
+from spacy.tokens import Doc, DocBin
 import unidecode
 
 try:
@@ -25,8 +26,6 @@ def is_quote(word: str) -> bool:
 class Sentence:
     def __init__(self, doc: Doc):
         self.doc = doc
-        self.tags = tuple(token.tag_ for token in self.doc)
-        self.words = tuple(token.text for token in self.doc)
         self.metadata = tuple((token.tag_, token.text, token.lemma_) for token in self.doc)
 
 
@@ -46,16 +45,43 @@ class Tokenizer:
     TAGGER_CACHE = {}
 
     def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
-        if model not in Tokenizer.TAGGER_CACHE:
+        self.token_cache = Tokenizer.TOKEN_CACHE[model]
+        self.entity_cache = Tokenizer.ENTITY_CACHE[model]
+        self.tagger = self.load_tagger(model)
+
+    @classmethod
+    def load_tagger(cls, model: SpacyModel):
+        if model not in cls.TAGGER_CACHE:
             spacy.prefer_gpu(0)
             LOGGER.info(f"Loading spacy/{model}")
             nlp = spacy.load(str(model))
             nlp.add_pipe("doc_tokens")
-            Tokenizer.TAGGER_CACHE[model] = nlp
+            cls.TAGGER_CACHE[model] = nlp
+        return cls.TAGGER_CACHE[model]
 
-        self.token_cache = Tokenizer.TOKEN_CACHE[model]
-        self.entity_cache = Tokenizer.ENTITY_CACHE[model]
-        self.tagger = Tokenizer.TAGGER_CACHE[model]
+    @classmethod
+    def from_cache(cls, path: Union[Path, str], model: SpacyModel = SpacyModel.EN_LG):
+        tagger = cls.load_tagger(model)
+
+        try:
+            docs = DocBin().from_disk(path).get_docs(tagger.vocab)
+            cls.TOKEN_CACHE[model].update(((doc.text, doc) for doc in docs))
+        except FileNotFoundError:
+            pass
+
+        return Tokenizer(model)
+
+    def write_data(self, path: Union[Path, str]):
+        doc_bin = DocBin()
+
+        for sent in self.token_cache.values():
+            doc_bin.add(sent.doc)
+
+        if isinstance(path, Path):
+            path.parent.mkdir(exist_ok=True, parents=True)
+        else:
+            Path(path).parent.mkdir(exist_ok=True, parents=True)
+        doc_bin.to_disk(path)
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
         """Tokenizes and tags the given sentence."""
@@ -75,7 +101,7 @@ class Tokenizer:
         (all unique sentences in stdlib).
         """
         sentences = [unidecode.unidecode(sentence).rstrip(".") for sentence in sentences]
-        sentence_dict = {i: copy(self.token_cache.get(sentence)) for i, sentence in enumerate(sentences)}
+        sentence_dict = {i: self.token_cache.get(sentence) for i, sentence in enumerate(sentences)}
 
         empty_inds = [i for i, val in sentence_dict.items() if val is None]
         empty_sents = [sentences[i] for i in empty_inds]

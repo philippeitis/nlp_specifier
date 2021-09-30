@@ -90,8 +90,8 @@ class Phrase:
 
         if docs:
             for sentx in docs[0].sentences:
-                sent = self.tokenizer.tokenize(sentx, idents=idents)
-                s = " ".join(tag for tag in sent.tags)
+                sent = self.tokenizer.tokenize(sentx)
+                s = " ".join(token.tag_ for token in sent.doc)
                 for match in self.tag_regex.finditer(s):
                     prev, curr = split_str(s, match.start(0))
                     curr, after = split_str(curr, match.end(0) - match.start(0))

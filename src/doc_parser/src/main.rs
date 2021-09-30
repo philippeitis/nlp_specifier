@@ -61,6 +61,8 @@ impl From<SpacyModelCli> for SpacyModel {
 struct Opts {
     #[clap(short, long, arg_enum, default_value = "lg")]
     model: SpacyModelCli,
+    #[clap(short, long)]
+    cache: Option<PathBuf>,
     #[clap(subcommand)]
     command: SubCommand,
 }
@@ -198,7 +200,7 @@ fn search_demo() {
     .unwrap();
 }
 
-fn specify_docs<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) {
+fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
     let start = std::time::Instant::now();
     let tree = file_from_root_dir(&path).unwrap();
     let end = std::time::Instant::now();
@@ -209,7 +211,7 @@ fn specify_docs<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) {
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
-        let tokenizer = Tokenizer::new(py, model);
+        let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);
 
         let mut sentences = Vec::new();
         for value in tree.search(
@@ -236,6 +238,7 @@ fn specify_docs<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) {
             "Time to tokenize sentences: {}",
             (end - start).as_secs_f32()
         );
+        tokenizer.write_data(&options.cache)?;
         Ok(tokens)
     })
     .unwrap();
@@ -293,12 +296,12 @@ fn specify_docs<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) {
     //        Specified Sentences: 114
 }
 
-fn specify_sentences<S: Into<SpacyModel>>(sentences: Vec<String>, model: S) {
+fn specify_sentences(sentences: Vec<String>, options: ModelOptions) {
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
-        Tokenizer::new(py, model).tokenize_sents(&sentences)
+        Tokenizer::from_cache(py, options.cache, options.model).tokenize_sents(&sentences)
     })
     .unwrap();
 
@@ -348,14 +351,14 @@ fn specify_sentences<S: Into<SpacyModel>>(sentences: Vec<String>, model: S) {
     }
 }
 
-fn specify_file<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) -> Specifier {
+fn specify_file<P: AsRef<Path>>(path: P, options: ModelOptions) -> Specifier {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     Python::with_gil(|py| -> PyResult<()> {
-        let tokenizer = Tokenizer::new(py, model);
+        let tokenizer = Tokenizer::from_cache(py, options.cache, options.model);
 
         // Do ahead of time to take advantage of parallelism
         let mut sentences = Vec::new();
@@ -384,7 +387,7 @@ fn specify_file<P: AsRef<Path>, S: Into<SpacyModel>>(path: P, model: S) -> Speci
     specifier
 }
 
-fn repl<S: Into<SpacyModel>>(py: Python, model: S) -> PyResult<()> {
+fn repl(py: Python, options: ModelOptions) -> PyResult<()> {
     use pastel::ansi::Brush;
     use pastel::Color;
 
@@ -412,7 +415,7 @@ fn repl<S: Into<SpacyModel>>(py: Python, model: S) -> PyResult<()> {
     println!("!explain: explain a particular token");
     println!("!lemma: display the lemmas in a particular sentence");
 
-    let tokenizer = Tokenizer::new(py, model);
+    let tokenizer = Tokenizer::from_cache(py, options.cache, options.model);
     let spacy = py.import("spacy")?;
     println!("Finished loading parser.");
     loop {
@@ -472,8 +475,30 @@ fn repl<S: Into<SpacyModel>>(py: Python, model: S) -> PyResult<()> {
     Ok(())
 }
 
+struct ModelOptions {
+    model: SpacyModel,
+    cache: PathBuf,
+}
+
+impl ModelOptions {
+    fn new(model: SpacyModelCli, cache: Option<PathBuf>) -> Self {
+        let model = SpacyModel::from(model);
+        let cache = match cache {
+            None => {
+                let mut path = PathBuf::new();
+                path.push("./cache/");
+                path.push(model.spacy_ident());
+                path.set_extension("spacy");
+                path
+            }
+            Some(path) => path,
+        };
+        ModelOptions { model, cache }
+    }
+}
 fn main() {
     let opts: Opts = Opts::parse();
+    let options = ModelOptions::new(opts.model.clone(), opts.cache.clone());
     // TODO: Detect duplicate invocations.
     // TODO: keyword in fn name, capitalization?
     // TODO: similarity metrics (capitalization, synonym distance via wordnet)
@@ -492,16 +517,15 @@ fn main() {
     //  4. unresolved code blocks (infallible)
     //  5. resolved code items (fallible)
     //  6. final specification (infallible)
-    let model = opts.model;
     match opts.command {
         SubCommand::EndToEnd(EndToEnd { path }) => {
-            match specify_file(path, model).to_fmt_string() {
+            match specify_file(path, options).to_fmt_string() {
                 FileOutput::Fmt(output) => println!("{}", output),
                 FileOutput::NoFmt(output, _) => println!("{}", output),
             }
         }
         SubCommand::Specify { sub_cmd } => match sub_cmd {
-            Specify::Sentence { sentence } => specify_sentences(vec![sentence], model),
+            Specify::Sentence { sentence } => specify_sentences(vec![sentence], options),
             Specify::File { path, dest } => {
                 let dest = match dest {
                     None => {
@@ -512,7 +536,7 @@ fn main() {
                     Some(dest) => dest,
                 };
 
-                match specify_file(path, model).to_fmt_string() {
+                match specify_file(path, options).to_fmt_string() {
                     FileOutput::Fmt(output) => {
                         std::fs::write(&dest, output).unwrap();
                         println!("Formatted output file written to {}", dest.display())
@@ -530,17 +554,17 @@ fn main() {
                 let path = path.unwrap_or_else(|| {
                     toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0])
                 });
-                specify_docs(path, model);
+                specify_docs(path, options);
             }
             Specify::Testcases { path } => {
                 let testcases = std::fs::read_to_string(path).unwrap();
                 specify_sentences(
                     testcases.lines().into_iter().map(String::from).collect(),
-                    model,
+                    options,
                 )
             }
             Specify::Repl => {
-                Python::with_gil(|py| match repl(py, model) {
+                Python::with_gil(|py| match repl(py, options) {
                     Ok(_) => {}
                     Err(e) if e.is_instance::<PyKeyboardInterrupt>(py) => {
                         println!()
@@ -560,7 +584,7 @@ fn main() {
                 let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
-                    let tokenizer = Tokenizer::new(py, model);
+                    let tokenizer = Tokenizer::from_cache(py, options.cache, options.model);
                     let tokens = tokenizer.tokenize_sents(&vec![sentence])?.remove(0);
                     let trees = sentence_to_trees(&parser, &tokens);
                     match trees.first() {

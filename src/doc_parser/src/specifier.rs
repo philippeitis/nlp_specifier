@@ -17,6 +17,7 @@ use crate::parse_tree::tree::S;
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
 use crate::search_tree::SearchTree;
 
+#[derive(Copy, Clone)]
 pub enum SpacyModel {
     SM,
     MD,
@@ -25,7 +26,7 @@ pub enum SpacyModel {
 }
 
 impl SpacyModel {
-    fn spacy_ident(&self) -> &'static str {
+    pub fn spacy_ident(&self) -> &'static str {
         match self {
             SpacyModel::SM => "en_core_web_sm",
             SpacyModel::MD => "en_core_web_md",
@@ -82,7 +83,7 @@ impl Specifier {
             tokenizer,
             parser,
         }
-            .visit_file_mut(&mut self.file)
+        .visit_file_mut(&mut self.file)
     }
 
     /// Formats the given Rust file (in byte format) using rustfmt if possible.
@@ -169,7 +170,7 @@ impl<'p> Tokenizer<'p> {
             ("pathlib", py.import("pathlib").unwrap().to_object(py)),
             ("root_dir", path.to_object(py)),
         ]
-            .into_py_dict(py);
+        .into_py_dict(py);
         // TODO: Make sure we fix path handling for the general case.
         let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
         py.eval(code, None, Some(locals)).unwrap();
@@ -178,7 +179,7 @@ impl<'p> Tokenizer<'p> {
             ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
             ("model", model.into().spacy_ident().to_object(py)),
         ]
-            .into_py_dict(py);
+        .into_py_dict(py);
         let parser: PyObject = py
             .eval("tokenizer.Tokenizer(model)", None, Some(locals))
             .unwrap()
@@ -189,7 +190,7 @@ impl<'p> Tokenizer<'p> {
 
     pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Vec<(String, String, String)>>> {
         self.parser
-            .call_method1(self.py, "stokenize", (sents.to_object(self.py), ))?
+            .call_method1(self.py, "stokenize", (sents.to_object(self.py),))?
             .extract::<Vec<PyObject>>(self.py)?
             .into_iter()
             .map(|x| x.getattr(self.py, "metadata"))
@@ -197,6 +198,46 @@ impl<'p> Tokenizer<'p> {
             .into_iter()
             .map(|x| x.extract::<Vec<(String, String, String)>>(self.py))
             .collect::<PyResult<Vec<Vec<(String, String, String)>>>>()
+    }
+
+    pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
+        py: Python<'p>,
+        path: P,
+        model: S,
+    ) -> Self {
+        let root_dir = std::env::current_dir().unwrap();
+        let locals = [
+            ("sys", py.import("sys").unwrap().to_object(py)),
+            ("pathlib", py.import("pathlib").unwrap().to_object(py)),
+            ("root_dir", root_dir.to_object(py)),
+        ]
+        .into_py_dict(py);
+        // TODO: Make sure we fix path handling for the general case.
+        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
+        py.eval(code, None, Some(locals)).unwrap();
+
+        let locals = [
+            ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
+            ("path", path.as_ref().to_object(py)),
+            ("model", model.into().spacy_ident().to_object(py)),
+        ]
+        .into_py_dict(py);
+        let parser: PyObject = py
+            .eval(
+                "tokenizer.Tokenizer.from_cache(path, model)",
+                None,
+                Some(locals),
+            )
+            .unwrap()
+            .extract()
+            .unwrap();
+        Tokenizer { parser, py }
+    }
+
+    pub fn write_data<P: AsRef<Path>>(&self, path: P) -> PyResult<()> {
+        self.parser
+            .call_method1(self.py, "write_data", (path.as_ref().to_object(self.py),))?;
+        Ok(())
     }
 }
 
@@ -214,7 +255,7 @@ impl<'p> SimMatcher<'p> {
             ("parser", parser.parser.clone()),
             ("cutoff", cutoff.to_object(py)),
         ]
-            .into_py_dict(py);
+        .into_py_dict(py);
         SimMatcher {
             sim_matcher: py
                 .eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals))
@@ -228,7 +269,7 @@ impl<'p> SimMatcher<'p> {
     pub fn is_similar(&self, sent: &str) -> PyResult<bool> {
         let sim: f32 = self
             .sim_matcher
-            .call_method1(self.py, "sent_similarity", (sent, ))?
+            .call_method1(self.py, "sent_similarity", (sent,))?
             .extract(self.py)?;
         Ok(sim > self.cutoff)
     }
