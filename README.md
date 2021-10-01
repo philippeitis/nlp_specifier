@@ -23,17 +23,17 @@ cd ./src/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
 
 This installs:
 
-| Dependency | Required | Purpose |
+| Dependency | Feature | Purpose |
 | :--- | :---: | :--- |
-| python3-dev | Yes | embed a Python interpreter into the Rust executable |
-| spaCy (via pip) | Yes | NLP Processing |
-| spaCy.en_core_web_lg | Yes | Language model |
-| unidecode (via pip) | Yes | Cleaning input to spaCy and JML NLP |
-| requests (via pip) | Yes | Interfacing with JML NLP |
-| nltk (via pip) | No (dev) | code-generation | 
-| networkx (via pip) | No (dev) | detecting cycles in code-generation |
-| graphviz | No | Rendering parse-trees |
-| click | No | Visualization CLI interface |
+| python3-dev | Core | embed a Python interpreter into the Rust executable |
+| spaCy (via pip) | Core | NLP Processing |
+| spaCy.en_core_web_lg | Core | Language model |
+| unidecode (via pip) | Core | Cleaning input to spaCy and JML NLP |
+| requests (via pip) | NER/SRL | Interfacing with JML NLP |
+| nltk (via pip) | Dev | code-generation | 
+| networkx (via pip) | Dev | detecting cycles in code-generation |
+| graphviz | Visualization | Rendering parse-trees |
+| click | Visualization | Visualization CLI interface |
 
 Optionally, it may be useful to review these links:
 
