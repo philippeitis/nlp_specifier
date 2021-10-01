@@ -256,7 +256,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
 
     let mut unsuccessful_vec = Vec::new();
     for sent in tokens.iter() {
-        let specs: Vec<_> = sentence_to_specifications(&parser, &sent);
+        let specs = sentence_to_specifications(&parser, &sent);
 
         if !specs.is_empty() {
             // println!("{}", "=".repeat(80));
