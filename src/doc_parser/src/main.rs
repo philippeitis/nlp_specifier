@@ -16,6 +16,7 @@ mod nl_ir;
 mod parse_html;
 mod parse_tree;
 mod search_tree;
+mod sentence;
 mod specifier;
 mod type_match;
 mod visualization;
@@ -25,11 +26,11 @@ use grammar::AsSpec;
 use itertools::Itertools;
 use nl_ir::Specification;
 use parse_html::{file_from_root_dir, get_toolchain_dirs, toolchain_path_to_html_root};
-use parse_tree::{tree::TerminalSymbol, Symbol, SymbolTree, Terminal};
+use parse_tree::{tree::TerminalSymbol, Symbol};
 use search_tree::{Depth, SearchItem};
+use sentence::Sentence;
 use specifier::{
-    sentence_to_specifications, sentence_to_trees, FileOutput, SimMatcher, SpacyModel, Specifier,
-    Tokenizer,
+    sentence_to_specifications, FileOutput, SimMatcher, SpacyModel, Specifier, Tokenizer,
 };
 use type_match::{FnArgLocation, HasFnArg};
 use visualization::tree::tag_color;
@@ -212,7 +213,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
-    let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
+    let tokens = Python::with_gil(|py| -> PyResult<Vec<Sentence>> {
         let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);
 
         let mut sentences = Vec::new();
@@ -254,8 +255,8 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
     let start = std::time::Instant::now();
 
     let mut unsuccessful_vec = Vec::new();
-    for metadata in tokens.iter() {
-        let (specs, trees_len) = sentence_to_specifications(&parser, metadata);
+    for sent in tokens.iter() {
+        let specs: Vec<_> = sentence_to_specifications(&parser, &sent);
 
         if !specs.is_empty() {
             // println!("{}", "=".repeat(80));
@@ -271,12 +272,10 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
             // println!();
             successful_sents += 1;
         } else {
-            if !metadata.is_empty() {
-                unsuccessful_vec.push(metadata.as_slice());
-            }
+            unsuccessful_vec.push(sent);
             unsucessful_sents += 1;
         }
-        ntrees += trees_len;
+        ntrees += specs.len();
         let count = specs
             .iter()
             .map(Specification::as_spec)
@@ -308,40 +307,15 @@ fn specify_sentences(sentences: Vec<String>, options: ModelOptions) {
     let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
-    let tokens = Python::with_gil(|py| -> PyResult<Vec<Vec<(String, String, String)>>> {
+    let tokens = Python::with_gil(|py| -> PyResult<Vec<Sentence>> {
         Tokenizer::from_cache(py, options.cache, options.model).tokenize_sents(&sentences)
     })
     .unwrap();
 
-    for (metadata, sentence) in tokens.iter().zip(sentences.iter()) {
-        let tokens: Result<Vec<TerminalSymbol>, _> = metadata
-            .iter()
-            .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
-            .collect();
-        let tokens: Vec<_> = match tokens {
-            Ok(t) => t.into_iter().map(Symbol::from).collect(),
-            Err(_) => continue,
-        };
-
-        let iter: Vec<_> = metadata
-            .iter()
-            .cloned()
-            .map(|(_tok, text, lemma)| Terminal {
-                word: text,
-                lemma: lemma.to_lowercase(),
-            })
-            .collect();
-        let trees: Vec<_> = match parser.parse(&tokens) {
-            Ok(trees) => trees
-                .into_iter()
-                .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
-                .map(parse_tree::tree::S::from)
-                .collect(),
-            Err(_) => continue,
-        };
-        let specs: Vec<_> = trees.clone().into_iter().map(Specification::from).collect();
+    for sent in tokens.iter() {
+        let specs: Vec<_> = sentence_to_specifications(&parser, &sent);
         println!("{}", "=".repeat(80));
-        println!("Sentence: {}", sentence);
+        println!("Sentence: {}", &sent.text);
         println!("{}", "=".repeat(80));
         for spec in specs {
             match spec.as_spec() {
@@ -404,18 +378,13 @@ fn repl(py: Python, options: ModelOptions) -> PyResult<()> {
     let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
 
     let light_red = Color::from_rgb(255, 85, 85);
-    fn paint_string(brush: &Brush, text: &str, tag: &str) -> String {
-        match TerminalSymbol::from_terminal(tag) {
-            Ok(sym) => {
-                let sym = Symbol::from(sym);
-                let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
-                if color == Color::black() {
-                    color = pastel::parser::parse_color("#24e3dd").unwrap();
-                }
-                brush.paint(text, color)
-            }
-            Err(_) => brush.paint(text, Color::white()),
+    fn paint_string(brush: &Brush, text: &str, tag: TerminalSymbol) -> String {
+        let sym = Symbol::from(tag);
+        let mut color = pastel::parser::parse_color(tag_color(&sym)).unwrap();
+        if color == Color::black() {
+            color = pastel::parser::parse_color("#24e3dd").unwrap();
         }
+        brush.paint(text, color)
     }
 
     println!("Running doc_parser REPL. Type \"exit\" or \"quit\" to terminate the REPL.");
@@ -443,26 +412,28 @@ fn repl(py: Python, options: ModelOptions) -> PyResult<()> {
             continue;
         } else if sent.starts_with("!lemma") {
             if let Some((_, keyword)) = sent.split_once(' ') {
-                let tokens = tokenizer.tokenize_sents(&[keyword.to_string()])?.remove(0);
+                let sent = tokenizer.tokenize_sents(&[keyword.to_string()])?.remove(0);
                 println!(
                     "{}",
-                    tokens
+                    sent.tokens
                         .iter()
-                        .map(|(tag, _, lemma)| paint_string(&brush, lemma, tag))
+                        .map(|token| paint_string(&brush, &token.lemma, token.tag))
                         .join(" ")
                 );
             }
             continue;
         }
-        let tokens = tokenizer.tokenize_sents(&[sent])?.remove(0);
+        let sent = tokenizer.tokenize_sents(&[sent])?.remove(0);
         println!(
             "Tokens: {}",
-            tokens
+            sent.tokens
                 .iter()
-                .map(|(tag, _, _)| paint_string(&brush, tag, tag))
+                .map(|token| (Symbol::from(token.tag).to_string(), token.tag))
+                .map(|(text, tag)| paint_string(&brush, &text, tag))
                 .join(" ")
         );
-        let (specs, _) = sentence_to_specifications(&parser, &tokens);
+        let specs = sentence_to_specifications(&parser, &sent);
+
         if specs.is_empty() {
             println!("{}", brush.paint("No specification generated", &light_red));
         }
@@ -593,8 +564,8 @@ fn main() {
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
                     let tokenizer = Tokenizer::from_cache(py, options.cache, options.model);
-                    let tokens = tokenizer.tokenize_sents(&vec![sentence])?.remove(0);
-                    let trees = sentence_to_trees(&parser, &tokens);
+                    let sent = tokenizer.tokenize_sents(&[sentence])?.remove(0);
+                    let trees = sent.parse_trees(&parser);
                     match trees.first() {
                         None => println!("No tree generated for the provided sentence."),
                         Some(tree) => visualization::tree::render_tree(tree, &path).unwrap(),

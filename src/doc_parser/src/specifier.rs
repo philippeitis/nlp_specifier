@@ -12,10 +12,10 @@ use chartparse::ChartParser;
 use crate::docs::Docs;
 use crate::grammar::AsSpec;
 use crate::nl_ir::Specification;
-use crate::parse_tree::tree::TerminalSymbol;
 use crate::parse_tree::tree::S;
-use crate::parse_tree::{Symbol, SymbolTree, Terminal};
+use crate::parse_tree::Symbol;
 use crate::search_tree::SearchTree;
+use crate::sentence::{Sentence, Token};
 
 #[derive(Copy, Clone)]
 pub enum SpacyModel {
@@ -131,10 +131,9 @@ impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
         if should_specify(&attrs) {
             let docs = Docs::from(&attrs);
             if let Some(section) = docs.sections.first() {
-                if let Ok(section_tokens) = self.tokenizer.tokenize_sents(&section.sentences) {
-                    for sentence_tokens in section_tokens {
-                        let (specs, _) = sentence_to_specifications(&self.parser, &sentence_tokens);
-                        for spec in specs {
+                if let Ok(sents) = self.tokenizer.tokenize_sents(&section.sentences) {
+                    for sent in sents {
+                        for spec in sentence_to_specifications(&self.parser, &sent) {
                             if let Ok(new_attrs) = spec.as_spec() {
                                 attrs.extend(new_attrs);
                                 break;
@@ -188,16 +187,25 @@ impl<'p> Tokenizer<'p> {
         Tokenizer { parser, py }
     }
 
-    pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Vec<(String, String, String)>>> {
-        self.parser
+    pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Sentence>> {
+        let mut parsed_sents = vec![];
+        for doc in self
+            .parser
             .call_method1(self.py, "stokenize", (sents.to_object(self.py),))?
             .extract::<Vec<PyObject>>(self.py)?
-            .into_iter()
-            .map(|x| x.getattr(self.py, "metadata"))
-            .collect::<PyResult<Vec<PyObject>>>()?
-            .into_iter()
-            .map(|x| x.extract::<Vec<(String, String, String)>>(self.py))
-            .collect::<PyResult<Vec<Vec<(String, String, String)>>>>()
+        {
+            let tokens: Vec<(String, String, String)> =
+                doc.getattr(self.py, "metadata")?.extract(self.py)?;
+            let tokens: Vec<_> = tokens.into_iter().map(Token::from).collect();
+            let doc = doc.getattr(self.py, "doc")?;
+            let sent = doc.getattr(self.py, "text")?.extract(self.py)?;
+            let vector = doc
+                .getattr(self.py, "vector")?
+                .call_method0(self.py, "tolist")?
+                .extract(self.py)?;
+            parsed_sents.push(Sentence::new(sent, tokens, vector))
+        }
+        Ok(parsed_sents)
     }
 
     pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
@@ -296,63 +304,15 @@ impl<'p> SimMatcher<'p> {
     }
 }
 
-pub fn sentence_to_trees(
-    parser: &ChartParser<Symbol>,
-    sentence: &[(String, String, String)],
-) -> Vec<SymbolTree> {
-    let tokens: Result<Vec<TerminalSymbol>, _> = sentence
-        .iter()
-        .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
-        .collect();
-    let tokens: Vec<_> = match tokens {
-        Ok(t) => t.into_iter().map(Symbol::from).collect(),
-        Err(_) => return Vec::new(),
-    };
-
-    let iter: Vec<_> = sentence
-        .iter()
-        .cloned()
-        .map(|(_tok, text, lemma)| Terminal {
-            word: text,
-            lemma: lemma.to_lowercase(),
-        })
-        .collect();
-    match parser.parse(&tokens) {
-        Ok(trees) => trees
-            .into_iter()
-            .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
-            .collect(),
-        Err(_) => return Vec::new(),
-    }
-}
-
 pub fn sentence_to_specifications(
     parser: &ChartParser<Symbol>,
-    sentence: &[(String, String, String)],
-) -> (Vec<Specification>, usize) {
+    sentence: &Sentence,
+) -> Vec<Specification> {
     // This operation should now be infallible for all spaCy input.
-    let tokens: Vec<Symbol> = sentence
-        .iter()
-        .map(|(t, _, _)| TerminalSymbol::from_terminal(t).unwrap())
-        .map(Symbol::from)
-        .collect();
-
-    let iter: Vec<_> = sentence
-        .iter()
-        .cloned()
-        .map(|(_tok, text, lemma)| Terminal {
-            word: text,
-            lemma: lemma.to_lowercase(),
-        })
-        .collect();
-    let trees: Vec<_> = match parser.parse(&tokens) {
-        Ok(trees) => trees
-            .into_iter()
-            .map(|t| SymbolTree::from_iter(t, &mut iter.clone().into_iter()))
-            .map(S::from)
-            .collect(),
-        Err(_) => return (Vec::new(), 0),
-    };
-    let len = trees.len();
-    (trees.into_iter().map(Specification::from).collect(), len)
+    sentence
+        .parse_trees(&parser)
+        .into_iter()
+        .map(S::from)
+        .map(Specification::from)
+        .collect()
 }
