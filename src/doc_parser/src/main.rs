@@ -8,6 +8,7 @@ use pyo3::{PyResult, Python, ToPyObject};
 
 use chartparse::{ChartParser, ContextFreeGrammar};
 
+mod analysis;
 mod docs;
 mod grammar;
 mod jsonl;
@@ -19,6 +20,7 @@ mod specifier;
 mod type_match;
 mod visualization;
 
+use analysis::count_subsequences_from_tokens;
 use grammar::AsSpec;
 use itertools::Itertools;
 use nl_ir::Specification;
@@ -251,6 +253,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
 
     let start = std::time::Instant::now();
 
+    let mut unsuccessful_vec = Vec::new();
     for metadata in tokens.iter() {
         let (specs, trees_len) = sentence_to_specifications(&parser, metadata);
 
@@ -268,6 +271,9 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
             // println!();
             successful_sents += 1;
         } else {
+            if !metadata.is_empty() {
+                unsuccessful_vec.push(metadata.as_slice());
+            }
             unsucessful_sents += 1;
         }
         ntrees += trees_len;
@@ -281,6 +287,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
         }
         nspecs += count;
     }
+
     let end = std::time::Instant::now();
     println!("          Sentences: {}", tokens.len());
     println!("Successfully parsed: {}", successful_sents);
@@ -289,6 +296,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: ModelOptions) {
     println!("Specified Sentences: {}", specified_sents);
     println!("       Time elapsed: {}", (end - start).as_secs_f32());
 
+    count_subsequences_from_tokens(&unsuccessful_vec);
     //                  Sentences: 4946
     //        Successfully parsed: 284
     //                      Trees: 515

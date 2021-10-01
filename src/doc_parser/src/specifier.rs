@@ -330,14 +330,12 @@ pub fn sentence_to_specifications(
     parser: &ChartParser<Symbol>,
     sentence: &[(String, String, String)],
 ) -> (Vec<Specification>, usize) {
-    let tokens: Result<Vec<TerminalSymbol>, _> = sentence
+    // This operation should now be infallible for all spaCy input.
+    let tokens: Vec<Symbol> = sentence
         .iter()
-        .map(|(t, _, _)| TerminalSymbol::from_terminal(t))
+        .map(|(t, _, _)| TerminalSymbol::from_terminal(t).unwrap())
+        .map(Symbol::from)
         .collect();
-    let tokens: Vec<_> = match tokens {
-        Ok(t) => t.into_iter().map(Symbol::from).collect(),
-        Err(_) => return (Vec::new(), 0),
-    };
 
     let iter: Vec<_> = sentence
         .iter()

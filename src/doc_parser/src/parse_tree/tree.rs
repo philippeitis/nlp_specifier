@@ -1934,6 +1934,656 @@ impl From<EXCL> for Terminal {
 }
 
 #[derive(Clone)]
+pub struct WRB {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for WRB {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<WRB> for Terminal {
+    fn from(val: WRB) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct WP {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for WP {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<WP> for Terminal {
+    fn from(val: WP) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct NFP {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for NFP {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<NFP> for Terminal {
+    fn from(val: NFP) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct FW {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for FW {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<FW> for Terminal {
+    fn from(val: FW) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct XX {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for XX {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<XX> for Terminal {
+    fn from(val: XX) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct SYM {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for SYM {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<SYM> for Terminal {
+    fn from(val: SYM) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RBR {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for RBR {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<RBR> for Terminal {
+    fn from(val: RBR) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct POS {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for POS {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<POS> for Terminal {
+    fn from(val: POS) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PRPS {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for PRPS {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<PRPS> for Terminal {
+    fn from(val: PRPS) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PDT {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for PDT {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<PDT> for Terminal {
+    fn from(val: PDT) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct UH {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for UH {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<UH> for Terminal {
+    fn from(val: UH) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct LS {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for LS {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<LS> for Terminal {
+    fn from(val: LS) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ADD {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for ADD {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<ADD> for Terminal {
+    fn from(val: ADD) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RP {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for RP {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<RP> for Terminal {
+    fn from(val: RP) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BACKTICK {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for BACKTICK {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<BACKTICK> for Terminal {
+    fn from(val: BACKTICK) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct QUOTE {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for QUOTE {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<QUOTE> for Terminal {
+    fn from(val: QUOTE) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RRB {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for RRB {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<RRB> for Terminal {
+    fn from(val: RRB) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct LRB {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for LRB {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<LRB> for Terminal {
+    fn from(val: LRB) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct WDT {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for WDT {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<WDT> for Terminal {
+    fn from(val: WDT) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct HYPH {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for HYPH {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<HYPH> for Terminal {
+    fn from(val: HYPH) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct CD {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for CD {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<CD> for Terminal {
+    fn from(val: CD) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct COLON {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for COLON {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<COLON> for Terminal {
+    fn from(val: COLON) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct DOLLAR {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for DOLLAR {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<DOLLAR> for Terminal {
+    fn from(val: DOLLAR) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RBS {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for RBS {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<RBS> for Terminal {
+    fn from(val: RBS) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ENCODING {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for ENCODING {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<ENCODING> for Terminal {
+    fn from(val: ENCODING) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct EX {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for EX {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<EX> for Terminal {
+    fn from(val: EX) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct STR {
     pub word: String,
     pub lemma: String,
@@ -1983,6 +2633,81 @@ impl From<CHAR> for Terminal {
     }
 }
 
+#[derive(Clone)]
+pub struct SPACE {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for SPACE {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<SPACE> for Terminal {
+    fn from(val: SPACE) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct WPS {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for WPS {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<WPS> for Terminal {
+    fn from(val: WPS) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BOOL_OP {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for BOOL_OP {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<BOOL_OP> for Terminal {
+    fn from(val: BOOL_OP) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum TerminalSymbol {
     NN,
@@ -2015,8 +2740,37 @@ pub enum TerminalSymbol {
     DOT,
     COMMA,
     EXCL,
+    WRB,
+    WP,
+    NFP,
+    FW,
+    XX,
+    SYM,
+    RBR,
+    POS,
+    PRPS,
+    PDT,
+    UH,
+    LS,
+    ADD,
+    RP,
+    BACKTICK,
+    QUOTE,
+    RRB,
+    LRB,
+    WDT,
+    HYPH,
+    CD,
+    COLON,
+    DOLLAR,
+    RBS,
+    ENCODING,
+    EX,
     STR,
     CHAR,
+    SPACE,
+    WPS,
+    BOOL_OP,
 }
 
 impl TerminalSymbol {
@@ -2055,8 +2809,46 @@ impl TerminalSymbol {
             "COMMA" => Ok(TerminalSymbol::COMMA),
             "!" => Ok(TerminalSymbol::EXCL),
             "EXCL" => Ok(TerminalSymbol::EXCL),
+            "WRB" => Ok(TerminalSymbol::WRB),
+            "WP" => Ok(TerminalSymbol::WP),
+            "NFP" => Ok(TerminalSymbol::NFP),
+            "FW" => Ok(TerminalSymbol::FW),
+            "XX" => Ok(TerminalSymbol::XX),
+            "SYM" => Ok(TerminalSymbol::SYM),
+            "RBR" => Ok(TerminalSymbol::RBR),
+            "POS" => Ok(TerminalSymbol::POS),
+            "PRP$" => Ok(TerminalSymbol::PRPS),
+            "PRPS" => Ok(TerminalSymbol::PRPS),
+            "PDT" => Ok(TerminalSymbol::PDT),
+            "UH" => Ok(TerminalSymbol::UH),
+            "LS" => Ok(TerminalSymbol::LS),
+            "ADD" => Ok(TerminalSymbol::ADD),
+            "RP" => Ok(TerminalSymbol::RP),
+            "``" => Ok(TerminalSymbol::BACKTICK),
+            "BACKTICK" => Ok(TerminalSymbol::BACKTICK),
+            "''" => Ok(TerminalSymbol::QUOTE),
+            "QUOTE" => Ok(TerminalSymbol::QUOTE),
+            "-RRB-" => Ok(TerminalSymbol::RRB),
+            "RRB" => Ok(TerminalSymbol::RRB),
+            "-LRB-" => Ok(TerminalSymbol::LRB),
+            "LRB" => Ok(TerminalSymbol::LRB),
+            "WDT" => Ok(TerminalSymbol::WDT),
+            "HYPH" => Ok(TerminalSymbol::HYPH),
+            "CD" => Ok(TerminalSymbol::CD),
+            ":" => Ok(TerminalSymbol::COLON),
+            "COLON" => Ok(TerminalSymbol::COLON),
+            "$" => Ok(TerminalSymbol::DOLLAR),
+            "DOLLAR" => Ok(TerminalSymbol::DOLLAR),
+            "RBS" => Ok(TerminalSymbol::RBS),
+            "ENCODING" => Ok(TerminalSymbol::ENCODING),
+            "EX" => Ok(TerminalSymbol::EX),
             "STR" => Ok(TerminalSymbol::STR),
             "CHAR" => Ok(TerminalSymbol::CHAR),
+            "_SP" => Ok(TerminalSymbol::SPACE),
+            "SPACE" => Ok(TerminalSymbol::SPACE),
+            "WP$" => Ok(TerminalSymbol::WPS),
+            "WPS" => Ok(TerminalSymbol::WPS),
+            "BOOL_OP" => Ok(TerminalSymbol::BOOL_OP),
             x => Err(format!("Terminal {} is not supported.", x)),
         }
     }
