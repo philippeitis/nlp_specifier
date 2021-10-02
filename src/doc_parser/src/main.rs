@@ -267,20 +267,11 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
             (end - start).as_secs_f32()
         );
 
-        let start = std::time::Instant::now();
-        let tokens = tokenizer.tokenize_sents(&sentences)?;
-        let end = std::time::Instant::now();
-        println!(
-            "Time to tokenize sentences: {}",
-            (end - start).as_secs_f32()
-        );
-
         tokenizer.write_data(&options.cache)?;
         Ok(tokens)
     })
     .unwrap();
 
-    std::process::exit(0);
     let mut ntrees = 0;
     let mut nspecs = 0;
     let mut successful_sents = 0;

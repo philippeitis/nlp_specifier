@@ -46,7 +46,6 @@ class Tokenizer:
 
     def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
         self.token_cache = Tokenizer.TOKEN_CACHE[model]
-        print(len(Tokenizer.TOKEN_CACHE), len(self.token_cache))
         self.entity_cache = Tokenizer.ENTITY_CACHE[model]
         self.tagger = self.load_tagger(model)
 
