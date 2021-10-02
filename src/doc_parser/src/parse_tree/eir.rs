@@ -101,10 +101,10 @@ pub enum Symbol {
     RBS,
     ENCODING,
     EX,
-    STR,
-    CHAR,
     SPACE,
     WPS,
+    STR,
+    CHAR,
     BOOL_OP,
 }
 
@@ -167,10 +167,10 @@ impl From<TerminalSymbol> for Symbol {
             TerminalSymbol::RBS => Symbol::RBS,
             TerminalSymbol::ENCODING => Symbol::ENCODING,
             TerminalSymbol::EX => Symbol::EX,
-            TerminalSymbol::STR => Symbol::STR,
-            TerminalSymbol::CHAR => Symbol::CHAR,
             TerminalSymbol::SPACE => Symbol::SPACE,
             TerminalSymbol::WPS => Symbol::WPS,
+            TerminalSymbol::STR => Symbol::STR,
+            TerminalSymbol::CHAR => Symbol::CHAR,
             TerminalSymbol::BOOL_OP => Symbol::BOOL_OP,
         }
     }
@@ -315,10 +315,10 @@ impl std::fmt::Display for Symbol {
             Symbol::RBS => "RBS",
             Symbol::ENCODING => "ENCODING",
             Symbol::EX => "EX",
-            Symbol::STR => "STR",
-            Symbol::CHAR => "CHAR",
             Symbol::SPACE => "SPACE",
             Symbol::WPS => "WPS",
+            Symbol::STR => "STR",
+            Symbol::CHAR => "CHAR",
             Symbol::BOOL_OP => "BOOL_OP",
         })
     }

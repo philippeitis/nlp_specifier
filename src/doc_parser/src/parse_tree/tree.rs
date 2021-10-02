@@ -2584,56 +2584,6 @@ impl From<EX> for Terminal {
 }
 
 #[derive(Clone)]
-pub struct STR {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for STR {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self {
-            word: t.word,
-            lemma: t.lemma,
-        }
-    }
-}
-
-impl From<STR> for Terminal {
-    fn from(val: STR) -> Self {
-        Self {
-            word: val.word,
-            lemma: val.lemma,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct CHAR {
-    pub word: String,
-    pub lemma: String,
-}
-
-impl From<Vec<SymbolTree>> for CHAR {
-    fn from(mut branches: Vec<SymbolTree>) -> Self {
-        let t = branches.remove(0).unwrap_terminal();
-        Self {
-            word: t.word,
-            lemma: t.lemma,
-        }
-    }
-}
-
-impl From<CHAR> for Terminal {
-    fn from(val: CHAR) -> Self {
-        Self {
-            word: val.word,
-            lemma: val.lemma,
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct SPACE {
     pub word: String,
     pub lemma: String,
@@ -2684,6 +2634,56 @@ impl From<WPS> for Terminal {
 }
 
 #[derive(Clone)]
+pub struct STR {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for STR {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<STR> for Terminal {
+    fn from(val: STR) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct CHAR {
+    pub word: String,
+    pub lemma: String,
+}
+
+impl From<Vec<SymbolTree>> for CHAR {
+    fn from(mut branches: Vec<SymbolTree>) -> Self {
+        let t = branches.remove(0).unwrap_terminal();
+        Self {
+            word: t.word,
+            lemma: t.lemma,
+        }
+    }
+}
+
+impl From<CHAR> for Terminal {
+    fn from(val: CHAR) -> Self {
+        Self {
+            word: val.word,
+            lemma: val.lemma,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct BOOL_OP {
     pub word: String,
     pub lemma: String,
@@ -2708,7 +2708,7 @@ impl From<BOOL_OP> for Terminal {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum TerminalSymbol {
     NN,
     NNS,
@@ -2766,10 +2766,10 @@ pub enum TerminalSymbol {
     RBS,
     ENCODING,
     EX,
-    STR,
-    CHAR,
     SPACE,
     WPS,
+    STR,
+    CHAR,
     BOOL_OP,
 }
 
@@ -2842,12 +2842,12 @@ impl TerminalSymbol {
             "RBS" => Ok(TerminalSymbol::RBS),
             "ENCODING" => Ok(TerminalSymbol::ENCODING),
             "EX" => Ok(TerminalSymbol::EX),
-            "STR" => Ok(TerminalSymbol::STR),
-            "CHAR" => Ok(TerminalSymbol::CHAR),
             "_SP" => Ok(TerminalSymbol::SPACE),
             "SPACE" => Ok(TerminalSymbol::SPACE),
             "WP$" => Ok(TerminalSymbol::WPS),
             "WPS" => Ok(TerminalSymbol::WPS),
+            "STR" => Ok(TerminalSymbol::STR),
+            "CHAR" => Ok(TerminalSymbol::CHAR),
             "BOOL_OP" => Ok(TerminalSymbol::BOOL_OP),
             x => Err(format!("Terminal {} is not supported.", x)),
         }

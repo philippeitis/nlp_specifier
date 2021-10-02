@@ -257,7 +257,7 @@ if __name__ == '__main__':
         tree_rs += f"}}\n\n"
         cfg += f"{term} -> \"{term}\"\n"
 
-    terminal = "#[derive(Copy, Clone)]\npub enum TerminalSymbol {\n"
+    terminal = "#[derive(Copy, Clone, Eq, PartialEq)]\npub enum TerminalSymbol {\n"
 
     # phf stub - worth considering in future
     # phf_terminal = "static TERMINALSYMBOLS: phf::Map<&'static str, TerminalSymbol> = phf_map! {\n"
