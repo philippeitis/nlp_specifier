@@ -159,6 +159,9 @@ impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
     }
 }
 
+/// Tokenizes sentences, using spaCy through pyo3.
+/// Tokenizations are cached internally, which provides a speedup of ~700x
+/// over using Python-side caching (likely due to unidecode overhead).
 pub struct Tokenizer<'p> {
     parser: PyObject,
     py: Python<'p>,
