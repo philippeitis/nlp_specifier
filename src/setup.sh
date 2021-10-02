@@ -1,4 +1,5 @@
-sudo apt install python3-dev graphviz
+# Should do check for Intel based systems to use Intel MKL
+sudo apt install python3-dev graphviz gfortran
 pip install -U pip setuptools wheel
 pip install -U spacy[cuda112]
 python -m spacy download en_core_web_lg

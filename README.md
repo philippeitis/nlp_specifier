@@ -29,6 +29,7 @@ This installs:
 | spaCy (via pip) | Core | NLP Processing |
 | spaCy.en_core_web_lg | Core | Language model |
 | unidecode (via pip) | Core | Cleaning input to spaCy and JML NLP |
+| gfortran | Search | Build optimized BLAS routines for sentence similarity methods |
 | requests (via pip) | NER/SRL | Interfacing with JML NLP |
 | nltk (via pip) | Dev | code-generation | 
 | networkx (via pip) | Dev | detecting cycles in code-generation |
@@ -121,6 +122,7 @@ OPTIONS:
 ## Plan
 1. Straight up search using current methods, and plug in symbols
 - No slotting at all (but methods / struct fields should be attached as .x, while lone functions are wrapping)
+2. Provide API, create Docker interface for this project
 
 ## Examples of unaccepted (maybe should be accepted?)
 - Replaces first N matches of a pattern with another string
