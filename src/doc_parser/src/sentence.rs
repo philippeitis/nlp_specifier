@@ -43,8 +43,21 @@ impl Sentence {
         self.vector.dot(&other.vector)
     }
 
+    /// Produces the parse trees for this sentence's tokens, using the provided parser.
+    /// Whitespace tokens, and trailing DOT tokens are filtered.
     pub fn parse_trees(&self, parser: &ChartParser<Symbol>) -> Vec<SymbolTree> {
-        let tokens: Vec<_> = self.tokens.iter().map(|x| Symbol::from(x.tag)).collect();
+        let tokens = {
+            let mut tokens: Vec<_> = self
+                .tokens
+                .iter()
+                .filter(|x| x.tag != TerminalSymbol::SPACE)
+                .map(|x| Symbol::from(x.tag))
+                .collect();
+            while tokens.last() == Some(&Symbol::DOT) {
+                tokens.pop();
+            }
+            tokens
+        };
 
         let terminals: Vec<_> = self
             .tokens
