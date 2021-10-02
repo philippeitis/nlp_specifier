@@ -25,10 +25,10 @@ fn count_subsequences(
     }
 }
 
-pub fn count_subsequences_from_tokens(tokens: &[&Sentence]) {
+pub fn count_subsequences_from_tokens<S: AsRef<Sentence>>(tokens: &[S]) {
     let mut counts = HashMap::new();
     let mut samples = HashMap::new();
-    for sent in tokens {
+    for sent in tokens.iter().map(|x| x.as_ref()) {
         let terminals: Vec<_> = sent
             .tokens
             .iter()

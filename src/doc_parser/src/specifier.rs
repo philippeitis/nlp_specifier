@@ -1,6 +1,9 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
+use std::rc::Rc;
 
 use pyo3::types::IntoPyDict;
 use pyo3::{PyObject, PyResult, Python, ToPyObject};
@@ -159,6 +162,7 @@ impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
 pub struct Tokenizer<'p> {
     parser: PyObject,
     py: Python<'p>,
+    cache: RefCell<HashMap<String, Rc<Sentence>>>,
 }
 
 impl<'p> Tokenizer<'p> {
@@ -184,28 +188,57 @@ impl<'p> Tokenizer<'p> {
             .unwrap()
             .extract()
             .unwrap();
-        Tokenizer { parser, py }
+
+        Tokenizer {
+            parser,
+            py,
+            cache: RefCell::default(),
+        }
     }
 
-    pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Sentence>> {
-        let mut parsed_sents = vec![];
-        for doc in self
-            .parser
-            .call_method1(self.py, "stokenize", (sents.to_object(self.py),))?
-            .extract::<Vec<PyObject>>(self.py)?
+    pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Rc<Sentence>>> {
+        let sents: Vec<_> = {
+            let cache = self.cache.borrow();
+            sents.iter().map(|s| (s, cache.get(s).cloned())).collect()
+        };
+
+        let to_parse: Vec<_> = sents
+            .iter()
+            .cloned()
+            .filter_map(|(sent, tokens)| match tokens {
+                None => Some(sent.to_string()),
+                Some(_) => None,
+            })
+            .collect();
+
         {
-            let tokens: Vec<(String, String, String)> =
-                doc.getattr(self.py, "metadata")?.extract(self.py)?;
-            let tokens: Vec<_> = tokens.into_iter().map(Token::from).collect();
-            let doc = doc.getattr(self.py, "doc")?;
-            let sent = doc.getattr(self.py, "text")?.extract(self.py)?;
-            let vector = doc
-                .getattr(self.py, "vector")?
-                .call_method0(self.py, "tolist")?
-                .extract(self.py)?;
-            parsed_sents.push(Sentence::new(sent, tokens, vector))
+            let mut cache = self.cache.borrow_mut();
+            for (doc, src) in self
+                .parser
+                .call_method1(self.py, "stokenize", (to_parse.to_object(self.py),))?
+                .extract::<Vec<PyObject>>(self.py)?
+                .into_iter()
+                .zip(to_parse)
+            {
+                let tokens: Vec<(String, String, String)> =
+                    doc.getattr(self.py, "metadata")?.extract(self.py)?;
+                let tokens: Vec<_> = tokens.into_iter().map(Token::from).collect();
+                let doc = doc.getattr(self.py, "doc")?;
+                let sent = doc.getattr(self.py, "text")?.extract(self.py)?;
+                let vector = doc
+                    .getattr(self.py, "vector")?
+                    .call_method0(self.py, "tolist")?
+                    .extract(self.py)?;
+
+                cache.insert(src, Rc::new(Sentence::new(sent, tokens, vector)));
+            }
         }
-        Ok(parsed_sents)
+
+        let cache = self.cache.borrow();
+        Ok(sents
+            .into_iter()
+            .map(|(sent, res)| res.unwrap_or_else(|| cache.get(sent).unwrap().clone()))
+            .collect())
     }
 
     pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
@@ -239,7 +272,12 @@ impl<'p> Tokenizer<'p> {
             .unwrap()
             .extract()
             .unwrap();
-        Tokenizer { parser, py }
+
+        Tokenizer {
+            parser,
+            py,
+            cache: RefCell::default(),
+        }
     }
 
     pub fn write_data<P: AsRef<Path>>(&self, path: P) -> PyResult<()> {
@@ -249,58 +287,41 @@ impl<'p> Tokenizer<'p> {
     }
 }
 
-pub struct SimMatcher<'p> {
-    sim_matcher: PyObject,
+pub struct SimMatcher<'a, 'p> {
+    tokenizer: &'a Tokenizer<'p>,
+    sentence: Rc<Sentence>,
     cutoff: f32,
-    py: Python<'p>,
 }
 
-impl<'p> SimMatcher<'p> {
-    pub fn new(py: Python<'p>, sentence: &str, parser: &Tokenizer<'p>, cutoff: f32) -> Self {
-        let locals = [
-            ("nlp_query", py.import("nlp_query").unwrap().to_object(py)),
-            ("sent", sentence.to_object(py)),
-            ("parser", parser.parser.clone()),
-            ("cutoff", cutoff.to_object(py)),
-        ]
-        .into_py_dict(py);
+impl<'a, 'p> SimMatcher<'a, 'p> {
+    pub fn new(sentence: &str, tokenizer: &'a Tokenizer<'p>, cutoff: f32) -> Self {
         SimMatcher {
-            sim_matcher: py
-                .eval("nlp_query.SimPhrase(sent, parser, -1.)", None, Some(locals))
+            sentence: tokenizer
+                .tokenize_sents(&[sentence.to_string()])
                 .unwrap()
-                .to_object(py),
+                .remove(0),
+            tokenizer,
             cutoff,
-            py,
         }
     }
 
     pub fn is_similar(&self, sent: &str) -> PyResult<bool> {
-        let sim: f32 = self
-            .sim_matcher
-            .call_method1(self.py, "sent_similarity", (sent,))?
-            .extract(self.py)?;
-        Ok(sim > self.cutoff)
+        let other = self
+            .tokenizer
+            .tokenize_sents(&[sent.to_string()])?
+            .remove(0);
+        Ok(self.sentence.similarity(&other) > self.cutoff)
     }
 
     pub fn any_similar(&self, sents: &[String]) -> PyResult<bool> {
-        self.sim_matcher
-            .call_method(
-                self.py,
-                "any_similar",
-                (sents.to_object(self.py), self.cutoff.to_object(self.py)),
-                None,
-            )?
-            .extract(self.py)
+        let other = self.tokenizer.tokenize_sents(sents)?;
+        Ok(other
+            .into_iter()
+            .any(|sent| self.sentence.similarity(&sent) > self.cutoff))
     }
 
     pub fn print_seen(&self) {
-        let sents_seen: usize = self
-            .sim_matcher
-            .getattr(self.py, "sents_seen")
-            .unwrap()
-            .extract(self.py)
-            .unwrap();
-        println!("{}", sents_seen);
+        println!("{}", 0);
     }
 }
 
@@ -308,7 +329,6 @@ pub fn sentence_to_specifications(
     parser: &ChartParser<Symbol>,
     sentence: &Sentence,
 ) -> Vec<Specification> {
-    // This operation should now be infallible for all spaCy input.
     sentence
         .parse_trees(&parser)
         .into_iter()

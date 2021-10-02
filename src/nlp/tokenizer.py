@@ -1,5 +1,4 @@
 from collections import defaultdict
-from copy import copy
 from enum import Enum
 from pathlib import Path
 from typing import Iterator, List, Union
@@ -91,9 +90,7 @@ class Tokenizer:
             doc = self.tagger(sentence)
             self.token_cache[sentence] = doc
 
-        doc = copy(self.token_cache[sentence])
-
-        return Sentence(doc)
+        return Sentence(self.token_cache[sentence])
 
     def stokenize(self, sentences: Iterator[str], idents=None) -> List[Sentence]:
         """

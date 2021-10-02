@@ -7,3 +7,4 @@ cargo flamegraph --bin x -- args
 
 Notes:
 - phf does not appear to influence the performance of matching terminals to symbols
+- requires fortran bc linalg
