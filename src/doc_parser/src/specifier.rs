@@ -225,8 +225,6 @@ impl<'p> Tokenizer<'p> {
                 let tokens: Vec<_> = tokens.into_iter().map(Token::from).collect();
                 let doc = doc.getattr(self.py, "doc")?;
                 let sent = doc.getattr(self.py, "text")?.extract(self.py)?;
-                // Note: this is very slow for some unknown reason (+1s or 6x slower than the other
-                // steps)
                 let vector = doc
                     .getattr(self.py, "vector")?
                     .call_method0(self.py, "tolist")?

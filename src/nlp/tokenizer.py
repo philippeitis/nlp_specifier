@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Iterator, List, Union
 import logging
 
+import numpy as np
 import spacy
 from spacy.tokens import Doc, DocBin
 import unidecode
@@ -45,6 +46,7 @@ class Tokenizer:
 
     def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
         self.token_cache = Tokenizer.TOKEN_CACHE[model]
+        print(len(Tokenizer.TOKEN_CACHE), len(self.token_cache))
         self.entity_cache = Tokenizer.ENTITY_CACHE[model]
         self.tagger = self.load_tagger(model)
 
@@ -62,18 +64,37 @@ class Tokenizer:
     def from_cache(cls, path: Union[Path, str], model: SpacyModel = SpacyModel.EN_LG):
         tagger = cls.load_tagger(model)
 
+        has_vec = "tok2vec" in tagger.pipe_names
+        if has_vec:
+            Doc.set_extension("doc_vec", default=None)
+
         try:
-            docs = DocBin().from_disk(path).get_docs(tagger.vocab)
-            cls.TOKEN_CACHE[model].update(((doc.text, doc) for doc in docs))
+            docs = DocBin(store_user_data=True).from_disk(path).get_docs(tagger.vocab)
+            docs = [(doc.text, doc) for doc in docs]
+            if has_vec:
+                for (_, doc) in docs:
+                    doc._vector = np.array(doc._.doc_vec)
+
+            cls.TOKEN_CACHE[model].update(docs)
         except FileNotFoundError:
             pass
+
+        if has_vec:
+            Doc.remove_extension("doc_vec")
 
         return Tokenizer(model)
 
     def write_data(self, path: Union[Path, str]):
-        doc_bin = DocBin()
+        doc_bin = DocBin(store_user_data=True)
+
+        has_vec = "tok2vec" in self.tagger.pipe_names
+
+        if has_vec:
+            Doc.set_extension("doc_vec", default=None)
 
         for sent in self.token_cache.values():
+            if has_vec:
+                sent.doc._.doc_vec = sent.doc.vector
             doc_bin.add(sent.doc)
 
         if isinstance(path, Path):
@@ -81,6 +102,9 @@ class Tokenizer:
         else:
             Path(path).parent.mkdir(exist_ok=True, parents=True)
         doc_bin.to_disk(path)
+
+        if has_vec:
+            Doc.remove_extension("doc_vec")
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
         """Tokenizes and tags the given sentence."""
