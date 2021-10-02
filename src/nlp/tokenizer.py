@@ -1,7 +1,7 @@
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import Iterator, List, Union
+from typing import List, Union
 import logging
 
 import numpy as np
@@ -17,6 +17,8 @@ except ModuleNotFoundError:
     from .fix_tokens import fix_tokens
 
 LOGGER = logging.getLogger(__name__)
+
+Doc.set_extension("raw_text", default=None)
 
 
 def is_quote(word: str) -> bool:
@@ -69,7 +71,7 @@ class Tokenizer:
 
         try:
             docs = DocBin(store_user_data=True).from_disk(path).get_docs(tagger.vocab)
-            docs = [(doc.text, doc) for doc in docs]
+            docs = [(doc._.raw_text, doc) for doc in docs]
             if has_vec:
                 for (_, doc) in docs:
                     doc._vector = np.array(doc._.doc_vec)
@@ -107,27 +109,26 @@ class Tokenizer:
 
     def tokenize(self, sentence: str, idents=None) -> Sentence:
         """Tokenizes and tags the given sentence."""
-        sentence = unidecode.unidecode(sentence).rstrip(".")
-
         if sentence not in self.token_cache:
-            doc = self.tagger(sentence)
+            doc = self.tagger(unidecode.unidecode(sentence))
+            doc._.raw_text = sentence
             self.token_cache[sentence] = doc
 
         return Sentence(self.token_cache[sentence])
 
-    def stokenize(self, sentences: Iterator[str], idents=None) -> List[Sentence]:
+    def stokenize(self, sentences: List[str], idents=None) -> List[Sentence]:
         """
         Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
         (all unique sentences in stdlib).
         """
-        sentences = [unidecode.unidecode(sentence).rstrip(".") for sentence in sentences]
         sentence_dict = {i: self.token_cache.get(sentence) for i, sentence in enumerate(sentences)}
 
         empty_inds = [i for i, val in sentence_dict.items() if val is None]
-        empty_sents = [sentences[i] for i in empty_inds]
+        empty_sents = [unidecode.unidecode(sentences[i]) for i in empty_inds]
 
         for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
             sent = sentences[i]
+            tokenized._.raw_text = sent
             self.token_cache[sent] = tokenized
             sentence_dict[i] = tokenized
 
