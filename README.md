@@ -98,6 +98,9 @@ OPTIONS:
 ```
 
 ## Major TODOs:
+- Build server interface for NLP
+- Tree formatting
+- Convert codegen to Rust build.rs (to ensure that we don't introduce inconsistencies when parsing grammar)
 - Build synonym sets for this problem domain
 - Train model which correctly tags VB cases (currently tagged as "NN")
 - Build pseudo-compiler to iteratively resolve specification
@@ -106,6 +109,7 @@ OPTIONS:
 - Build tool to clean up resulting specifications
 - Detect vacuously true specifications
 - Quality of specification?
+- Desugar for loops?
 
 ## Plan
 1. Straight up search using current methods, and plug in symbols
@@ -124,3 +128,10 @@ OPTIONS:
 - `replace_with` does not need to be the same length as `range`
 - This method is equivalent to `CString::new` except that no runtime assertion is made that `v` contains no 0 bytes , and it requires an actual byte vector , not anything that can be converted to one with Into
 - See `send` for notes about guarantees of whether the receiver has received the data or not if this function is successful
+
+
+## Options
+- Find matches which do not include the sentence (this approach does not handle interior skipwords)
+- Preprocess sentence before tree - detect and remove common fillers (already done in part with SPACE)
+- Process fragments, have grammar for interior fragments (eg. "otherwise x is true")
+- Allow chaining (requires Context)
