@@ -1,4 +1,6 @@
 from tokenizer import Tokenizer, SpacyModel
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
 
 class NaiveSimilarity:
@@ -37,62 +39,59 @@ class SimilarityNouns(SimilarityFilter):
         super().__init__(tokenizer, lambda t: t.pos_ in {'NOUN', 'PROPN', "VERB"})
 
 
-def transformers_similarity():
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    import torch
+class SimilarityBert:
+    def __init__(self):
+        # Takes a long time to load these models
+        model_name = "bert-base-cased-finetuned-mrpc"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-    model_name = "bert-base-cased-finetuned-mrpc"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
-
-    sequence_0 = "Returns the maximum of two `f32` values."
-    sequence_1 = "Returns the minimum of two values."
-
-    tokens = tokenizer(sequence_0, sequence_1, return_tensors="pt")
-    print(tokens)
-    print(tokenizer(sequence_0, return_tensors="pt"))
-    classification_logits = model(**tokens)
-    print(classification_logits)
-    classification_logits = classification_logits[0]
-    results = torch.softmax(classification_logits, dim=1).tolist()[0]
-    print(torch.softmax(classification_logits, dim=1))
-    print(results[1], sum(results))
+    def __call__(self, sent_a: str, sent_b: str):
+        tokens = self.tokenizer(sent_a, sent_b, return_tensors="pt")
+        classification_logits = self.model(**tokens)
+        classification_logits = classification_logits[0]
+        results = torch.softmax(classification_logits, dim=1).tolist()[0]
+        return results[1]
 
 
-def spacy_similarity():
+def similarity_metrics(sentence_pairs):
     p = Tokenizer(model=SpacyModel.EN_LG)
     s_naive = NaiveSimilarity(p)
     s_nostop = SimilarityNoStop(p)
     s_nouns = SimilarityNouns(p)
+    s_bert = SimilarityBert()
 
     sims = [
         ("naive", s_naive),
         ("nostop", s_nostop),
         ("nouns", s_nouns),
+        ("bert", s_bert)
     ]
 
-    sents = [
-        ("hello world", "hello_globe"),
-        # (fn_rm, fn_pop),
-        # (fn_rm, fn_contains),
-        # (fn_pop, fn_contains),
-
-    ]
-    for sent1, sent2 in sents:
+    for sent1, sent2 in sentence_pairs:
         print("=" * 80)
         print(f"    S1: {sent1}")
         print(f"    S2: {sent2}")
 
         for name, sim_metric in sims:
-            print(f"{name}: {sim_metric(sent1, sent2)}")
-
-    s1 = "Delete the last element of self."
-    s2 = "Remove the last element of self."
-    s1d = p.tokenize(s1).doc
-    s2d = p.tokenize(s2).doc
-    print(s1d.similarity(s2d))
-    print(s1d[0].similarity(s2d[0]))
+            print(f"        {name}: {sim_metric(sent1, sent2)}")
 
 
+# TODO: Expose this in a server API
 if __name__ == '__main__':
-    transformers_similarity()
+    sentence_pairs = [
+        # Tests similarity metrics on opposing words
+        # BERT is more sensitive to this replacement
+        ("Returns the maximum of two `f32` values.", "Returns the minimum of two `f32` values."),
+        # Tests similarity metrics on deletion
+        # BERT is quite sensitive to this compared to other models
+        ("Returns the minimum of two `f32` values.", "Returns the minimum of two values."),
+        # Tests sensitivity to tense (again, outsized effect with BERT)
+        ("Delete the last element of self.", "Remove the last element of self."),
+        ("Deletes the last element of self.", "Removes the last element of self."),
+        # Tests similarity metrics on different sentence
+        # In BERT, this is very dissimilar, but by default, quite similar
+        ("Delete the last element of self.", "Returns the maximum of two `f32` values.")
+    ]
+
+    similarity_metrics(sentence_pairs)
