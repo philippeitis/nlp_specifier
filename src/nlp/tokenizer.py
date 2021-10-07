@@ -1,13 +1,17 @@
+import io
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
 from typing import List, Union
 import logging
+from io import BytesIO
+import sys
 
 import numpy as np
 import spacy
 from spacy.tokens import Doc, DocBin
 import unidecode
+import msgpack
 
 try:
     from ner import ner_and_srl
@@ -29,6 +33,32 @@ class Sentence:
     def __init__(self, doc: Doc):
         self.doc = doc
         self.metadata = tuple((token.tag_, token.text, token.lemma_) for token in self.doc)
+
+    def msgpack(self):
+        data = BytesIO()
+
+        values = {
+            "text": self.doc.text,
+            "tokens": self.metadata,
+        }
+
+        msgpack.pack(values, data)
+
+        if self.doc.has_vector:
+            data.seek(0)
+            data.write(b"\x83")
+            data.seek(0, io.SEEK_END)
+            msgpack.pack("vector", data)
+            data.write(b"\xc5")
+            if sys.byteorder == "big":
+                vec = self.doc.vector.newbyteorder("little").tobytes()
+            else:
+                vec = self.doc.vector.tobytes()
+            data.write(len(vec).to_bytes(2, byteorder='big'))
+            data.write(vec)
+
+        data.seek(0)
+        return data.read()
 
 
 class SpacyModel(str, Enum):
