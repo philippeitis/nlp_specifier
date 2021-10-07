@@ -169,7 +169,7 @@ pub struct Tokenizer<'p> {
 }
 
 impl<'p> Tokenizer<'p> {
-    pub fn new<S: Into<SpacyModel>>(py: Python<'p>, model: S) -> Self {
+    fn init_with_args<S: Into<SpacyModel>>(py: Python<'p>, tokenizer_call: &str, model: S, args: &[(&str, PyObject)]) -> Self {
         let path = std::env::current_dir().unwrap();
         let locals = [
             ("sys", py.import("sys").unwrap().to_object(py)),
@@ -184,10 +184,11 @@ impl<'p> Tokenizer<'p> {
         let locals = [
             ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
             ("model", model.into().spacy_ident().to_object(py)),
-        ]
-        .into_py_dict(py);
+        ].into_iter().chain(args.into_iter())
+            .into_py_dict(py);
+
         let parser: PyObject = py
-            .eval("tokenizer.Tokenizer(model)", None, Some(locals))
+            .eval(&format!("tokenizer.{}", tokenizer_call), None, Some(locals))
             .unwrap()
             .extract()
             .unwrap();
@@ -197,6 +198,17 @@ impl<'p> Tokenizer<'p> {
             py,
             cache: RefCell::default(),
         }
+    }
+    pub fn new<S: Into<SpacyModel>>(py: Python<'p>, model: S) -> Self {
+        Self::init_with_args(py, "Tokenizer(model)", model, &[])
+    }
+
+    pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
+        py: Python<'p>,
+        path: P,
+        model: S,
+    ) -> Self {
+        Self::init_with_args(py, "Tokenizer.from_cache(path, model)", model, &[("path", path.as_ref().to_object(py))])
     }
 
     pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Rc<Sentence>>> {
@@ -232,7 +244,7 @@ impl<'p> Tokenizer<'p> {
                     .getattr(self.py, "vector")?
                     .call_method0(self.py, "tolist")?
                     .extract(self.py)?;
-
+                // (vec<token>, str, vec<f32>
                 cache.insert(src, Rc::new(Sentence::new(sent, tokens, vector)));
             }
         }
@@ -242,45 +254,6 @@ impl<'p> Tokenizer<'p> {
             .into_iter()
             .map(|(sent, res)| res.unwrap_or_else(|| cache.get(sent).unwrap().clone()))
             .collect())
-    }
-
-    pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
-        py: Python<'p>,
-        path: P,
-        model: S,
-    ) -> Self {
-        let root_dir = std::env::current_dir().unwrap();
-        let locals = [
-            ("sys", py.import("sys").unwrap().to_object(py)),
-            ("pathlib", py.import("pathlib").unwrap().to_object(py)),
-            ("root_dir", root_dir.to_object(py)),
-        ]
-        .into_py_dict(py);
-        // TODO: Make sure we fix path handling for the general case.
-        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
-        py.eval(code, None, Some(locals)).unwrap();
-
-        let locals = [
-            ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
-            ("path", path.as_ref().to_object(py)),
-            ("model", model.into().spacy_ident().to_object(py)),
-        ]
-        .into_py_dict(py);
-        let parser: PyObject = py
-            .eval(
-                "tokenizer.Tokenizer.from_cache(path, model)",
-                None,
-                Some(locals),
-            )
-            .unwrap()
-            .extract()
-            .unwrap();
-
-        Tokenizer {
-            parser,
-            py,
-            cache: RefCell::default(),
-        }
     }
 
     pub fn write_data<P: AsRef<Path>>(&self, path: P) -> PyResult<()> {
