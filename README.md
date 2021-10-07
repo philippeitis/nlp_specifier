@@ -135,3 +135,4 @@ OPTIONS:
 - Preprocess sentence before tree - detect and remove common fillers (already done in part with SPACE)
 - Process fragments, have grammar for interior fragments (eg. "otherwise x is true")
 - Allow chaining (requires Context)
+- Add error messages when parsing (eg. "You typed '`self.capacity is unchanged', missing 'must' or 'will' to specify that this is a pre/post condition")
