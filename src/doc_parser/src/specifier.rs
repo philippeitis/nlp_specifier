@@ -169,7 +169,12 @@ pub struct Tokenizer<'p> {
 }
 
 impl<'p> Tokenizer<'p> {
-    fn init_with_args<S: Into<SpacyModel>>(py: Python<'p>, tokenizer_call: &str, model: S, args: &[(&str, PyObject)]) -> Self {
+    fn init_with_args<S: Into<SpacyModel>>(
+        py: Python<'p>,
+        tokenizer_call: &str,
+        model: S,
+        args: &[(&str, PyObject)],
+    ) -> Self {
         let path = std::env::current_dir().unwrap();
         let locals = [
             ("sys", py.import("sys").unwrap().to_object(py)),
@@ -184,8 +189,10 @@ impl<'p> Tokenizer<'p> {
         let locals = [
             ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
             ("model", model.into().spacy_ident().to_object(py)),
-        ].into_iter().chain(args.into_iter())
-            .into_py_dict(py);
+        ]
+        .iter()
+        .chain(args.into_iter())
+        .into_py_dict(py);
 
         let parser: PyObject = py
             .eval(&format!("tokenizer.{}", tokenizer_call), None, Some(locals))
@@ -208,7 +215,12 @@ impl<'p> Tokenizer<'p> {
         path: P,
         model: S,
     ) -> Self {
-        Self::init_with_args(py, "Tokenizer.from_cache(path, model)", model, &[("path", path.as_ref().to_object(py))])
+        Self::init_with_args(
+            py,
+            "Tokenizer.from_cache(path, model)",
+            model,
+            &[("path", path.as_ref().to_object(py))],
+        )
     }
 
     pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Rc<Sentence>>> {

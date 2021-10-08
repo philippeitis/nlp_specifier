@@ -7,6 +7,7 @@ pub enum S {
     Retif(RETIF),
     Spec_atom(SPEC_ATOM),
     Spec_cond(SPEC_COND),
+    Spec_term(SPEC_TERM),
 }
 
 impl From<SymbolTree> for S {
@@ -31,6 +32,9 @@ impl From<Vec<SymbolTree>> for S {
             },
             Some((Symbol::SPEC_COND, spec_cond_0)) => {
                 S::Spec_cond(SPEC_COND::from(spec_cond_0))
+            },
+            Some((Symbol::SPEC_TERM, spec_term_0)) => {
+                S::Spec_term(SPEC_TERM::from(spec_term_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
@@ -1177,6 +1181,211 @@ impl From<Vec<SymbolTree>> for SPEC_COND {
             },
             (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::SPEC_ATOM, spec_atom_2))) => {
                 SPEC_COND::_1(COND::from(cond_0), Some(COMMA::from(comma_1)), SPEC_ATOM::from(spec_atom_2))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum RETIF_ {
+    _0(MRET, COND),
+    _1(COND, Option<COMMA>, MRET),
+}
+
+impl From<SymbolTree> for RETIF_ {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for RETIF_ {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::MRET, mret_0)), Some((Symbol::COND, cond_1)), None) => {
+                RETIF_::_0(MRET::from(mret_0), COND::from(cond_1))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::MRET, mret_2)), None) => {
+                RETIF_::_1(COND::from(cond_0), None, MRET::from(mret_2))
+            },
+            (Some((Symbol::COND, cond_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::MRET, mret_2))) => {
+                RETIF_::_1(COND::from(cond_0), Some(COMMA::from(comma_1)), MRET::from(mret_2))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_ITEM {
+    Spec_cond(SPEC_COND),
+    Retif_(RETIF_),
+}
+
+impl From<SymbolTree> for SPEC_ITEM {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_ITEM {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match labels.next() {
+            Some((Symbol::SPEC_COND, spec_cond_0)) => {
+                SPEC_ITEM::Spec_cond(SPEC_COND::from(spec_cond_0))
+            },
+            Some((Symbol::RETIF_, retif__0)) => {
+                SPEC_ITEM::Retif_(RETIF_::from(retif__0))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_CHAIN {
+    Spec_item(SPEC_ITEM),
+    _0(Box<SPEC_CHAIN>, Option<COMMA>, RB, SPEC_ITEM),
+    _1(Box<SPEC_CHAIN>, Option<COMMA>, Option<CC>, SPEC_ITEM),
+}
+
+impl From<SymbolTree> for SPEC_CHAIN {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_CHAIN {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::SPEC_ITEM, spec_item_0)), None, None, None) => {
+                SPEC_CHAIN::Spec_item(SPEC_ITEM::from(spec_item_0))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::RB, rb_2)), Some((Symbol::SPEC_ITEM, spec_item_3)), None) => {
+                SPEC_CHAIN::_0(Box::new(SPEC_CHAIN::from(spec_chain_0)), None, RB::from(rb_2), SPEC_ITEM::from(spec_item_3))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::SPEC_ITEM, spec_item_3))) => {
+                SPEC_CHAIN::_0(Box::new(SPEC_CHAIN::from(spec_chain_0)), Some(COMMA::from(comma_1)), RB::from(rb_2), SPEC_ITEM::from(spec_item_3))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::SPEC_ITEM, spec_item_3)), None, None) => {
+                SPEC_CHAIN::_1(Box::new(SPEC_CHAIN::from(spec_chain_0)), None, None, SPEC_ITEM::from(spec_item_3))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::SPEC_ITEM, spec_item_3)), None) => {
+                SPEC_CHAIN::_1(Box::new(SPEC_CHAIN::from(spec_chain_0)), Some(COMMA::from(comma_1)), None, SPEC_ITEM::from(spec_item_3))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::CC, cc_2)), Some((Symbol::SPEC_ITEM, spec_item_3)), None) => {
+                SPEC_CHAIN::_1(Box::new(SPEC_CHAIN::from(spec_chain_0)), None, Some(CC::from(cc_2)), SPEC_ITEM::from(spec_item_3))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::CC, cc_2)), Some((Symbol::SPEC_ITEM, spec_item_3))) => {
+                SPEC_CHAIN::_1(Box::new(SPEC_CHAIN::from(spec_chain_0)), Some(COMMA::from(comma_1)), Some(CC::from(cc_2)), SPEC_ITEM::from(spec_item_3))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_CHAIN_PRE {
+    _0(SPEC_CHAIN, Option<COMMA>, RB),
+}
+
+impl From<SymbolTree> for SPEC_CHAIN_PRE {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_CHAIN_PRE {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::RB, rb_2)), None) => {
+                SPEC_CHAIN_PRE::_0(SPEC_CHAIN::from(spec_chain_0), None, RB::from(rb_2))
+            },
+            (Some((Symbol::SPEC_CHAIN, spec_chain_0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2))) => {
+                SPEC_CHAIN_PRE::_0(SPEC_CHAIN::from(spec_chain_0), Some(COMMA::from(comma_1)), RB::from(rb_2))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SPEC_TERM {
+    RETIF_TERM(Option<SPEC_CHAIN_PRE>, RETIF_TERM),
+    SPEC_ATOM(Option<SPEC_CHAIN_PRE>, SPEC_ATOM),
+    MRET(Option<SPEC_CHAIN_PRE>, MRET),
+    SPEC_ITEM(Option<SPEC_CHAIN_PRE>, SPEC_ITEM),
+}
+
+impl From<SymbolTree> for SPEC_TERM {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for SPEC_TERM {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next()) {
+            (Some((Symbol::RETIF_TERM, retif_term_1)), None) => {
+                SPEC_TERM::RETIF_TERM(None, RETIF_TERM::from(retif_term_1))
+            },
+            (Some((Symbol::SPEC_CHAIN_PRE, spec_chain_pre_0)), Some((Symbol::RETIF_TERM, retif_term_1))) => {
+                SPEC_TERM::RETIF_TERM(Some(SPEC_CHAIN_PRE::from(spec_chain_pre_0)), RETIF_TERM::from(retif_term_1))
+            },
+            (Some((Symbol::SPEC_ATOM, spec_atom_1)), None) => {
+                SPEC_TERM::SPEC_ATOM(None, SPEC_ATOM::from(spec_atom_1))
+            },
+            (Some((Symbol::SPEC_CHAIN_PRE, spec_chain_pre_0)), Some((Symbol::SPEC_ATOM, spec_atom_1))) => {
+                SPEC_TERM::SPEC_ATOM(Some(SPEC_CHAIN_PRE::from(spec_chain_pre_0)), SPEC_ATOM::from(spec_atom_1))
+            },
+            (Some((Symbol::MRET, mret_1)), None) => {
+                SPEC_TERM::MRET(None, MRET::from(mret_1))
+            },
+            (Some((Symbol::SPEC_CHAIN_PRE, spec_chain_pre_0)), Some((Symbol::MRET, mret_1))) => {
+                SPEC_TERM::MRET(Some(SPEC_CHAIN_PRE::from(spec_chain_pre_0)), MRET::from(mret_1))
+            },
+            (Some((Symbol::SPEC_ITEM, spec_item_1)), None) => {
+                SPEC_TERM::SPEC_ITEM(None, SPEC_ITEM::from(spec_item_1))
+            },
+            (Some((Symbol::SPEC_CHAIN_PRE, spec_chain_pre_0)), Some((Symbol::SPEC_ITEM, spec_item_1))) => {
+                SPEC_TERM::SPEC_ITEM(Some(SPEC_CHAIN_PRE::from(spec_chain_pre_0)), SPEC_ITEM::from(spec_item_1))
+            },
+            _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum RETIF_TERM {
+    _0(RETIF_, Option<COMMA>, RB, OBJ),
+}
+
+impl From<SymbolTree> for RETIF_TERM {
+    fn from(tree: SymbolTree) -> Self {
+        let (_symbol, branches) = tree.unwrap_branch();
+        Self::from(branches)
+    }
+}
+
+impl From<Vec<SymbolTree>> for RETIF_TERM {
+    fn from(branches: Vec<SymbolTree>) -> Self {
+        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
+        match (labels.next(), labels.next(), labels.next(), labels.next()) {
+            (Some((Symbol::RETIF_, retif__0)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3)), None) => {
+                RETIF_TERM::_0(RETIF_::from(retif__0), None, RB::from(rb_2), OBJ::from(obj_3))
+            },
+            (Some((Symbol::RETIF_, retif__0)), Some((Symbol::COMMA, comma_1)), Some((Symbol::RB, rb_2)), Some((Symbol::OBJ, obj_3))) => {
+                RETIF_TERM::_0(RETIF_::from(retif__0), Some(COMMA::from(comma_1)), RB::from(rb_2), OBJ::from(obj_3))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }

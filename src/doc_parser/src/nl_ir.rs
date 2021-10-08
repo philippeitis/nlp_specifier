@@ -4,7 +4,8 @@ use std::str::FromStr;
 use crate::parse_tree::tree::{
     ARITHOP, ASSERT, ASSIGN, BITOP, BOOL_EXPR, CODE, COND, EVENT, HASSERT, HQASSERT, JJ, LIT, MD,
     MJJ, MNN, MREL, MRET, MVB, OBJ, OP, PROP, PROP_OF, PRP, QASSERT, QUANT, QUANT_EXPR, RANGE,
-    RANGEMOD, RB, REL, RETIF, S, SHIFTOP, SPEC_ATOM, SPEC_COND, TJJ, VBD, VBG, VBN, VBZ,
+    RANGEMOD, RB, REL, RETIF, RETIF_, RETIF_TERM, S, SHIFTOP, SPEC_ATOM, SPEC_CHAIN,
+    SPEC_CHAIN_PRE, SPEC_COND, SPEC_ITEM, SPEC_TERM, TJJ, VBD, VBG, VBN, VBZ,
 };
 use crate::parse_tree::Terminal;
 
@@ -472,7 +473,7 @@ impl From<EVENT> for EventIntermediate {
 }
 
 impl EventIntermediate {
-    fn complete(self, inner: Object) -> Event {
+    fn complete(self, inner: EventTarget) -> Event {
         Event {
             mnn: self.mnn,
             vb: self.vb,
@@ -482,10 +483,16 @@ impl EventIntermediate {
 }
 
 #[derive(Clone)]
+pub enum EventTarget {
+    Object(Object),
+    This,
+}
+
+#[derive(Clone)]
 pub struct Event {
     pub mnn: Mnn,
     pub vb: EventVB,
-    pub inner: Object,
+    pub inner: EventTarget,
 }
 
 pub enum Specification {
@@ -493,6 +500,7 @@ pub enum Specification {
     Mret(MReturn),
     SpecAtom(SpecAtom),
     SpecCond(SpecCond),
+    SpecTerm(SpecTerm),
 }
 
 pub enum SpecAtom {
@@ -520,6 +528,7 @@ impl From<S> for Specification {
             S::Retif(retif) => Specification::RetIf(retif.into()),
             S::Spec_atom(atom) => Specification::SpecAtom(atom.into()),
             S::Spec_cond(cond) => Specification::SpecCond(cond.into()),
+            S::Spec_term(spec_term) => Specification::SpecTerm(spec_term.into()),
         }
     }
 }
@@ -551,6 +560,221 @@ impl From<SPEC_COND> for SpecCond {
 
                 SpecCond { cond, atom }
             }
+        }
+    }
+}
+
+pub enum SpecAtom_ {
+    HAssert(HardAssert),
+    QAssert(HardQuantAssert),
+    Action(ActionObj),
+    Side,
+    Mret(MReturn),
+}
+
+pub struct SpecTermVal {
+    atom: SpecAtom_,
+    cond: Option<BoolCond>,
+}
+
+struct SpecTermValIntermediate {
+    atom: SpecAtom_,
+    cond: Option<BoolCondIntermediate>,
+}
+
+pub struct SpecTerm {
+    vals: Vec<Vec<SpecTermVal>>,
+}
+
+pub struct SpecTermIntermediate {
+    vals: Vec<Vec<SpecTermValIntermediate>>,
+}
+
+impl From<SPEC_ATOM> for SpecAtom_ {
+    fn from(s: SPEC_ATOM) -> Self {
+        match s {
+            SPEC_ATOM::Hassert(h) => SpecAtom_::HAssert(h.into()),
+            SPEC_ATOM::Hqassert(h) => SpecAtom_::QAssert(h.into()),
+            SPEC_ATOM::Side(_s) => SpecAtom_::Side,
+            SPEC_ATOM::Assign(a) => SpecAtom_::Action(a.into()),
+        }
+    }
+}
+
+impl From<MRET> for SpecAtom_ {
+    fn from(m: MRET) -> Self {
+        SpecAtom_::Mret(m.into())
+    }
+}
+
+impl From<SPEC_ITEM> for SpecTermValIntermediate {
+    fn from(s: SPEC_ITEM) -> Self {
+        let (atom, cond) = match s {
+            SPEC_ITEM::Spec_cond(c) => match c {
+                SPEC_COND::_0(atom, cond) | SPEC_COND::_1(cond, _, atom) => {
+                    (SpecAtom_::from(atom), BoolCondIntermediate::from(cond))
+                }
+            },
+            SPEC_ITEM::Retif_(r) => match r {
+                RETIF_::_0(mret, cond) | RETIF_::_1(cond, _, mret) => {
+                    (SpecAtom_::from(mret), BoolCondIntermediate::from(cond))
+                }
+            },
+        };
+        SpecTermValIntermediate {
+            atom,
+            cond: Some(cond),
+        }
+    }
+}
+
+impl From<SPEC_ATOM> for SpecTermValIntermediate {
+    fn from(atom: SPEC_ATOM) -> Self {
+        SpecTermValIntermediate {
+            atom: atom.into(),
+            cond: None,
+        }
+    }
+}
+
+impl From<MRET> for SpecTermValIntermediate {
+    fn from(atom: MRET) -> Self {
+        SpecTermValIntermediate {
+            atom: atom.into(),
+            cond: None,
+        }
+    }
+}
+
+struct SpecChainPre {
+    spec_term: SpecTermIntermediate,
+    rb: RB,
+}
+
+impl From<SPEC_CHAIN_PRE> for SpecChainPre {
+    fn from(s: SPEC_CHAIN_PRE) -> Self {
+        match s {
+            SPEC_CHAIN_PRE::_0(chain, _, rb) => SpecChainPre {
+                spec_term: chain.into(),
+                rb,
+            },
+        }
+    }
+}
+
+impl From<Box<SPEC_CHAIN>> for SpecTermIntermediate {
+    fn from(s: Box<SPEC_CHAIN>) -> Self {
+        Self::from(*s)
+    }
+}
+
+impl From<SPEC_CHAIN> for SpecTermIntermediate {
+    fn from(s: SPEC_CHAIN) -> Self {
+        match s {
+            SPEC_CHAIN::Spec_item(i) => SpecTermIntermediate {
+                vals: vec![vec![i.into()]],
+            },
+            SPEC_CHAIN::_0(chain, _, rb, spec_item) => {
+                assert_eq!(rb.lemma, "otherwise");
+                let mut chain = SpecTermIntermediate::from(chain);
+                chain.vals.push(vec![spec_item.into()]);
+                chain
+            }
+            SPEC_CHAIN::_1(chain, _, cc, spec_item) => {
+                if let Some(cc) = cc {
+                    assert_eq!(cc.lemma, "and");
+                }
+                let mut chain = SpecTermIntermediate::from(chain);
+                chain.vals.last_mut().unwrap().push(spec_item.into());
+                chain
+            }
+        }
+    }
+}
+
+impl From<SPEC_TERM> for SpecTerm {
+    fn from(s: SPEC_TERM) -> Self {
+        fn from_chain(
+            chain: Option<SPEC_CHAIN_PRE>,
+            vals: Vec<Vec<SpecTermValIntermediate>>,
+        ) -> SpecTerm {
+            let spec_term_i = match chain {
+                None => SpecTermIntermediate { vals },
+                Some(chain) => {
+                    let mut chain = SpecChainPre::from(chain);
+                    assert_eq!(chain.rb.lemma, "otherwise");
+                    chain.spec_term.vals.extend(vals);
+                    chain.spec_term
+                }
+            };
+
+            // If we see an event:
+            //  Look back - if we find a target in a previous OW, use that
+            //  If we find a target in a previous item in the current AND body, use that
+            let mut spec_term_vals = Vec::with_capacity(spec_term_i.vals.len());
+            for val in spec_term_i.vals {
+                let mut conjunction_vals: Vec<SpecTermVal> = Vec::with_capacity(val.len());
+                for item in val {
+                    let cond = match item.cond {
+                        None => None,
+                        Some(BoolCondIntermediate::Complete(cond)) => Some(cond),
+                        Some(BoolCondIntermediate::Incomplete {
+                            if_expr,
+                            negated,
+                            value,
+                        }) => Some(match value {
+                            BoolValueIncomplete::Event(e) => match conjunction_vals.last() {
+                                None => BoolCond {
+                                    if_expr,
+                                    negated,
+                                    value: BoolValue::Event(e.complete(EventTarget::This)),
+                                },
+                                Some(item) => match &item.atom {
+                                    SpecAtom_::Mret(mret) => BoolCond {
+                                        if_expr,
+                                        negated,
+                                        value: BoolValue::Event(
+                                            e.complete(EventTarget::Object(mret.ret_val.clone())),
+                                        ),
+                                    },
+                                    _ => unimplemented!(),
+                                },
+                            },
+                        }),
+                    };
+                    conjunction_vals.push(SpecTermVal {
+                        atom: item.atom,
+                        cond,
+                    });
+                }
+                spec_term_vals.push(conjunction_vals);
+            }
+            SpecTerm {
+                vals: spec_term_vals,
+            }
+        }
+
+        match s {
+            SPEC_TERM::RETIF_TERM(chain, retif_term) => from_chain(
+                chain,
+                match retif_term {
+                    RETIF_TERM::_0(retif, _, rb, val) => {
+                        assert_eq!(rb.lemma, "otherwise");
+                        vec![
+                            vec![SPEC_ITEM::Retif_(retif).into()],
+                            vec![SpecTermValIntermediate {
+                                atom: SpecAtom_::Mret(MReturn {
+                                    ret_val: val.into(),
+                                }),
+                                cond: None,
+                            }],
+                        ]
+                    }
+                },
+            ),
+            SPEC_TERM::SPEC_ATOM(chain, item) => from_chain(chain, vec![vec![item.into()]]),
+            SPEC_TERM::MRET(chain, item) => from_chain(chain, vec![vec![item.into()]]),
+            SPEC_TERM::SPEC_ITEM(chain, item) => from_chain(chain, vec![vec![item.into()]]),
         }
     }
 }
@@ -1033,7 +1257,9 @@ impl From<RETIF> for ReturnIf {
                         BoolValueIncomplete::Event(e) => BoolCond {
                             if_expr,
                             negated,
-                            value: BoolValue::Event(e.complete(mret.ret_val.clone())),
+                            value: BoolValue::Event(
+                                e.complete(EventTarget::Object(mret.ret_val.clone())),
+                            ),
                         },
                     },
                 };
@@ -1069,7 +1295,9 @@ impl From<RETIF> for ReturnIf {
                         BoolValueIncomplete::Event(e) => BoolCond {
                             if_expr,
                             negated,
-                            value: BoolValue::Event(e.complete(mret.ret_val.clone())),
+                            value: BoolValue::Event(
+                                e.complete(EventTarget::Object(mret.ret_val.clone())),
+                            ),
                         },
                     },
                 };
@@ -1191,6 +1419,7 @@ impl FromStr for ConditionModifier {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "will" => Ok(ConditionModifier::Post),
+            "does" => Ok(ConditionModifier::Post),
             "must" => Ok(ConditionModifier::Pre),
             _ => Err(()),
         }

@@ -4,5 +4,5 @@ members = [
     "doc_parser",
     "wordnet",
     "compiler_plugin",
-    "chartparse"
+    "chartparse",
 ]

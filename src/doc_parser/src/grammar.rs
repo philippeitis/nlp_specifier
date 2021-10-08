@@ -6,11 +6,17 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Expr};
 
 use crate::nl_ir::{
-    ActionObj, Assert, BoolCond, BoolValue, Code, ConditionModifier, Event, HardAssert,
-    HardQuantAssert, IfExpr, IsPropMod, IsProperty, Lemma, Literal, MReturn, MnnMod, Object, Op,
-    QuantAssert, QuantExpr, QuantItem, Relation, ReturnIf, SpecAtom, SpecCond, Specification,
+    ActionObj, Assert, BoolCond, BoolValue, Code, ConditionModifier, Event, EventTarget,
+    HardAssert, HardQuantAssert, IfExpr, IsPropMod, IsProperty, Lemma, Literal, MReturn, MnnMod,
+    Object, Op, QuantAssert, QuantExpr, QuantItem, Relation, ReturnIf, SpecAtom, SpecCond,
+    Specification,
 };
 use crate::parse_tree::tree::{MJJ, MVB};
+
+fn is_negation<S: AsRef<str>>(s: S) -> bool {
+    let s = s.as_ref();
+    s == "not" || s == "n't"
+}
 
 #[derive(Debug)]
 pub enum SpecificationError {
@@ -123,23 +129,30 @@ impl AsCode for Event {
             .adjs
             .iter()
             .filter(|x| match x {
-                MnnMod::Jj(jj) => jj.lemma == "not",
+                MnnMod::Jj(jj) => is_negation(&jj.lemma),
                 MnnMod::Vbn(_) => false,
             })
             .count();
-        let body = self.inner.as_code()?;
-        if negations % 2 == 0 {
-            Ok(syn::parse_str(&format!(
-                "{}s!({})",
-                self.mnn.root_lemma(),
-                quote::quote! {#body}.to_string()
-            ))?)
-        } else {
-            Ok(syn::parse_str(&format!(
-                "!{}s!({})",
-                self.mnn.root_lemma(),
-                quote::quote! {#body}.to_string()
-            ))?)
+        match &self.inner {
+            EventTarget::Object(inner) => {
+                let body = inner.as_code()?;
+                if negations % 2 == 0 {
+                    Ok(syn::parse_str(&format!(
+                        "{}s!({})",
+                        self.mnn.root_lemma(),
+                        quote::quote! {#body}.to_string()
+                    ))?)
+                } else {
+                    Ok(syn::parse_str(&format!(
+                        "!{}s!({})",
+                        self.mnn.root_lemma(),
+                        quote::quote! {#body}.to_string()
+                    ))?)
+                }
+            }
+            EventTarget::This => {
+                return Ok(syn::parse_str(&format!("{}!()", self.mnn.root_lemma()))?)
+            }
         }
     }
 }
@@ -169,7 +182,7 @@ impl Apply for IsProperty {
                     MJJ::JJR(rb, jj) => (rb.as_ref(), &jj.lemma),
                     MJJ::JJS(rb, jj) => (rb.as_ref(), &jj.lemma),
                 };
-                let sym = if rb.map(|x| x.lemma == "not").unwrap_or(false) {
+                let sym = if rb.map(|x| is_negation(&x.lemma)).unwrap_or(false) {
                     "!"
                 } else {
                     ""
@@ -235,7 +248,7 @@ impl Apply for IsProperty {
             MVB::VBD(rb, _) => rb.as_ref().map(|x| &x.lemma),
         };
 
-        if rb.map(|x| x == "not").unwrap_or(false) ^ (self.mvb.root_lemma() == "not") {
+        if rb.map(|x| is_negation(x)).unwrap_or(false) ^ (is_negation(self.mvb.root_lemma())) {
             Ok(ExprString::String(format!("!{}", s)))
         } else {
             Ok(ExprString::String(s))
@@ -295,6 +308,7 @@ impl AsSpec for Specification {
             Specification::RetIf(returnif) => returnif.as_spec(),
             Specification::SpecAtom(atom) => atom.as_spec(),
             Specification::SpecCond(cond) => cond.as_spec(),
+            Specification::SpecTerm(_) => Err(SpecificationError::Unimplemented),
         }
     }
 }
@@ -706,7 +720,7 @@ impl Apply for Relation {
         if self
             .modifier
             .as_ref()
-            .map(|x| x.lemma == "not")
+            .map(|x| is_negation(&x.lemma))
             .unwrap_or(false)
         {
             Ok(ExprString::String(format!("!(({}))", s)))
