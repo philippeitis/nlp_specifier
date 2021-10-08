@@ -6,44 +6,43 @@ use std::rc::Rc;
 use fnv::FnvHashMap;
 use unicode_width::UnicodeWidthChar;
 
-use crate::production::{NonTerminal, Production, Symbol, SymbolWrapper, Terminal};
+use crate::production::{Production, Symbol};
 
 #[derive(Clone)]
-struct LeftCorners<S: Hash + Clone + PartialEq + Eq> {
-    immediate_categories: HashMap<NonTerminal<S>, HashSet<NonTerminal<S>>>,
-    immediate_words: HashMap<NonTerminal<S>, HashSet<Terminal<S>>>,
-    left_corners: HashMap<NonTerminal<S>, HashSet<NonTerminal<S>>>,
-    parents: HashMap<NonTerminal<S>, HashSet<NonTerminal<S>>>,
+struct LeftCorners<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+    immediate_categories: HashMap<N, HashSet<N>>,
+    immediate_words: HashMap<N, HashSet<T>>,
+    left_corners: HashMap<N, HashSet<N>>,
+    parents: HashMap<N, HashSet<N>>,
     left_corner_words: Option<bool>,
 }
 
 #[derive(Clone)]
-pub struct ContextFreeGrammar<S: Hash + Clone + PartialEq + Eq> {
-    pub start: NonTerminal<S>,
-    pub productions: Vec<Rc<Production<S>>>,
-    categories: HashSet<NonTerminal<S>>,
+pub struct ContextFreeGrammar<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+    pub start: N,
+    pub productions: Vec<Rc<Production<T, N>>>,
+    categories: HashSet<N>,
     // Grammar forms
     is_lexical: bool,
     is_nonlexical: bool,
     min_len: usize,
     max_len: usize,
     all_unary_are_lexical: bool,
-    pub lhs_index: FnvHashMap<NonTerminal<S>, Vec<Rc<Production<S>>>>,
-    rhs_index: FnvHashMap<SymbolWrapper<S>, Vec<Rc<Production<S>>>>,
-    empty_index: FnvHashMap<NonTerminal<S>, Rc<Production<S>>>,
-    lexical_index: FnvHashMap<Terminal<S>, HashSet<Rc<Production<S>>>>,
-    leftcorner_relationships: Option<LeftCorners<S>>,
+    pub lhs_index: FnvHashMap<N, Vec<Rc<Production<T, N>>>>,
+    rhs_index: FnvHashMap<Symbol<T, N>, Vec<Rc<Production<T, N>>>>,
+    empty_index: FnvHashMap<N, Rc<Production<T, N>>>,
+    lexical_index: FnvHashMap<T, HashSet<Rc<Production<T, N>>>>,
+    leftcorner_relationships: Option<LeftCorners<T, N>>,
 }
 
-impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
-    fn new(start: NonTerminal<S>, productions: Vec<Production<S>>) -> Self {
+impl<T: Hash + PartialEq + Eq + Clone, N: Hash + PartialEq + Eq + Clone> ContextFreeGrammar<T, N> {
+    fn new(start: N, productions: Vec<Production<T, N>>) -> Self {
         let productions = productions.into_iter().map(Rc::from).collect();
         Self::new_from_rc(start, productions)
     }
 
-    fn new_from_rc(start: NonTerminal<S>, productions: Vec<Rc<Production<S>>>) -> Self {
-        let mut lexical_index: FnvHashMap<Terminal<S>, HashSet<Rc<Production<S>>>> =
-            FnvHashMap::default();
+    fn new_from_rc(start: N, productions: Vec<Rc<Production<T, N>>>) -> Self {
+        let mut lexical_index: FnvHashMap<T, HashSet<Rc<Production<T, N>>>> = FnvHashMap::default();
         let mut rhs_index = FnvHashMap::default();
         let mut lhs_index = FnvHashMap::default();
         let mut empty_index = FnvHashMap::default();
@@ -63,9 +62,9 @@ impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
                 empty_index.insert(prod.lhs.clone(), prod.clone());
             }
             for token in &prod.rhs {
-                match &token.inner {
-                    Symbol::_NT(_) => continue,
-                    Symbol::_T(t) => {
+                match &token {
+                    Symbol::NonTerminal(_) => continue,
+                    Symbol::Terminal(t) => {
                         if lexical_index.contains_key(t) {
                             lexical_index.get_mut(t).unwrap().insert(prod.clone());
                         } else {
@@ -102,13 +101,9 @@ impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
     }
 }
 
-impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
-    pub(crate) fn check_coverage(&self, tokens: &[S]) -> bool {
-        tokens.iter().all(|t| {
-            self.lexical_index.contains_key(&Terminal {
-                symbol: t.to_owned(),
-            })
-        })
+impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<T, N> {
+    pub(crate) fn check_coverage(&self, tokens: &[T]) -> bool {
+        tokens.iter().all(|t| self.lexical_index.contains_key(t))
     }
 
     fn is_lexical(&self) -> bool {
@@ -131,8 +126,8 @@ impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
         self.productions.len()
     }
 
-    pub(crate) fn start(&self) -> SymbolWrapper<S> {
-        self.start.clone().to_symbol()
+    pub(crate) fn start(&self) -> &N {
+        &self.start
     }
 
     fn is_nonempty(&self) -> bool {
@@ -153,10 +148,10 @@ impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
 
     pub(crate) fn productions(
         &self,
-        lhs: Option<NonTerminal<S>>,
-        rhs: Option<SymbolWrapper<S>>,
+        lhs: Option<N>,
+        rhs: Option<Symbol<T, N>>,
         empty: bool,
-    ) -> Result<Vec<Rc<Production<S>>>, &'static str> {
+    ) -> Result<Vec<Rc<Production<T, N>>>, &'static str> {
         Ok(match (lhs, rhs, empty) {
             (None, None, false) => self.productions.clone(),
             (None, None, true) => self.empty_index.values().cloned().collect(),
@@ -192,33 +187,34 @@ impl<S: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<S> {
     }
 }
 
-impl<S: Hash + Clone + PartialEq + Eq + ParseSymbol> ContextFreeGrammar<S> {
+impl<
+        T: Hash + PartialEq + Eq + Clone + ParseTerminal,
+        N: Hash + PartialEq + Eq + Clone + ParseNonTerminal,
+    > ContextFreeGrammar<T, N>
+{
     pub fn fromstring(s: String) -> Result<Self, &'static str> {
         read_grammar(&s, &standard_nonterm_parser)
     }
 }
 
-impl ContextFreeGrammar<String> {
-    fn eliminate_start(&self) -> ContextFreeGrammar<String> {
-        let start = self.start.clone().to_symbol();
-
+impl ContextFreeGrammar<String, String> {
+    fn eliminate_start(&self) -> ContextFreeGrammar<String, String> {
+        let start = Symbol::NonTerminal(self.start.clone());
+        let new_start = "S0_SIGMA";
         if self.productions.iter().any(|p| p.rhs.contains(&start)) {
-            let new_start = NonTerminal {
-                symbol: "S0_SIGMA".to_string(),
-            };
             let mut productions = self.productions.clone();
-            productions.push(Rc::new(Production::new(new_start.clone(), vec![start])));
-            ContextFreeGrammar::new_from_rc(new_start, productions)
+            productions.push(Rc::new(Production::new(new_start.to_string(), vec![start])));
+            ContextFreeGrammar::new_from_rc(new_start.to_string(), productions)
         } else {
             self.clone()
         }
     }
 }
 
-pub fn standard_nonterm_parser<S: Hash + Clone + PartialEq + Eq + ParseSymbol>(
+pub fn standard_nonterm_parser<N: ParseNonTerminal>(
     s: &str,
     pos: usize,
-) -> Result<(NonTerminal<S>, usize), &'static str> {
+) -> Result<(N, usize), &'static str> {
     let mut index = pos;
     // Capture
     let mut chars = s[pos..].chars().peekable();
@@ -250,9 +246,7 @@ pub fn standard_nonterm_parser<S: Hash + Clone + PartialEq + Eq + ParseSymbol>(
         chars.next();
     }
 
-    let nt = NonTerminal {
-        symbol: S::parse_nonterminal(&s[pos..index]).map_err(|_| "could not parse nonterminal")?,
-    };
+    let nt = N::parse_nonterminal(&s[pos..index]).map_err(|_| "could not parse nonterminal")?;
     for c in chars {
         match c {
             x if x.is_whitespace() => {
@@ -344,12 +338,13 @@ fn eat_disjunction(line: &str, mut pos: usize) -> Option<usize> {
 }
 
 pub fn read_production<
-    S: Hash + Clone + PartialEq + Eq + ParseSymbol,
-    F: Fn(&str, usize) -> Result<(NonTerminal<S>, usize), &'static str>,
+    T: Clone + ParseTerminal,
+    N: Clone + ParseNonTerminal,
+    F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
 >(
     line: &str,
     nt_parser: &F,
-) -> Result<Vec<Production<S>>, &'static str> {
+) -> Result<Vec<Production<T, N>>, &'static str> {
     let (lhs, mut pos) = nt_parser(line, 0)?;
 
     pos = read_arrow(line, pos).ok_or("no arrow")?;
@@ -361,8 +356,8 @@ pub fn read_production<
             '\'' | '"' => {
                 let (end, xpos) =
                     terminate_str(line, pos).ok_or("could not terminate production")?;
-                rhssides.last_mut().unwrap().push(SymbolWrapper::terminal(
-                    ParseSymbol::parse_terminal(&line[pos + 1..end - 1]).unwrap(),
+                rhssides.last_mut().unwrap().push(Symbol::Terminal(
+                    T::parse_terminal(&line[pos + 1..end - 1]).unwrap(),
                 ));
                 pos = xpos;
             }
@@ -372,10 +367,7 @@ pub fn read_production<
             }
             _ => {
                 let (rnt, xpos) = nt_parser(line, pos)?;
-                rhssides
-                    .last_mut()
-                    .unwrap()
-                    .push(SymbolWrapper::nonterminal(rnt.symbol));
+                rhssides.last_mut().unwrap().push(Symbol::NonTerminal(rnt));
                 pos = xpos;
             }
         }
@@ -388,12 +380,13 @@ pub fn read_production<
 }
 
 pub fn read_grammar<
-    S: Hash + Clone + PartialEq + Eq + ParseSymbol,
-    F: Fn(&str, usize) -> Result<(NonTerminal<S>, usize), &'static str>,
+    T: Hash + PartialEq + Eq + Clone + ParseTerminal,
+    N: Hash + PartialEq + Eq + Clone + ParseNonTerminal,
+    F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
 >(
     input: &str,
     nt_parser: F,
-) -> Result<ContextFreeGrammar<S>, &'static str> {
+) -> Result<ContextFreeGrammar<T, N>, &'static str> {
     let mut productions = Vec::new();
     let mut continued_line = String::new();
 
@@ -425,20 +418,28 @@ pub fn read_grammar<
     ))
 }
 
-pub trait ParseSymbol: Sized {
+pub trait ParseTerminal: Sized {
     type Error: Debug;
 
     fn parse_terminal(s: &str) -> Result<Self, Self::Error>;
+}
+
+pub trait ParseNonTerminal: Sized {
+    type Error: Debug;
 
     fn parse_nonterminal(s: &str) -> Result<Self, Self::Error>;
 }
 
-impl ParseSymbol for String {
+impl ParseTerminal for String {
     type Error = ();
 
     fn parse_terminal(s: &str) -> Result<Self, Self::Error> {
         Ok(s.to_string())
     }
+}
+
+impl ParseNonTerminal for String {
+    type Error = ();
 
     fn parse_nonterminal(s: &str) -> Result<Self, Self::Error> {
         Ok(s.to_string())

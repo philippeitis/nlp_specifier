@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::hash::Hash;
 
 use chartparse::grammar::ParseSymbol;
-use chartparse::tree::TreeNode;
+use chartparse::tree::Tree;
 use chartparse::TreeWrapper;
 
 use crate::parse_tree::tree::TerminalSymbol;
@@ -357,8 +357,8 @@ impl SymbolTree {
         iter: &mut I,
     ) -> Self {
         match tree.inner {
-            TreeNode::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
-            TreeNode::Branch(nt, rest) => {
+            Tree::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
+            Tree::Branch(nt, rest) => {
                 let mut sym_trees = Vec::with_capacity(rest.len());
                 for item in rest {
                     sym_trees.push(SymbolTree::from_iter(item, iter));

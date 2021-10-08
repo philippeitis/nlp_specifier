@@ -1,22 +1,64 @@
 use std::fmt::Debug;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 
 use crate::edge::{Edge, EdgeI};
-use crate::production::SymbolWrapper;
+use crate::production::Symbol;
 
-#[derive(Hash, Eq, PartialEq, Clone)]
-pub struct Restrictions<S: Hash + Eq + PartialEq + Clone> {
+pub struct Restrictions<T, N> {
     pub(crate) start: Option<usize>,
     pub(crate) end: Option<usize>,
     pub(crate) length: Option<usize>,
-    pub(crate) lhs: Option<SymbolWrapper<S>>,
-    pub(crate) rhs: Option<Vec<SymbolWrapper<S>>>,
-    pub(crate) next_sym: Option<SymbolWrapper<S>>,
+    pub(crate) lhs: Option<Symbol<T, N>>,
+    pub(crate) rhs: Option<Vec<Symbol<T, N>>>,
+    pub(crate) next_sym: Option<Symbol<T, N>>,
     pub(crate) dot: Option<usize>,
     pub(crate) is_complete: Option<bool>,
 }
 
-impl<S: Hash + Clone + PartialEq + Eq> Default for Restrictions<S> {
+impl<T: Clone, N: Clone> Clone for Restrictions<T, N> {
+    fn clone(&self) -> Self {
+        Self {
+            start: self.start.clone(),
+            end: self.end.clone(),
+            length: self.length.clone(),
+            lhs: self.lhs.clone(),
+            rhs: self.rhs.clone(),
+            next_sym: self.next_sym.clone(),
+            dot: self.dot.clone(),
+            is_complete: self.is_complete.clone(),
+        }
+    }
+}
+
+impl<T: PartialEq, N: PartialEq> PartialEq for Restrictions<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start
+            && self.end == other.end
+            && self.length == other.length
+            && self.lhs == other.lhs
+            && self.rhs == other.rhs
+            && self.next_sym == other.next_sym
+            && self.dot == other.dot
+            && self.is_complete == other.is_complete
+    }
+}
+
+impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for Restrictions<T, N> {}
+
+impl<T: Hash, N: Hash> Hash for Restrictions<T, N> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.start.hash(state);
+        self.end.hash(state);
+        self.length.hash(state);
+        self.lhs.hash(state);
+        self.rhs.hash(state);
+        self.next_sym.hash(state);
+        self.dot.hash(state);
+        self.is_complete.hash(state);
+    }
+}
+
+impl<T, N> Default for Restrictions<T, N> {
     fn default() -> Self {
         Self {
             start: None,
@@ -50,10 +92,10 @@ impl RestrictionKeys {
     fn overlaps(&self, rk: RestrictionKey) -> bool {
         self.0 & rk as u32 != 0
     }
-    pub(crate) fn read_edge<S: Hash + Clone + PartialEq + Eq>(
-        &self,
-        edge: &Edge<S>,
-    ) -> Restrictions<S> {
+}
+
+impl RestrictionKeys {
+    pub(crate) fn read_edge<T: Clone, N: Clone>(&self, edge: &Edge<T, N>) -> Restrictions<T, N> {
         use RestrictionKey::*;
 
         Restrictions {
@@ -101,7 +143,7 @@ impl RestrictionKeys {
     }
 }
 
-impl<S: Hash + Clone + PartialEq + Eq> Restrictions<S> {
+impl<T, N> Restrictions<T, N> {
     pub(crate) fn is_empty(&self) -> bool {
         self.start.is_none()
             && self.end.is_none()
@@ -144,25 +186,6 @@ impl<S: Hash + Clone + PartialEq + Eq> Restrictions<S> {
 
         RestrictionKeys(key)
     }
-}
-
-impl<S: Hash + Clone + PartialEq + Eq> Restrictions<S> {
-    pub fn read_edge(&self, edge: &Edge<S>) -> Self {
-        Restrictions {
-            start: self.start.map(|_| edge.start()),
-            end: self.end.map(|_| edge.end()),
-            length: self.length.map(|_| edge.length()),
-            lhs: self.lhs.as_ref().map(|_| edge.lhs().clone()),
-            rhs: self.rhs.as_ref().map(|_| edge.rhs().to_vec()),
-            next_sym: self
-                .next_sym
-                .as_ref()
-                .map(|_| edge.next_sym().cloned())
-                .flatten(),
-            dot: self.dot.map(|_| edge.dot()),
-            is_complete: self.is_complete.map(|_| edge.is_complete()),
-        }
-    }
 
     pub fn start(self, start: usize) -> Self {
         Restrictions {
@@ -178,10 +201,29 @@ impl<S: Hash + Clone + PartialEq + Eq> Restrictions<S> {
         }
     }
 
-    pub fn lhs(self, lhs: SymbolWrapper<S>) -> Self {
+    pub fn lhs(self, lhs: Symbol<T, N>) -> Self {
         Restrictions {
             lhs: Some(lhs),
             ..self
+        }
+    }
+}
+
+impl<T: Clone, N: Clone> Restrictions<T, N> {
+    pub fn read_edge(&self, edge: &Edge<T, N>) -> Self {
+        Restrictions {
+            start: self.start.map(|_| edge.start()),
+            end: self.end.map(|_| edge.end()),
+            length: self.length.map(|_| edge.length()),
+            lhs: self.lhs.as_ref().map(|_| edge.lhs().clone()),
+            rhs: self.rhs.as_ref().map(|_| edge.rhs().to_vec()),
+            next_sym: self
+                .next_sym
+                .as_ref()
+                .map(|_| edge.next_sym().cloned())
+                .flatten(),
+            dot: self.dot.map(|_| edge.dot()),
+            is_complete: self.is_complete.map(|_| edge.is_complete()),
         }
     }
 }
