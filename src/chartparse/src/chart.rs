@@ -323,7 +323,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<T
 
         memo.insert(edge.clone(), vec![]);
         let mut trees = Vec::new();
-        let lhs = edge.lhs();
+        let lhs = edge.lhs().nonterminal().expect("If edge is LeafEdge, early return occurs. TreeEdge will never produce a terminal symbol as the LHS");
         for cpl in self.child_pointer_lists(edge) {
             let child_choices: Vec<_> = cpl
                 .iter()
@@ -332,7 +332,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<T
             let child_refs: Vec<_> = child_choices.iter().map(|x| x.as_slice()).collect();
             for children in cartesian_product(&child_refs) {
                 // should be lazy
-                trees.push(Tree::from_list(lhs.clone(), children));
+                trees.push(Tree::from_nonterminal(lhs.clone(), children));
             }
         }
 
@@ -342,7 +342,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<T
                 .iter()
                 .skip(edge.dot())
                 .cloned()
-                .map(Tree::from_terminal_symbol)
+                .map(Tree::from)
                 .collect();
             for tree in &mut trees {
                 tree.extend(unexpanded.clone());

@@ -24,17 +24,12 @@ impl<T: Display, N: Display> Display for Tree<T, N> {
 }
 
 impl<T, N> Tree<T, N> {
-    pub(crate) fn from_list(lhs: Symbol<T, N>, v: Vec<Tree<T, N>>) -> Self {
-        assert!(!v.is_empty());
-        Self::Branch(lhs.nonterminal().unwrap(), v)
+    pub(crate) fn from_nonterminal(lhs: N, v: Vec<Tree<T, N>>) -> Self {
+        Self::Branch(lhs, v)
     }
 
     pub(crate) fn from_terminal(lhs: T) -> Self {
         Tree::Terminal(lhs)
-    }
-
-    pub(crate) fn from_terminal_symbol(lhs: Symbol<T, N>) -> Self {
-        Tree::Terminal(lhs.terminal().unwrap())
     }
 
     pub(crate) fn extend(&mut self, v: Vec<Tree<T, N>>) {
@@ -56,6 +51,15 @@ impl<T, N> Tree<T, N> {
         match self {
             Tree::Terminal(_) => panic!("Called unwrap_branch with terminal Tree"),
             Tree::Branch(nt, trees) => (nt, trees),
+        }
+    }
+}
+
+impl<T, N> From<Symbol<T, N>> for Tree<T, N> {
+    fn from(symbol: Symbol<T, N>) -> Self {
+        match symbol {
+            Symbol::Terminal(t) => Tree::Terminal(t),
+            Symbol::NonTerminal(nt) => Tree::Branch(nt, vec![]),
         }
     }
 }
