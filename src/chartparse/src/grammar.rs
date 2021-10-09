@@ -266,11 +266,10 @@ fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &
         return Err("Terminal did not start with leading quote");
     }
 
-    if let Some(pos) = line.find(quote) {
-        let (in_quotes, rest) = line.split_at(pos);
+    if let Some((in_quotes, rest)) = line.split_once(quote) {
         Ok((
             T::parse_terminal(&in_quotes).map_err(|_| "Could not parse terminal")?,
-            &rest[1..],
+            rest,
         ))
     } else {
         Err("No terminating quote found.")
