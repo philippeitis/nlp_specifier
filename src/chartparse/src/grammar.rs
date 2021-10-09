@@ -9,6 +9,7 @@ use fnv::FnvHashMap;
 use unicode_width::UnicodeWidthChar;
 
 use crate::production::{Production, Symbol};
+use crate::utils::SplitFirstChar;
 
 #[derive(Clone)]
 struct LeftCorners<N: Hash + PartialEq + Eq, T: Hash + PartialEq + Eq> {
@@ -215,6 +216,8 @@ impl ContextFreeGrammar<String, String> {
     }
 }
 
+/// Reads a nonterminal from `line`, returning the nonterminal and the rest of the string if no
+/// error occurs.
 pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str), &'static str> {
     let mut index = 0;
     // Capture
@@ -252,52 +255,25 @@ pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str)
     Ok((nt, rest))
 }
 
-fn eat_arrow(line: &str) -> Option<&str> {
-    let mut chars = line.chars();
-
-    match (chars.next(), chars.next(), chars.next()) {
-        (Some('-'), Some('>'), Some(' ')) => {}
-        _ => return None,
-    }
-
-    Some(chars.as_str())
-}
-
-/// Returns the end of the string, plus the start of the next string
+/// Reads a terminal from `line`, returning the terminal and the rest of the string if no
+/// error occurs.
 fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &'static str> {
-    let mut pos = 0;
-    let mut chars = line.chars();
+    let (quote, line) = line
+        .split_first()
+        .expect("Parent fn read_production read at least one character");
 
-    let q = chars
-        .next()
-        .expect("Should only be called when string has at least one char");
-
-    if q != '"' && q != '\'' {
-        // unreachable
+    if quote != '\'' && quote != '"' {
         return Err("Terminal did not start with leading quote");
     }
 
-    pos += 1;
-
-    let mut broke = false;
-    while let Some(c) = chars.next() {
-        if q != c {
-            pos += c.width().unwrap();
-        } else {
-            broke = true;
-            break;
-        }
-    }
-
-    let (in_quotes, rest) = line.split_at(pos);
-
-    if !broke {
-        Err("No terminating quote found.")
-    } else {
+    if let Some(pos) = line.find(quote) {
+        let (in_quotes, rest) = line.split_at(pos);
         Ok((
-            T::parse_terminal(&in_quotes[1..]).map_err(|_| "Could not parse terminal")?,
+            T::parse_terminal(&in_quotes).map_err(|_| "Could not parse terminal")?,
             &rest[1..],
         ))
+    } else {
+        Err("No terminating quote found.")
     }
 }
 
@@ -312,22 +288,33 @@ fn eat_disjunction(line: &str) -> Option<&str> {
     Some(chars.as_str())
 }
 
+fn eat_arrow(line: &str) -> Option<&str> {
+    let mut chars = line.chars();
+
+    match (chars.next(), chars.next(), chars.next()) {
+        (Some('-'), Some('>'), Some(' ')) => {}
+        _ => return None,
+    }
+
+    Some(chars.as_str())
+}
+
 pub fn read_production<
     N: Clone + ParseNonTerminal,
     T: Clone + ParseTerminal,
     F: Fn(&str) -> Result<(N, &str), &'static str>,
 >(
     line: &str,
-    nt_parser: &F,
+    nt_parser: F,
 ) -> Result<Vec<Production<N, T>>, &'static str> {
     let (lhs, mut rest) = nt_parser(line)?;
     rest = rest.trim_start();
-    rest = eat_arrow(rest).ok_or("no arrow")?;
+    rest = eat_arrow(rest).ok_or("Did not find an arrow after the nonterminal   ")?;
 
     let mut productions: Vec<_> = vec![Production::new(lhs.clone(), vec![])];
 
-    while !rest.is_empty() {
-        match rest.chars().next().unwrap() {
+    while let Some(c) = rest.chars().next() {
+        match c {
             '\'' | '"' => {
                 let (t, rest_) = standard_terminal_parser::<T>(rest)?;
                 productions

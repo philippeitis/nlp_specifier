@@ -7,6 +7,7 @@ pub mod grammar;
 pub mod production;
 pub mod select;
 pub mod tree;
+mod utils;
 
 use crate::chart::Chart;
 use crate::chartrule::{
