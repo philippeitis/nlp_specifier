@@ -61,12 +61,12 @@ impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Cha
         }
     }
 
-    pub fn chart_parse(&self, tokens: &[T]) -> Result<Chart<T, N>, &'static str> {
+    pub fn chart_parse<'b>(&self, tokens: &'b [T]) -> Result<Chart<'b, T, N>, &'static str> {
         if !self.grammar.check_coverage(tokens) {
             return Err("Bad coverage");
         }
 
-        let mut chart = Chart::new(tokens.to_vec());
+        let mut chart = Chart::new(tokens);
 
         if !self.use_agenda {
             unimplemented!();

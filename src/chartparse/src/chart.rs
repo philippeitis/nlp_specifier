@@ -12,8 +12,8 @@ use crate::production::Symbol;
 use crate::select::{RestrictionKeys, Restrictions};
 use crate::tree::Tree;
 
-pub struct Chart<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
-    tokens: Vec<T>,
+pub struct Chart<'a, T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+    tokens: &'a [T],
     edges: Rc<Vec<EdgeWrapper<T, N>>>,
     edge_to_cpl: FnvHashMap<EdgeWrapper<T, N>, IndexSet<Rc<Vec<EdgeWrapper<T, N>>>>>,
     indexes: RefCell<
@@ -21,8 +21,8 @@ pub struct Chart<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
     >,
 }
 
-impl<T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Chart<T, N> {
-    pub(crate) fn new(tokens: Vec<T>) -> Self {
+impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Chart<'a, T, N> {
+    pub(crate) fn new(tokens: &'a [T]) -> Self {
         Chart {
             tokens,
             edges: Default::default(),
@@ -185,10 +185,10 @@ impl<T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Chart<T
     }
 
     /// Lazy version of parse.
-    pub(crate) fn parse_iter<'a>(
-        &'a self,
+    pub(crate) fn parse_iter<'b>(
+        &'b self,
         root: Symbol<T, N>,
-    ) -> Box<dyn Iterator<Item = Tree<T, N>> + 'a> {
+    ) -> Box<dyn Iterator<Item = Tree<T, N>> + 'b> {
         let edges = match self.select(
             Restrictions::default()
                 .start(0)
@@ -221,9 +221,10 @@ impl<T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Chart<T
 }
 
 impl<
+        'a,
         T: Clone + Hash + PartialEq + Eq + Display + Debug,
         N: Clone + Hash + PartialEq + Eq + Display + Debug,
-    > Chart<T, N>
+    > Chart<'a, T, N>
 {
     pub(crate) fn pretty_format_edge(
         &self,
@@ -298,7 +299,7 @@ pub fn cartesian_product<T: Clone>(lists: &[&[T]]) -> Vec<Vec<T>> {
     }
 }
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<T, N> {
+impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<'a, T, N> {
     pub(crate) fn tree_helper(
         &self,
         edge: &EdgeWrapper<T, N>,
