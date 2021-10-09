@@ -218,7 +218,7 @@ impl ContextFreeGrammar<String, String> {
 pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str), &'static str> {
     let mut index = 0;
     // Capture
-    let mut chars = s.chars().peekable();
+    let mut chars = s.chars();
     match chars.next() {
         Some(c) => match c {
             '/' => {
@@ -234,9 +234,9 @@ pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str)
         _ => return Err("no next char"),
     }
 
-    while let Some(c) = chars.peek() {
+    while let Some(c) = chars.next() {
         match c {
-            '_' | '^' | '<' | '>' | '-' => {
+            '/' | '^' | '<' | '>' | '-' | '_' => {
                 index += c.width().unwrap();
             }
             x if x.is_alphanumeric() => {
@@ -244,7 +244,6 @@ pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str)
             }
             _ => break,
         }
-        chars.next();
     }
 
     let (nonterm, rest) = s.split_at(index);
@@ -267,7 +266,7 @@ fn eat_arrow(line: &str) -> Option<&str> {
 /// Returns the end of the string, plus the start of the next string
 fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &'static str> {
     let mut pos = 0;
-    let mut chars = line.chars().peekable();
+    let mut chars = line.chars();
 
     let q = chars
         .next()
@@ -479,7 +478,7 @@ mod test {
                         Symbol::Terminal("terminal1".to_string()),
                         Symbol::NonTerminal("other".to_string()),
                         Symbol::NonTerminal("nonterminalx".to_string()),
-                        Symbol::Terminal("terminal2".to_string())
+                        Symbol::Terminal("terminal2".to_string()),
                     ],
                 ),
                 Production::new(
@@ -488,7 +487,7 @@ mod test {
                         Symbol::NonTerminal("another".to_string()),
                         Symbol::Terminal("NonTerminal".to_string()),
                     ],
-                )
+                ),
             ])
         );
     }
