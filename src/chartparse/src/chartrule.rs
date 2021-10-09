@@ -255,8 +255,8 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         {
             let new_edge: EdgeWrapper<_, _> = TreeEdge::with_dot(
                 edge.inner.span(),
-                production.lhs().clone(),
-                production.rhs().into(),
+                production.lhs.clone(),
+                production.rhs.clone(),
                 1,
             )
             .into();

@@ -119,15 +119,7 @@ impl<T: Hash, N: Hash> Hash for Production<T, N> {
     }
 }
 
-// CORRECT
 impl<T, N> Production<T, N> {
-    pub fn lhs(&self) -> &N {
-        &self.lhs
-    }
-    pub fn rhs(&self) -> &[Symbol<T, N>] {
-        &self.rhs
-    }
-
     pub fn new(lhs: N, rhs: Vec<Symbol<T, N>>) -> Self {
         Self {
             lhs,
