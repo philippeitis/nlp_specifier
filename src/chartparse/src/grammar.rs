@@ -331,7 +331,11 @@ pub fn read_production<
         match rest.chars().next().unwrap() {
             '\'' | '"' => {
                 let (t, rest_) = standard_terminal_parser::<T>(rest)?;
-                productions.last_mut().unwrap().rhs.push(Symbol::Terminal(t));
+                productions
+                    .last_mut()
+                    .unwrap()
+                    .rhs
+                    .push(Symbol::Terminal(t));
                 rest = rest_;
             }
             '|' => {
@@ -340,7 +344,11 @@ pub fn read_production<
             }
             _ => {
                 let (nt, rest_) = nt_parser(rest)?;
-                productions.last_mut().unwrap().rhs.push(Symbol::NonTerminal(nt));
+                productions
+                    .last_mut()
+                    .unwrap()
+                    .rhs
+                    .push(Symbol::NonTerminal(nt));
                 rest = rest_;
             }
         }
