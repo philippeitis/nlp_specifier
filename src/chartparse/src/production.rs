@@ -4,45 +4,10 @@ use std::hash::{Hash, Hasher};
 use itertools::Itertools;
 use smallvec::SmallVec;
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Symbol<T, N> {
     Terminal(T),
     NonTerminal(N),
-}
-
-impl<T: Clone, N: Clone> Clone for Symbol<T, N> {
-    fn clone(&self) -> Self {
-        match &self {
-            Symbol::Terminal(t) => Symbol::Terminal(t.clone()),
-            Symbol::NonTerminal(nt) => Symbol::NonTerminal(nt.clone()),
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for Symbol<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Symbol::Terminal(st), Symbol::Terminal(ot)) => st == ot,
-            (Symbol::NonTerminal(snt), Symbol::NonTerminal(ont)) => snt == ont,
-            _ => false,
-        }
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for Symbol<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for Symbol<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Symbol::Terminal(t) => {
-                0u8.hash(state);
-                t.hash(state);
-            }
-            Symbol::NonTerminal(nt) => {
-                1u8.hash(state);
-                nt.hash(state);
-            }
-        }
-    }
 }
 
 impl<T: Display, N: Display> Debug for Symbol<T, N> {
@@ -90,33 +55,10 @@ impl<T, N> Symbol<T, N> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Production<T, N> {
     pub lhs: N,
     pub rhs: SmallVec<[Symbol<T, N>; 6]>,
-}
-
-impl<T: Clone, N: Clone> Clone for Production<T, N> {
-    fn clone(&self) -> Self {
-        Production {
-            lhs: self.lhs.clone(),
-            rhs: self.rhs.clone(),
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for Production<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.lhs == other.lhs && self.rhs == other.rhs
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for Production<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for Production<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.lhs.hash(state);
-        self.rhs.hash(state);
-    }
 }
 
 impl<T, N> Production<T, N> {

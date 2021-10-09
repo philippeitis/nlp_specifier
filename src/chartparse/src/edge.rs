@@ -40,42 +40,12 @@ pub(crate) trait EdgeI<T: Clone, N: Clone>: Clone {
     fn is_complete(&self) -> bool;
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TreeEdge<T, N> {
     span: Span,
     dot: usize,
     lhs: N,
     rhs: SmallVec<[Symbol<T, N>; 6]>,
-}
-
-impl<T: Clone, N: Clone> Clone for TreeEdge<T, N> {
-    fn clone(&self) -> Self {
-        Self {
-            span: self.span.clone(),
-            dot: self.dot,
-            lhs: self.lhs.clone(),
-            rhs: self.rhs.clone(),
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for TreeEdge<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.span == other.span
-            && self.dot == other.dot
-            && self.lhs == other.lhs
-            && self.rhs == other.rhs
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for TreeEdge<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for TreeEdge<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.span.hash(state);
-        self.dot.hash(state);
-        self.lhs.hash(state);
-        self.rhs.hash(state);
-    }
 }
 
 impl<T: Clone, N: Clone> EdgeI<T, N> for TreeEdge<T, N> {
@@ -176,6 +146,7 @@ impl<T: Display + Clone, N: Display + Clone> Debug for TreeEdge<T, N> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct LeafEdge<T, N> {
     leaf: T,
     index: usize,
@@ -189,31 +160,6 @@ impl<T, N> LeafEdge<T, N> {
             index,
             nonterm: PhantomData,
         }
-    }
-}
-
-impl<T: Clone, N: Clone> Clone for LeafEdge<T, N> {
-    fn clone(&self) -> Self {
-        Self {
-            leaf: self.leaf.clone(),
-            index: self.index.clone(),
-            nonterm: PhantomData,
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for LeafEdge<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.leaf == other.leaf && self.index == other.index
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for LeafEdge<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for LeafEdge<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.leaf.hash(state);
-        self.index.hash(state);
     }
 }
 
@@ -264,45 +210,10 @@ impl<T: Display + Clone, N: Display + Clone> Debug for LeafEdge<T, N> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Edge<T, N> {
     _L(LeafEdge<T, N>),
     _T(TreeEdge<T, N>),
-}
-
-impl<T: Clone, N: Clone> Clone for Edge<T, N> {
-    fn clone(&self) -> Self {
-        match self {
-            Edge::_L(e) => Edge::_L(e.clone()),
-            Edge::_T(e) => Edge::_T(e.clone()),
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for Edge<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Edge::_L(sl), Edge::_L(ol)) => sl == ol,
-            (Edge::_T(st), Edge::_T(ot)) => st == ot,
-            _ => false,
-        }
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for Edge<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for Edge<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Edge::_L(l) => {
-                0u8.hash(state);
-                l.hash(state);
-            }
-            Edge::_T(t) => {
-                1u8.hash(state);
-                t.hash(state);
-            }
-        }
-    }
 }
 
 impl<T: Clone, N: Clone> EdgeI<T, N> for Edge<T, N> {
@@ -349,27 +260,11 @@ impl<T: Clone, N: Clone> EdgeI<T, N> for Edge<T, N> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct EdgeWrapper<T, N> {
     pub(crate) inner: Rc<Edge<T, N>>,
     inner_hash: u64,
 }
-
-impl<T: Clone, N: Clone> Clone for EdgeWrapper<T, N> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            inner_hash: self.inner_hash,
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for EdgeWrapper<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.inner_hash == other.inner_hash && self.inner == other.inner
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for EdgeWrapper<T, N> {}
 
 impl<T: Hash, N: Hash> Hash for EdgeWrapper<T, N> {
     fn hash<H: Hasher>(&self, state: &mut H) {

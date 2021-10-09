@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use crate::edge::{Edge, EdgeI};
 use crate::production::Symbol;
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Restrictions<T, N> {
     pub(crate) start: Option<usize>,
     pub(crate) end: Option<usize>,
@@ -13,49 +14,6 @@ pub struct Restrictions<T, N> {
     pub(crate) next_sym: Option<Symbol<T, N>>,
     pub(crate) dot: Option<usize>,
     pub(crate) is_complete: Option<bool>,
-}
-
-impl<T: Clone, N: Clone> Clone for Restrictions<T, N> {
-    fn clone(&self) -> Self {
-        Self {
-            start: self.start.clone(),
-            end: self.end.clone(),
-            length: self.length.clone(),
-            lhs: self.lhs.clone(),
-            rhs: self.rhs.clone(),
-            next_sym: self.next_sym.clone(),
-            dot: self.dot.clone(),
-            is_complete: self.is_complete.clone(),
-        }
-    }
-}
-
-impl<T: PartialEq, N: PartialEq> PartialEq for Restrictions<T, N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.start == other.start
-            && self.end == other.end
-            && self.length == other.length
-            && self.lhs == other.lhs
-            && self.rhs == other.rhs
-            && self.next_sym == other.next_sym
-            && self.dot == other.dot
-            && self.is_complete == other.is_complete
-    }
-}
-
-impl<T: PartialEq + Eq, N: PartialEq + Eq> Eq for Restrictions<T, N> {}
-
-impl<T: Hash, N: Hash> Hash for Restrictions<T, N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.start.hash(state);
-        self.end.hash(state);
-        self.length.hash(state);
-        self.lhs.hash(state);
-        self.rhs.hash(state);
-        self.next_sym.hash(state);
-        self.dot.hash(state);
-        self.is_complete.hash(state);
-    }
 }
 
 impl<T, N> Default for Restrictions<T, N> {
