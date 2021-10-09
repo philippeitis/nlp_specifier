@@ -334,18 +334,27 @@ pub fn read_grammar<
 ) -> Result<ContextFreeGrammar<N, T>, &'static str> {
     let mut productions = Vec::new();
     let mut continued_line = String::new();
+    let mut start = None;
 
     for line in input.lines() {
         if line.starts_with('#') || line.is_empty() {
             continue;
         }
-        if let Some((start, _)) = line.rsplit_once("\\") {
-            continued_line += start.trim_end();
+        if let Some(start) = line.strip_suffix('\\') {
+            continued_line += start.trim();
             continued_line += " ";
             continue;
         }
-        if line.starts_with("%") {
-            panic!("https://github.com/nltk/nltk/blob/e4444c9b15762e6d86f5f6c4f5faadb87632c72a/nltk/grammar.py#L1438");
+
+        if let Some(line) = line.strip_prefix('%') {
+            let mut parts = line.split_whitespace();
+            match (parts.next(), parts.next(), parts.next()) {
+                (Some("start"), Some(start_term), None) => {
+                    let (nt, _) = nt_parser(start_term)?;
+                    start = Some(nt);
+                }
+                _ => return Err("Found malformed directive"),
+            }
         } else {
             continued_line += line;
             productions.extend(read_production(&continued_line, &nt_parser)?);
@@ -354,11 +363,11 @@ pub fn read_grammar<
     }
 
     if productions.is_empty() {
-        return Err("empty productions");
+        return Err("No productions were found in the provided string");
     }
 
     Ok(ContextFreeGrammar::new(
-        productions[0].lhs.clone(),
+        start.unwrap_or_else(|| productions[0].lhs.clone()),
         productions,
     ))
 }
@@ -442,5 +451,17 @@ mod test {
                 ),
             ])
         );
+    }
+
+    #[test]
+    fn test_read_grammar_directive() {
+        let line = "nonterminal -> \"terminal1\" other nonterminalx \'terminal2\'     | another 'NonTerminal'\n%start WAH";
+        let grammar: ContextFreeGrammar<String, String> =
+            read_grammar(line, standard_nonterm_parser).expect("valid grammar");
+        assert_eq!(grammar.start, "WAH".to_string());
+        let grammar: ContextFreeGrammar<String, String> =
+            read_grammar(line.split_once('%').unwrap().0, standard_nonterm_parser)
+                .expect("valid grammar");
+        assert_eq!(grammar.start, "nonterminal".to_string());
     }
 }
