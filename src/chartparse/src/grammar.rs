@@ -276,28 +276,6 @@ fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &
     }
 }
 
-fn eat_disjunction(line: &str) -> Option<&str> {
-    let mut chars = line.chars();
-
-    match (chars.next(), chars.next()) {
-        (Some('|'), Some(' ')) => {}
-        _ => return None,
-    }
-
-    Some(chars.as_str())
-}
-
-fn eat_arrow(line: &str) -> Option<&str> {
-    let mut chars = line.chars();
-
-    match (chars.next(), chars.next(), chars.next()) {
-        (Some('-'), Some('>'), Some(' ')) => {}
-        _ => return None,
-    }
-
-    Some(chars.as_str())
-}
-
 pub fn read_production<
     N: Clone + ParseNonTerminal,
     T: Clone + ParseTerminal,
@@ -307,8 +285,10 @@ pub fn read_production<
     nt_parser: F,
 ) -> Result<Vec<Production<N, T>>, &'static str> {
     let (lhs, mut rest) = nt_parser(line)?;
-    rest = rest.trim_start();
-    rest = eat_arrow(rest).ok_or("Did not find an arrow after the nonterminal   ")?;
+    rest = rest
+        .trim_start()
+        .strip_prefix("-> ")
+        .ok_or("Did not find an arrow and trailing space after the nonterminal")?;
 
     let mut productions: Vec<_> = vec![Production::new(lhs.clone(), vec![])];
 
@@ -324,7 +304,7 @@ pub fn read_production<
                 rest = rest_;
             }
             '|' => {
-                rest = eat_disjunction(rest).ok_or("no disjunction found")?;
+                rest = rest.strip_prefix("| ").ok_or("no disjunction found")?;
                 productions.push(Production::new(lhs.clone(), vec![]));
             }
             _ => {
@@ -436,20 +416,6 @@ mod test {
             standard_terminal_parser::<String>(s),
             Ok(("terminal".to_string(), " | NonTerminal"))
         );
-    }
-
-    #[test]
-    fn test_eat_arrow() {
-        let s = "-> some other stuff";
-        assert_eq!(eat_arrow(s), Some("some other stuff"));
-        assert_eq!(eat_arrow("<-"), None);
-    }
-
-    #[test]
-    fn test_eat_disjunction() {
-        let s = "| some other stuff";
-        assert_eq!(eat_disjunction(s), Some("some other stuff"));
-        assert_eq!(eat_disjunction("|"), None);
     }
 
     #[test]
