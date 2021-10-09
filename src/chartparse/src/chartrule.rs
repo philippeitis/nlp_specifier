@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::chart::Chart;
-use crate::edge::{EdgeI, EdgeWrapper, LeafEdge, TreeEdge};
+use crate::edge::{EdgeWrapper, LeafEdge, TreeEdge};
 use crate::grammar::ContextFreeGrammar;
 use crate::select::Restrictions;
 

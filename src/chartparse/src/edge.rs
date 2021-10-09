@@ -14,32 +14,6 @@ pub struct Span {
     pub(crate) end: usize,
 }
 
-pub(crate) trait EdgeI<T: Clone, N: Clone>: Clone {
-    fn span(&self) -> Span;
-
-    fn start(&self) -> usize {
-        self.span().start
-    }
-
-    fn end(&self) -> usize {
-        self.span().end
-    }
-
-    fn length(&self) -> usize {
-        self.span().end - self.span().start
-    }
-
-    fn lhs(&self) -> Symbol<T, N>;
-
-    fn rhs(&self) -> &[Symbol<T, N>];
-
-    fn dot(&self) -> usize;
-
-    fn next_sym(&self) -> Option<&Symbol<T, N>>;
-
-    fn is_complete(&self) -> bool;
-}
-
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TreeEdge<T, N> {
     span: Span,
@@ -48,13 +22,19 @@ pub struct TreeEdge<T, N> {
     rhs: SmallVec<[Symbol<T, N>; 6]>,
 }
 
-impl<T: Clone, N: Clone> EdgeI<T, N> for TreeEdge<T, N> {
-    fn span(&self) -> Span {
-        self.span
-    }
-
+impl<T, N: Clone> TreeEdge<T, N> {
     fn lhs(&self) -> Symbol<T, N> {
         Symbol::NonTerminal(self.lhs.clone())
+    }
+}
+
+impl<T, N> TreeEdge<T, N> {
+    fn length(&self) -> usize {
+        self.span.end - self.span.start
+    }
+
+    fn span(&self) -> Span {
+        self.span
     }
 
     fn rhs(&self) -> &[Symbol<T, N>] {
@@ -109,7 +89,7 @@ impl<T: Clone, N: Clone> TreeEdge<T, N> {
     pub(crate) fn move_dot_forward(&self, new_end: usize) -> Self {
         TreeEdge::with_dot(
             Span {
-                start: self.start(),
+                start: self.span.start,
                 end: new_end,
             },
             self.lhs.clone(),
@@ -119,7 +99,7 @@ impl<T: Clone, N: Clone> TreeEdge<T, N> {
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Display for TreeEdge<T, N> {
+impl<T: Display, N: Display> Display for TreeEdge<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut arrow_string = self.lhs.to_string();
         arrow_string.push_str(" ->");
@@ -136,11 +116,15 @@ impl<T: Display + Clone, N: Display + Clone> Display for TreeEdge<T, N> {
             arrow_string.push('*');
         }
 
-        write!(f, "[{}:{}] {}", self.start(), self.end(), arrow_string)
+        write!(
+            f,
+            "[{}:{}] {}",
+            self.span.start, self.span.end, arrow_string
+        )
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Debug for TreeEdge<T, N> {
+impl<T: Display, N: Display> Debug for TreeEdge<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[Edge: {}]", self.to_string())
     }
@@ -153,6 +137,12 @@ pub struct LeafEdge<T, N> {
     nonterm: PhantomData<N>,
 }
 
+impl<T: Clone, N> LeafEdge<T, N> {
+    fn lhs(&self) -> Symbol<T, N> {
+        Symbol::Terminal(self.leaf.clone())
+    }
+}
+
 impl<T, N> LeafEdge<T, N> {
     pub fn new(leaf: T, index: usize) -> Self {
         Self {
@@ -161,18 +151,12 @@ impl<T, N> LeafEdge<T, N> {
             nonterm: PhantomData,
         }
     }
-}
 
-impl<T: Clone, N: Clone> EdgeI<T, N> for LeafEdge<T, N> {
     fn span(&self) -> Span {
         Span {
             start: self.index,
             end: self.index + 1,
         }
-    }
-
-    fn lhs(&self) -> Symbol<T, N> {
-        Symbol::Terminal(self.leaf.clone())
     }
 
     fn rhs(&self) -> &[Symbol<T, N>] {
@@ -192,19 +176,19 @@ impl<T: Clone, N: Clone> EdgeI<T, N> for LeafEdge<T, N> {
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Display for LeafEdge<T, N> {
+impl<T: Display, N: Display> Display for LeafEdge<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "[{}:{}] {}",
-            self.start(),
-            self.end(),
+            self.span().start,
+            self.span().end,
             self.leaf.to_string()
         )
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Debug for LeafEdge<T, N> {
+impl<T: Display, N: Display> Debug for LeafEdge<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[Edge: {}]", self.to_string())
     }
@@ -216,43 +200,57 @@ pub enum Edge<T, N> {
     _T(TreeEdge<T, N>),
 }
 
-impl<T: Clone, N: Clone> EdgeI<T, N> for Edge<T, N> {
-    fn span(&self) -> Span {
+impl<T: Clone, N: Clone> Edge<T, N> {
+    pub fn lhs(&self) -> Symbol<T, N> {
+        match self {
+            Edge::_L(l) => l.lhs(),
+            Edge::_T(t) => t.lhs(),
+        }
+    }
+}
+
+impl<T, N> Edge<T, N> {
+    pub fn start(&self) -> usize {
+        self.span().start
+    }
+
+    pub fn end(&self) -> usize {
+        self.span().end
+    }
+
+    pub fn length(&self) -> usize {
+        self.end() - self.start()
+    }
+
+    pub fn span(&self) -> Span {
         match self {
             Edge::_L(l) => l.span(),
             Edge::_T(t) => t.span(),
         }
     }
 
-    fn lhs(&self) -> Symbol<T, N> {
-        match self {
-            Edge::_L(l) => l.lhs(),
-            Edge::_T(t) => t.lhs(),
-        }
-    }
-
-    fn rhs(&self) -> &[Symbol<T, N>] {
+    pub fn rhs(&self) -> &[Symbol<T, N>] {
         match self {
             Edge::_L(l) => l.rhs(),
             Edge::_T(t) => t.rhs(),
         }
     }
 
-    fn dot(&self) -> usize {
+    pub fn dot(&self) -> usize {
         match self {
             Edge::_L(l) => l.dot(),
             Edge::_T(t) => t.dot(),
         }
     }
 
-    fn next_sym(&self) -> Option<&Symbol<T, N>> {
+    pub fn next_sym(&self) -> Option<&Symbol<T, N>> {
         match self {
             Edge::_L(l) => l.next_sym(),
             Edge::_T(t) => t.next_sym(),
         }
     }
 
-    fn is_complete(&self) -> bool {
+    pub fn is_complete(&self) -> bool {
         match self {
             Edge::_L(l) => l.is_complete(),
             Edge::_T(t) => t.is_complete(),
@@ -275,10 +273,6 @@ impl<T: Hash, N: Hash> Hash for EdgeWrapper<T, N> {
 impl<T: Clone + Hash, N: Clone + Hash> EdgeWrapper<T, N> {
     pub(crate) fn is_leafedge(&self) -> bool {
         matches!(self.inner.as_ref(), Edge::_L(_))
-    }
-
-    fn span(&self) -> (usize, usize) {
-        (self.start(), self.end())
     }
 
     pub(crate) fn start(&self) -> usize {
@@ -337,7 +331,7 @@ impl<T: Hash, N: Hash> From<LeafEdge<T, N>> for EdgeWrapper<T, N> {
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Display for Edge<T, N> {
+impl<T: Display, N: Display> Display for Edge<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Edge::_L(l) => f.write_str(&l.to_string()),
@@ -346,7 +340,7 @@ impl<T: Display + Clone, N: Display + Clone> Display for Edge<T, N> {
     }
 }
 
-impl<T: Display + Clone, N: Display + Clone> Display for EdgeWrapper<T, N> {
+impl<T: Display, N: Display> Display for EdgeWrapper<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner)
     }

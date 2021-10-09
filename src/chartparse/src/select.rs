@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 
-use crate::edge::{Edge, EdgeI};
+use crate::edge::Edge;
 use crate::production::Symbol;
 
 #[derive(Clone, PartialEq, Eq, Hash)]

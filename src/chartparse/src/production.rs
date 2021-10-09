@@ -1,5 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use itertools::Itertools;
 use smallvec::SmallVec;
