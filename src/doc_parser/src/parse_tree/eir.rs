@@ -350,10 +350,10 @@ pub enum SymbolTree {
 impl SymbolTree {
     pub(crate) fn from_iter<
         I: Iterator<Item = Terminal>,
-        T,
         N: Eq + Clone + Hash + PartialEq + Into<Symbol>,
+        T,
     >(
-        tree: Tree<T, N>,
+        tree: Tree<N, T>,
         iter: &mut I,
     ) -> Self {
         match tree {

@@ -17,16 +17,16 @@ pub use crate::grammar::ContextFreeGrammar;
 use crate::production::Symbol;
 pub use crate::tree::Tree;
 
-pub struct ChartParser<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> {
-    grammar: &'a ContextFreeGrammar<T, N>,
+pub struct ChartParser<'a, N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> {
+    grammar: &'a ContextFreeGrammar<N, T>,
     use_agenda: bool,
-    strategy: Vec<Box<dyn ChartRule<T, N>>>,
-    axioms: Vec<Box<dyn ChartRule<T, N>>>,
-    inference_rules: Vec<Box<dyn ChartRule<T, N>>>,
+    strategy: Vec<Box<dyn ChartRule<N, T>>>,
+    axioms: Vec<Box<dyn ChartRule<N, T>>>,
+    inference_rules: Vec<Box<dyn ChartRule<N, T>>>,
 }
 
-impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartParser<'a, T, N> {
-    pub fn from_grammar(grammar: &'a ContextFreeGrammar<T, N>) -> Self {
+impl<'a, N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartParser<'a, N, T> {
+    pub fn from_grammar(grammar: &'a ContextFreeGrammar<N, T>) -> Self {
         ChartParser::from_grammar_with_strategy(
             grammar,
             vec![
@@ -40,8 +40,8 @@ impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Cha
     }
 
     pub fn from_grammar_with_strategy(
-        grammar: &'a ContextFreeGrammar<T, N>,
-        strategy: Vec<Box<dyn ChartRule<T, N>>>,
+        grammar: &'a ContextFreeGrammar<N, T>,
+        strategy: Vec<Box<dyn ChartRule<N, T>>>,
         use_agenda: bool,
     ) -> Self {
         Self {
@@ -61,7 +61,7 @@ impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Cha
         }
     }
 
-    pub fn chart_parse<'b>(&self, tokens: &'b [T]) -> Result<Chart<'b, T, N>, &'static str> {
+    pub fn chart_parse<'b>(&self, tokens: &'b [T]) -> Result<Chart<'b, N, T>, &'static str> {
         if !self.grammar.check_coverage(tokens) {
             return Err("Bad coverage");
         }
@@ -86,24 +86,29 @@ impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Cha
         Ok(chart)
     }
 
-    pub fn parse(&self, tokens: &[T]) -> Result<Vec<Tree<T, N>>, &'static str> {
+    pub fn parse(&self, tokens: &[T]) -> Result<Vec<Tree<N, T>>, &'static str> {
         let chart = self.chart_parse(tokens)?;
         Ok(chart.parses(Symbol::NonTerminal(self.grammar.start().clone())))
     }
 }
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Clone
-    for Box<dyn ChartRule<T, N>>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> Clone
+    for Box<dyn ChartRule<N, T>>
 {
     fn clone(&self) -> Self {
         self.box_clone()
     }
 }
 
-pub fn main(tokens: Vec<Vec<String>>, grammar: String) -> Vec<Vec<Tree<String, String>>> {
+pub fn main<S: AsRef<String>>(
+    tokens: Vec<Vec<String>>,
+    grammar: S,
+) -> Vec<Vec<Tree<String, String>>> {
+    use std::str::FromStr;
     use std::time::Instant;
+
     let start = Instant::now();
-    let grammar = ContextFreeGrammar::fromstring(grammar).unwrap();
+    let grammar = ContextFreeGrammar::from_str(grammar.as_ref()).unwrap();
     println!(
         "{} CFG::fromstring Rust",
         (Instant::now() - start).as_micros()

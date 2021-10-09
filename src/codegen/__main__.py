@@ -358,7 +358,7 @@ pub enum SymbolTree {
 }
 
 impl SymbolTree {
-    pub(crate) fn from_iter<I: Iterator<Item=Terminal>, T, N: Eq + Clone + Hash + PartialEq + Into<Symbol>>(tree: Tree<T, N>, iter: &mut I) -> Self {
+    pub(crate) fn from_iter<I: Iterator<Item=Terminal>, N: Eq + Clone + Hash + PartialEq + Into<Symbol>, T>(tree: Tree<N, T>, iter: &mut I) -> Self {
         match tree {
             Tree::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
             Tree::Branch(nt, rest) => {

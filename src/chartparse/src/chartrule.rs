@@ -5,21 +5,21 @@ use crate::edge::{EdgeWrapper, LeafEdge, TreeEdge};
 use crate::grammar::ContextFreeGrammar;
 use crate::select::Restrictions;
 
-pub trait ChartRule<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> {
+pub trait ChartRule<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> {
     fn num_edges(&self) -> usize;
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        grammar: &ContextFreeGrammar<T, N>,
-        edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>>;
+        chart: &mut Chart<N, T>,
+        grammar: &ContextFreeGrammar<N, T>,
+        edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>>;
 
     fn apply_everywhere(
         &self,
-        chart: &mut Chart<T, N>,
-        grammar: &ContextFreeGrammar<T, N>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        grammar: &ContextFreeGrammar<N, T>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         match self.num_edges() {
             0 => self.apply(chart, grammar, vec![]),
             1 => {
@@ -60,12 +60,12 @@ pub trait ChartRule<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialE
         }
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>>;
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>>;
 }
 
 pub struct LeafInitRule {}
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRule<T, N>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartRule<N, T>
     for LeafInitRule
 {
     fn num_edges(&self) -> usize {
@@ -74,10 +74,10 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        _grammar: &ContextFreeGrammar<T, N>,
-        _edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        _grammar: &ContextFreeGrammar<N, T>,
+        _edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         let mut edges = vec![];
         for (i, leaf) in chart.leaves().to_vec().iter().enumerate() {
             let new_edge: EdgeWrapper<_, _> = LeafEdge::new(leaf.clone(), i).into();
@@ -89,7 +89,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         edges
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>> {
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>> {
         Box::new(Self {})
     }
 }
@@ -97,7 +97,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 #[derive(Copy, Clone)]
 pub struct FundamentalRule {}
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRule<T, N>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartRule<N, T>
     for FundamentalRule
 {
     fn num_edges(&self) -> usize {
@@ -106,10 +106,10 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        _grammar: &ContextFreeGrammar<T, N>,
-        mut edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        _grammar: &ContextFreeGrammar<N, T>,
+        mut edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         let lhs = edges.remove(0);
         let rhs = edges.remove(0);
         if !(!lhs.is_complete()
@@ -129,14 +129,14 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         }
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>> {
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>> {
         Box::new(Self {})
     }
 }
 
 pub struct SingleEdgeFundamentalRule {}
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRule<T, N>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartRule<N, T>
     for SingleEdgeFundamentalRule
 {
     fn num_edges(&self) -> usize {
@@ -145,10 +145,10 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        _grammar: &ContextFreeGrammar<T, N>,
-        mut edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        _grammar: &ContextFreeGrammar<N, T>,
+        mut edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         let edge = edges.remove(0);
         let mut edges = vec![];
 
@@ -189,14 +189,14 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         edges
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>> {
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>> {
         Box::new(Self {})
     }
 }
 
 pub struct EmptyPredictRule {}
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRule<T, N>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartRule<N, T>
     for EmptyPredictRule
 {
     fn num_edges(&self) -> usize {
@@ -205,10 +205,10 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        grammar: &ContextFreeGrammar<T, N>,
-        _edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        grammar: &ContextFreeGrammar<N, T>,
+        _edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         let mut edges = vec![];
         for production in grammar.productions(None, None, true).unwrap() {
             for i in 0..chart.num_leaves() + 1 {
@@ -223,14 +223,14 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         edges
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>> {
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>> {
         Box::new(Self {})
     }
 }
 
 pub struct BottomUpPredictCombineRule {}
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRule<T, N>
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ChartRule<N, T>
     for BottomUpPredictCombineRule
 {
     fn num_edges(&self) -> usize {
@@ -239,10 +239,10 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
 
     fn apply(
         &self,
-        chart: &mut Chart<T, N>,
-        grammar: &ContextFreeGrammar<T, N>,
-        mut edges: Vec<EdgeWrapper<T, N>>,
-    ) -> Vec<EdgeWrapper<T, N>> {
+        chart: &mut Chart<N, T>,
+        grammar: &ContextFreeGrammar<N, T>,
+        mut edges: Vec<EdgeWrapper<N, T>>,
+    ) -> Vec<EdgeWrapper<N, T>> {
         let edge = edges.remove(0);
         if !edge.is_complete() {
             return vec![];
@@ -267,7 +267,7 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ChartRu
         edges
     }
 
-    fn box_clone(&self) -> Box<dyn ChartRule<T, N>> {
+    fn box_clone(&self) -> Box<dyn ChartRule<N, T>> {
         Box::new(Self {})
     }
 }

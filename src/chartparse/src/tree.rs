@@ -6,12 +6,12 @@ use itertools::Itertools;
 use crate::production::Symbol;
 
 #[derive(Clone)]
-pub enum Tree<T, N> {
+pub enum Tree<N, T> {
     Terminal(T),
-    Branch(N, Vec<Tree<T, N>>),
+    Branch(N, Vec<Tree<N, T>>),
 }
 
-impl<T: Display, N: Display> Display for Tree<T, N> {
+impl<N: Display, T: Display> Display for Tree<N, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Tree::Terminal(t) => f.write_str(&t.to_string()),
@@ -23,8 +23,8 @@ impl<T: Display, N: Display> Display for Tree<T, N> {
     }
 }
 
-impl<T, N> Tree<T, N> {
-    pub(crate) fn from_nonterminal(lhs: N, v: Vec<Tree<T, N>>) -> Self {
+impl<N, T> Tree<N, T> {
+    pub(crate) fn from_nonterminal(lhs: N, v: Vec<Tree<N, T>>) -> Self {
         Self::Branch(lhs, v)
     }
 
@@ -32,7 +32,7 @@ impl<T, N> Tree<T, N> {
         Tree::Terminal(lhs)
     }
 
-    pub(crate) fn extend(&mut self, v: Vec<Tree<T, N>>) {
+    pub(crate) fn extend(&mut self, v: Vec<Tree<N, T>>) {
         if let Tree::Branch(_, rhs) = self {
             rhs.extend(v);
         } else {
@@ -47,7 +47,7 @@ impl<T, N> Tree<T, N> {
         }
     }
 
-    pub fn unwrap_branch(self) -> (N, Vec<Tree<T, N>>) {
+    pub fn unwrap_branch(self) -> (N, Vec<Tree<N, T>>) {
         match self {
             Tree::Terminal(_) => panic!("Called unwrap_branch with terminal Tree"),
             Tree::Branch(nt, trees) => (nt, trees),
@@ -55,8 +55,8 @@ impl<T, N> Tree<T, N> {
     }
 }
 
-impl<T, N> From<Symbol<T, N>> for Tree<T, N> {
-    fn from(symbol: Symbol<T, N>) -> Self {
+impl<N, T> From<Symbol<N, T>> for Tree<N, T> {
+    fn from(symbol: Symbol<N, T>) -> Self {
         match symbol {
             Symbol::Terminal(t) => Tree::Terminal(t),
             Symbol::NonTerminal(nt) => Tree::Branch(nt, vec![]),
@@ -64,8 +64,8 @@ impl<T, N> From<Symbol<T, N>> for Tree<T, N> {
     }
 }
 
-impl<T, N> Index<&[usize]> for Tree<T, N> {
-    type Output = Tree<T, N>;
+impl<N, T> Index<&[usize]> for Tree<N, T> {
+    type Output = Tree<N, T>;
 
     fn index(&self, index: &[usize]) -> &Self::Output {
         if index.len() == 0 {

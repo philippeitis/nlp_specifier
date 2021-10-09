@@ -12,16 +12,16 @@ use crate::production::Symbol;
 use crate::select::{RestrictionKeys, Restrictions};
 use crate::tree::Tree;
 
-pub struct Chart<'a, T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+pub struct Chart<'a, N: Hash + PartialEq + Eq, T: Hash + PartialEq + Eq> {
     tokens: &'a [T],
-    edges: Rc<Vec<EdgeWrapper<T, N>>>,
-    edge_to_cpl: FnvHashMap<EdgeWrapper<T, N>, IndexSet<Rc<Vec<EdgeWrapper<T, N>>>>>,
+    edges: Rc<Vec<EdgeWrapper<N, T>>>,
+    edge_to_cpl: FnvHashMap<EdgeWrapper<N, T>, IndexSet<Rc<Vec<EdgeWrapper<N, T>>>>>,
     indexes: RefCell<
-        FnvHashMap<RestrictionKeys, FnvHashMap<Restrictions<T, N>, Rc<Vec<EdgeWrapper<T, N>>>>>,
+        FnvHashMap<RestrictionKeys, FnvHashMap<Restrictions<N, T>, Rc<Vec<EdgeWrapper<N, T>>>>>,
     >,
 }
 
-impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Chart<'a, T, N> {
+impl<'a, N: Clone + Hash + PartialEq + Eq, T: Clone + Hash + PartialEq + Eq> Chart<'a, N, T> {
     pub(crate) fn new(tokens: &'a [T]) -> Self {
         Chart {
             tokens,
@@ -43,7 +43,7 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
         &self.tokens
     }
 
-    pub(crate) fn edges(&self) -> Rc<Vec<EdgeWrapper<T, N>>> {
+    pub(crate) fn edges(&self) -> Rc<Vec<EdgeWrapper<N, T>>> {
         self.edges.clone()
     }
 
@@ -53,8 +53,8 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
 
     pub(crate) fn select(
         &self,
-        restriction: Restrictions<T, N>,
-    ) -> Option<Rc<Vec<EdgeWrapper<T, N>>>> {
+        restriction: Restrictions<N, T>,
+    ) -> Option<Rc<Vec<EdgeWrapper<N, T>>>> {
         if restriction.is_empty() {
             return Some(self.edges.clone());
         }
@@ -87,7 +87,7 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
         }
     }
 
-    fn register_with_indexes(&self, edge: EdgeWrapper<T, N>) {
+    fn register_with_indexes(&self, edge: EdgeWrapper<N, T>) {
         let mut indexes = self.indexes.borrow_mut();
         for (keys, values) in indexes.iter_mut() {
             let index_key = keys.read_edge(&edge.inner);
@@ -100,11 +100,11 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
         }
     }
 
-    fn append_edge(&mut self, edge: EdgeWrapper<T, N>) {
+    fn append_edge(&mut self, edge: EdgeWrapper<N, T>) {
         Rc::make_mut(&mut self.edges).push(edge)
     }
 
-    fn child_pointer_lists(&self, edge: &EdgeWrapper<T, N>) -> Vec<Rc<Vec<EdgeWrapper<T, N>>>> {
+    fn child_pointer_lists(&self, edge: &EdgeWrapper<N, T>) -> Vec<Rc<Vec<EdgeWrapper<N, T>>>> {
         self.edge_to_cpl
             .get(edge)
             .map(|x| x.iter().cloned().collect())
@@ -113,9 +113,9 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
 
     pub(crate) fn insert_with_backpointer(
         &mut self,
-        new_edge: EdgeWrapper<T, N>,
-        previous_edge: &EdgeWrapper<T, N>,
-        child_edge: &EdgeWrapper<T, N>,
+        new_edge: EdgeWrapper<N, T>,
+        previous_edge: &EdgeWrapper<N, T>,
+        child_edge: &EdgeWrapper<N, T>,
     ) -> bool {
         let mut cpls = self.child_pointer_lists(previous_edge);
         cpls.iter_mut()
@@ -125,8 +125,8 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
 
     pub(crate) fn insert(
         &mut self,
-        edge: EdgeWrapper<T, N>,
-        new_cpls: Vec<Vec<EdgeWrapper<T, N>>>,
+        edge: EdgeWrapper<N, T>,
+        new_cpls: Vec<Vec<EdgeWrapper<N, T>>>,
     ) -> bool {
         if !self.edge_to_cpl.contains_key(&edge) {
             self.append_edge(edge.clone());
@@ -147,8 +147,8 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
 
     pub(crate) fn insert_rc(
         &mut self,
-        edge: EdgeWrapper<T, N>,
-        new_cpls: Vec<Rc<Vec<EdgeWrapper<T, N>>>>,
+        edge: EdgeWrapper<N, T>,
+        new_cpls: Vec<Rc<Vec<EdgeWrapper<N, T>>>>,
     ) -> bool {
         if !self.edge_to_cpl.contains_key(&edge) {
             self.append_edge(edge.clone());
@@ -167,7 +167,7 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
         chart_was_modified
     }
 
-    pub(crate) fn parses(&self, root: Symbol<T, N>) -> Vec<Tree<T, N>> {
+    pub(crate) fn parses(&self, root: Symbol<N, T>) -> Vec<Tree<N, T>> {
         let edges = match self.select(
             Restrictions::default()
                 .start(0)
@@ -187,8 +187,8 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
     /// Lazy version of parse.
     pub(crate) fn parse_iter<'b>(
         &'b self,
-        root: Symbol<T, N>,
-    ) -> Box<dyn Iterator<Item = Tree<T, N>> + 'b> {
+        root: Symbol<N, T>,
+    ) -> Box<dyn Iterator<Item = Tree<N, T>> + 'b> {
         let edges = match self.select(
             Restrictions::default()
                 .start(0)
@@ -215,20 +215,20 @@ impl<'a, T: Clone + Hash + PartialEq + Eq, N: Clone + Hash + PartialEq + Eq> Cha
         }))
     }
 
-    pub(crate) fn trees(&self, edge: &EdgeWrapper<T, N>, complete: bool) -> Vec<Tree<T, N>> {
+    pub(crate) fn trees(&self, edge: &EdgeWrapper<N, T>, complete: bool) -> Vec<Tree<N, T>> {
         self.tree_helper(&edge, complete, &mut HashMap::new())
     }
 }
 
 impl<
         'a,
-        T: Clone + Hash + PartialEq + Eq + Display + Debug,
         N: Clone + Hash + PartialEq + Eq + Display + Debug,
-    > Chart<'a, T, N>
+        T: Clone + Hash + PartialEq + Eq + Display + Debug,
+    > Chart<'a, N, T>
 {
     pub(crate) fn pretty_format_edge(
         &self,
-        edge: EdgeWrapper<T, N>,
+        edge: EdgeWrapper<N, T>,
         width: Option<usize>,
     ) -> String {
         let width = match width {
@@ -299,13 +299,13 @@ pub fn cartesian_product<T: Clone>(lists: &[&[T]]) -> Vec<Vec<T>> {
     }
 }
 
-impl<'a, T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Chart<'a, T, N> {
+impl<'a, N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> Chart<'a, N, T> {
     pub(crate) fn tree_helper(
         &self,
-        edge: &EdgeWrapper<T, N>,
+        edge: &EdgeWrapper<N, T>,
         complete: bool,
-        memo: &mut HashMap<EdgeWrapper<T, N>, Vec<Tree<T, N>>>,
-    ) -> Vec<Tree<T, N>> {
+        memo: &mut HashMap<EdgeWrapper<N, T>, Vec<Tree<N, T>>>,
+    ) -> Vec<Tree<N, T>> {
         if let Some(trees) = memo.get(edge) {
             return trees.clone();
         }

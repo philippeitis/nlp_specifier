@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
+
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use fnv::FnvHashMap;
 use unicode_width::UnicodeWidthChar;
@@ -9,7 +11,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::production::{Production, Symbol};
 
 #[derive(Clone)]
-struct LeftCorners<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+struct LeftCorners<N: Hash + PartialEq + Eq, T: Hash + PartialEq + Eq> {
     immediate_categories: HashMap<N, HashSet<N>>,
     immediate_words: HashMap<N, HashSet<T>>,
     left_corners: HashMap<N, HashSet<N>>,
@@ -18,9 +20,9 @@ struct LeftCorners<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
 }
 
 #[derive(Clone)]
-pub struct ContextFreeGrammar<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq> {
+pub struct ContextFreeGrammar<N: Hash + PartialEq + Eq, T: Hash + PartialEq + Eq> {
     pub start: N,
-    pub productions: Vec<Rc<Production<T, N>>>,
+    pub productions: Vec<Rc<Production<N, T>>>,
     categories: HashSet<N>,
     // Grammar forms
     is_lexical: bool,
@@ -28,21 +30,21 @@ pub struct ContextFreeGrammar<T: Hash + PartialEq + Eq, N: Hash + PartialEq + Eq
     min_len: usize,
     max_len: usize,
     all_unary_are_lexical: bool,
-    pub lhs_index: FnvHashMap<N, Vec<Rc<Production<T, N>>>>,
-    rhs_index: FnvHashMap<Symbol<T, N>, Vec<Rc<Production<T, N>>>>,
-    empty_index: FnvHashMap<N, Rc<Production<T, N>>>,
-    lexical_index: FnvHashMap<T, HashSet<Rc<Production<T, N>>>>,
-    leftcorner_relationships: Option<LeftCorners<T, N>>,
+    pub lhs_index: FnvHashMap<N, Vec<Rc<Production<N, T>>>>,
+    rhs_index: FnvHashMap<Symbol<N, T>, Vec<Rc<Production<N, T>>>>,
+    empty_index: FnvHashMap<N, Rc<Production<N, T>>>,
+    lexical_index: FnvHashMap<T, HashSet<Rc<Production<N, T>>>>,
+    leftcorner_relationships: Option<LeftCorners<N, T>>,
 }
 
-impl<T: Hash + PartialEq + Eq + Clone, N: Hash + PartialEq + Eq + Clone> ContextFreeGrammar<T, N> {
-    fn new(start: N, productions: Vec<Production<T, N>>) -> Self {
+impl<N: Hash + PartialEq + Eq + Clone, T: Hash + PartialEq + Eq + Clone> ContextFreeGrammar<N, T> {
+    fn new(start: N, productions: Vec<Production<N, T>>) -> Self {
         let productions = productions.into_iter().map(Rc::from).collect();
         Self::new_from_rc(start, productions)
     }
 
-    fn new_from_rc(start: N, productions: Vec<Rc<Production<T, N>>>) -> Self {
-        let mut lexical_index: FnvHashMap<T, HashSet<Rc<Production<T, N>>>> = FnvHashMap::default();
+    fn new_from_rc(start: N, productions: Vec<Rc<Production<N, T>>>) -> Self {
+        let mut lexical_index: FnvHashMap<T, HashSet<Rc<Production<N, T>>>> = FnvHashMap::default();
         let mut rhs_index = FnvHashMap::default();
         let mut lhs_index = FnvHashMap::default();
         let mut empty_index = FnvHashMap::default();
@@ -101,7 +103,7 @@ impl<T: Hash + PartialEq + Eq + Clone, N: Hash + PartialEq + Eq + Clone> Context
     }
 }
 
-impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<T, N> {
+impl<N: Hash + Clone + PartialEq + Eq, T: Hash + Clone + PartialEq + Eq> ContextFreeGrammar<N, T> {
     pub(crate) fn check_coverage(&self, tokens: &[T]) -> bool {
         tokens.iter().all(|t| self.lexical_index.contains_key(t))
     }
@@ -149,9 +151,9 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Context
     pub(crate) fn productions(
         &self,
         lhs: Option<N>,
-        rhs: Option<Symbol<T, N>>,
+        rhs: Option<Symbol<N, T>>,
         empty: bool,
-    ) -> Result<Vec<Rc<Production<T, N>>>, &'static str> {
+    ) -> Result<Vec<Rc<Production<N, T>>>, &'static str> {
         Ok(match (lhs, rhs, empty) {
             (None, None, false) => self.productions.clone(),
             (None, None, true) => self.empty_index.values().cloned().collect(),
@@ -188,11 +190,13 @@ impl<T: Hash + Clone + PartialEq + Eq, N: Hash + Clone + PartialEq + Eq> Context
 }
 
 impl<
-        T: Hash + PartialEq + Eq + Clone + ParseTerminal,
         N: Hash + PartialEq + Eq + Clone + ParseNonTerminal,
-    > ContextFreeGrammar<T, N>
+        T: Hash + PartialEq + Eq + Clone + ParseTerminal,
+    > FromStr for ContextFreeGrammar<N, T>
 {
-    pub fn fromstring(s: String) -> Result<Self, &'static str> {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         read_grammar(&s, &standard_nonterm_parser)
     }
 }
@@ -338,13 +342,13 @@ fn eat_disjunction(line: &str, mut pos: usize) -> Option<usize> {
 }
 
 pub fn read_production<
-    T: Clone + ParseTerminal,
     N: Clone + ParseNonTerminal,
+    T: Clone + ParseTerminal,
     F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
 >(
     line: &str,
     nt_parser: &F,
-) -> Result<Vec<Production<T, N>>, &'static str> {
+) -> Result<Vec<Production<N, T>>, &'static str> {
     let (lhs, mut pos) = nt_parser(line, 0)?;
 
     pos = read_arrow(line, pos).ok_or("no arrow")?;
@@ -380,13 +384,13 @@ pub fn read_production<
 }
 
 pub fn read_grammar<
-    T: Hash + PartialEq + Eq + Clone + ParseTerminal,
     N: Hash + PartialEq + Eq + Clone + ParseNonTerminal,
+    T: Hash + PartialEq + Eq + Clone + ParseTerminal,
     F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
 >(
     input: &str,
     nt_parser: F,
-) -> Result<ContextFreeGrammar<T, N>, &'static str> {
+) -> Result<ContextFreeGrammar<N, T>, &'static str> {
     let mut productions = Vec::new();
     let mut continued_line = String::new();
 

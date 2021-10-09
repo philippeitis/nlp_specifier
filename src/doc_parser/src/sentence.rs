@@ -47,7 +47,7 @@ impl Sentence {
 
     /// Produces the parse trees for this sentence's tokens, using the provided parser.
     /// Whitespace tokens, and trailing DOT tokens are filtered.
-    pub fn parse_trees(&self, parser: &ChartParser<TerminalSymbol, Symbol>) -> Vec<SymbolTree> {
+    pub fn parse_trees(&self, parser: &ChartParser<Symbol, TerminalSymbol>) -> Vec<SymbolTree> {
         let tokens = {
             let mut tokens: Vec<_> = self
                 .tokens

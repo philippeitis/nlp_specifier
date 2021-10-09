@@ -1,22 +1,22 @@
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use crate::edge::Edge;
 use crate::production::Symbol;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Restrictions<T, N> {
+pub struct Restrictions<N, T> {
     pub(crate) start: Option<usize>,
     pub(crate) end: Option<usize>,
     pub(crate) length: Option<usize>,
-    pub(crate) lhs: Option<Symbol<T, N>>,
-    pub(crate) rhs: Option<Vec<Symbol<T, N>>>,
-    pub(crate) next_sym: Option<Symbol<T, N>>,
+    pub(crate) lhs: Option<Symbol<N, T>>,
+    pub(crate) rhs: Option<Vec<Symbol<N, T>>>,
+    pub(crate) next_sym: Option<Symbol<N, T>>,
     pub(crate) dot: Option<usize>,
     pub(crate) is_complete: Option<bool>,
 }
 
-impl<T, N> Default for Restrictions<T, N> {
+impl<N, T> Default for Restrictions<N, T> {
     fn default() -> Self {
         Self {
             start: None,
@@ -53,7 +53,7 @@ impl RestrictionKeys {
 }
 
 impl RestrictionKeys {
-    pub(crate) fn read_edge<T: Clone, N: Clone>(&self, edge: &Edge<T, N>) -> Restrictions<T, N> {
+    pub(crate) fn read_edge<N: Clone, T: Clone>(&self, edge: &Edge<N, T>) -> Restrictions<N, T> {
         use RestrictionKey::*;
 
         Restrictions {
@@ -101,7 +101,7 @@ impl RestrictionKeys {
     }
 }
 
-impl<T, N> Restrictions<T, N> {
+impl<N, T> Restrictions<N, T> {
     pub(crate) fn is_empty(&self) -> bool {
         self.start.is_none()
             && self.end.is_none()
@@ -159,7 +159,7 @@ impl<T, N> Restrictions<T, N> {
         }
     }
 
-    pub fn lhs(self, lhs: Symbol<T, N>) -> Self {
+    pub fn lhs(self, lhs: Symbol<N, T>) -> Self {
         Restrictions {
             lhs: Some(lhs),
             ..self
@@ -167,8 +167,8 @@ impl<T, N> Restrictions<T, N> {
     }
 }
 
-impl<T: Clone, N: Clone> Restrictions<T, N> {
-    pub fn read_edge(&self, edge: &Edge<T, N>) -> Self {
+impl<N: Clone, T: Clone> Restrictions<N, T> {
+    pub fn read_edge(&self, edge: &Edge<N, T>) -> Self {
         Restrictions {
             start: self.start.map(|_| edge.start()),
             end: self.end.map(|_| edge.end()),

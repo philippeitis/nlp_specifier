@@ -5,12 +5,12 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub enum Symbol<T, N> {
-    Terminal(T),
+pub enum Symbol<N, T> {
     NonTerminal(N),
+    Terminal(T),
 }
 
-impl<T: Display, N: Display> Debug for Symbol<T, N> {
+impl<N: Display, T: Display> Debug for Symbol<N, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Symbol::NonTerminal(nt) => write!(f, "NonTerminal::{}", nt),
@@ -19,7 +19,7 @@ impl<T: Display, N: Display> Debug for Symbol<T, N> {
     }
 }
 
-impl<T: Display, N: Display> Display for Symbol<T, N> {
+impl<N: Display, T: Display> Display for Symbol<N, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Symbol::NonTerminal(nt) => write!(f, "{}", nt),
@@ -28,8 +28,7 @@ impl<T: Display, N: Display> Display for Symbol<T, N> {
     }
 }
 
-// Correct
-impl<T, N> Symbol<T, N> {
+impl<N, T> Symbol<N, T> {
     pub fn is_nonterminal(&self) -> bool {
         matches!(self, Symbol::NonTerminal(_))
     }
@@ -39,7 +38,7 @@ impl<T, N> Symbol<T, N> {
     }
 }
 
-impl<T, N> Symbol<T, N> {
+impl<N, T> Symbol<N, T> {
     pub(crate) fn terminal(self) -> Option<T> {
         match self {
             Symbol::Terminal(t) => Some(t),
@@ -56,13 +55,13 @@ impl<T, N> Symbol<T, N> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Production<T, N> {
+pub struct Production<N, T> {
     pub lhs: N,
-    pub rhs: SmallVec<[Symbol<T, N>; 6]>,
+    pub rhs: SmallVec<[Symbol<N, T>; 6]>,
 }
 
-impl<T, N> Production<T, N> {
-    pub fn new(lhs: N, rhs: Vec<Symbol<T, N>>) -> Self {
+impl<N, T> Production<N, T> {
+    pub fn new(lhs: N, rhs: Vec<Symbol<N, T>>) -> Self {
         Self {
             lhs,
             rhs: rhs.into(),
@@ -82,7 +81,7 @@ impl<T, N> Production<T, N> {
     }
 }
 
-impl<T: Display, N: Display> Display for Production<T, N> {
+impl<N: Display, T: Display> Display for Production<N, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

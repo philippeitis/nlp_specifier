@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use clap::{AppSettings, Clap};
 use pyo3::exceptions::PyKeyboardInterrupt;
 use pyo3::types::IntoPyDict;
 use pyo3::{PyResult, Python, ToPyObject};
 
-use chartparse::{ChartParser, ContextFreeGrammar};
+use chartparse::ChartParser;
 
 mod analysis;
 mod docs;
@@ -39,6 +40,8 @@ use visualization::tree::tag_color;
 extern crate lazy_static;
 
 static CFG: &str = include_str!("../../nlp/codegrammar.cfg");
+
+type ContextFreeGrammar = chartparse::ContextFreeGrammar<Symbol, TerminalSymbol>;
 
 struct ModelOptions {
     model: SpacyModel,
@@ -235,7 +238,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
 
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::from_str(CFG).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<_> {
@@ -330,7 +333,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
 }
 
 fn specify_sentences(sentences: Vec<String>, options: &ModelOptions) {
-    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::from_str(CFG).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<_> {
@@ -362,7 +365,7 @@ fn specify_sentences(sentences: Vec<String>, options: &ModelOptions) {
 fn specify_file<P: AsRef<Path>>(path: P, options: &ModelOptions) -> Specifier {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
-    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::from_str(CFG).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     Python::with_gil(|py| -> PyResult<()> {
@@ -399,7 +402,7 @@ fn repl(py: Python, options: &ModelOptions) -> PyResult<()> {
     use pastel::ansi::Brush;
     use pastel::Color;
 
-    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::from_str(CFG).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
     let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
 
@@ -565,8 +568,7 @@ fn main() {
                 path,
                 open_browser,
             } => {
-                let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string())
-                    .unwrap();
+                let cfg = ContextFreeGrammar::from_str(CFG).unwrap();
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
                     let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);

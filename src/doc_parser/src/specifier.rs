@@ -83,7 +83,7 @@ impl Specifier {
     pub(crate) fn specify(
         &mut self,
         tokenizer: &Tokenizer,
-        parser: &ChartParser<TerminalSymbol, Symbol>,
+        parser: &ChartParser<Symbol, TerminalSymbol>,
     ) {
         SpecifierX {
             searcher: &self.searcher,
@@ -122,7 +122,7 @@ impl Specifier {
 struct SpecifierX<'a, 'b, 'p> {
     searcher: &'a SearchTree,
     tokenizer: &'a Tokenizer<'p>,
-    parser: &'a ChartParser<'b, TerminalSymbol, Symbol>,
+    parser: &'a ChartParser<'b, Symbol, TerminalSymbol>,
 }
 
 fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
@@ -318,7 +318,7 @@ impl<'a, 'p> SimMatcher<'a, 'p> {
 }
 
 pub fn sentence_to_specifications(
-    parser: &ChartParser<TerminalSymbol, Symbol>,
+    parser: &ChartParser<Symbol, TerminalSymbol>,
     sentence: &Sentence,
 ) -> Vec<Specification> {
     sentence
