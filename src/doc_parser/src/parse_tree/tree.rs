@@ -1,4 +1,8 @@
 #![allow(non_camel_case_types)]
+use std::hash::Hash;
+
+use chartparse::grammar::ParseTerminal;
+
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
 
 #[derive(Clone)]
@@ -20,20 +24,20 @@ impl From<SymbolTree> for S {
 impl From<Vec<SymbolTree>> for S {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::MRET, mret_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::MRET, mret_0))) => {
                 S::Mret(MRET::from(mret_0))
             },
-            Some((Symbol::RETIF, retif_0)) => {
+            (Some((Symbol::RETIF, retif_0))) => {
                 S::Retif(RETIF::from(retif_0))
             },
-            Some((Symbol::SPEC_ATOM, spec_atom_0)) => {
+            (Some((Symbol::SPEC_ATOM, spec_atom_0))) => {
                 S::Spec_atom(SPEC_ATOM::from(spec_atom_0))
             },
-            Some((Symbol::SPEC_COND, spec_cond_0)) => {
+            (Some((Symbol::SPEC_COND, spec_cond_0))) => {
                 S::Spec_cond(SPEC_COND::from(spec_cond_0))
             },
-            Some((Symbol::SPEC_TERM, spec_term_0)) => {
+            (Some((Symbol::SPEC_TERM, spec_term_0))) => {
                 S::Spec_term(SPEC_TERM::from(spec_term_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -377,14 +381,14 @@ impl From<SymbolTree> for OP {
 impl From<Vec<SymbolTree>> for OP {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::BITOP, bitop_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::BITOP, bitop_0))) => {
                 OP::Bitop(BITOP::from(bitop_0))
             },
-            Some((Symbol::ARITHOP, arithop_0)) => {
+            (Some((Symbol::ARITHOP, arithop_0))) => {
                 OP::Arithop(ARITHOP::from(arithop_0))
             },
-            Some((Symbol::SHIFTOP, shiftop_0)) => {
+            (Some((Symbol::SHIFTOP, shiftop_0))) => {
                 OP::Shiftop(SHIFTOP::from(shiftop_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -610,14 +614,14 @@ impl From<SymbolTree> for RSEP {
 impl From<Vec<SymbolTree>> for RSEP {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::CC, cc_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::CC, cc_0))) => {
                 RSEP::Cc(CC::from(cc_0))
             },
-            Some((Symbol::IN, in_0)) => {
+            (Some((Symbol::IN, in_0))) => {
                 RSEP::In(IN::from(in_0))
             },
-            Some((Symbol::TO, to_0)) => {
+            (Some((Symbol::TO, to_0))) => {
                 RSEP::To(TO::from(to_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -929,17 +933,17 @@ impl From<SymbolTree> for BOOL_EXPR {
 impl From<Vec<SymbolTree>> for BOOL_EXPR {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::ASSERT, assert_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::ASSERT, assert_0))) => {
                 BOOL_EXPR::Assert(ASSERT::from(assert_0))
             },
-            Some((Symbol::QASSERT, qassert_0)) => {
+            (Some((Symbol::QASSERT, qassert_0))) => {
                 BOOL_EXPR::Qassert(QASSERT::from(qassert_0))
             },
-            Some((Symbol::CODE, code_0)) => {
+            (Some((Symbol::CODE, code_0))) => {
                 BOOL_EXPR::Code(CODE::from(code_0))
             },
-            Some((Symbol::EVENT, event_0)) => {
+            (Some((Symbol::EVENT, event_0))) => {
                 BOOL_EXPR::Event(EVENT::from(event_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -1138,17 +1142,17 @@ impl From<SymbolTree> for SPEC_ATOM {
 impl From<Vec<SymbolTree>> for SPEC_ATOM {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::HASSERT, hassert_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::HASSERT, hassert_0))) => {
                 SPEC_ATOM::Hassert(HASSERT::from(hassert_0))
             },
-            Some((Symbol::HQASSERT, hqassert_0)) => {
+            (Some((Symbol::HQASSERT, hqassert_0))) => {
                 SPEC_ATOM::Hqassert(HQASSERT::from(hqassert_0))
             },
-            Some((Symbol::SIDE, side_0)) => {
+            (Some((Symbol::SIDE, side_0))) => {
                 SPEC_ATOM::Side(SIDE::from(side_0))
             },
-            Some((Symbol::ASSIGN, assign_0)) => {
+            (Some((Symbol::ASSIGN, assign_0))) => {
                 SPEC_ATOM::Assign(ASSIGN::from(assign_0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -1234,11 +1238,11 @@ impl From<SymbolTree> for SPEC_ITEM {
 impl From<Vec<SymbolTree>> for SPEC_ITEM {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
-        match labels.next() {
-            Some((Symbol::SPEC_COND, spec_cond_0)) => {
+        match (labels.next()) {
+            (Some((Symbol::SPEC_COND, spec_cond_0))) => {
                 SPEC_ITEM::Spec_cond(SPEC_COND::from(spec_cond_0))
             },
-            Some((Symbol::RETIF_, retif__0)) => {
+            (Some((Symbol::RETIF_, retif__0))) => {
                 SPEC_ITEM::Retif_(RETIF_::from(retif__0))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
@@ -2917,7 +2921,7 @@ impl From<BOOL_OP> for Terminal {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TerminalSymbol {
     NN,
     NNS,
@@ -2982,9 +2986,10 @@ pub enum TerminalSymbol {
     BOOL_OP,
 }
 
-impl TerminalSymbol {
-    pub fn from_terminal<S: AsRef<str>>(s: S) -> Result<Self, String> {
-        match s.as_ref() {
+impl ParseTerminal for TerminalSymbol {
+    type Error = String;
+    fn parse_terminal(s: &str) -> Result<Self, Self::Error> {
+        match s {
             "NN" => Ok(TerminalSymbol::NN),
             "NNS" => Ok(TerminalSymbol::NNS),
             "NNP" => Ok(TerminalSymbol::NNP),

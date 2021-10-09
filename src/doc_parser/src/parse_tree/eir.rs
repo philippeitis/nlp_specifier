@@ -2,9 +2,8 @@
 use std::fmt::Formatter;
 use std::hash::Hash;
 
-use chartparse::grammar::ParseSymbol;
-use chartparse::tree::Tree;
-use chartparse::TreeWrapper;
+use chartparse::grammar::{ParseNonTerminal, ParseTerminal};
+use chartparse::Tree;
 
 use crate::parse_tree::tree::TerminalSymbol;
 use crate::parse_tree::Terminal;
@@ -184,7 +183,7 @@ impl From<TerminalSymbol> for Symbol {
 
 impl<S: AsRef<str>> From<S> for Symbol {
     fn from(nt: S) -> Self {
-        if let Ok(termsym) = TerminalSymbol::from_terminal(&nt) {
+        if let Ok(termsym) = TerminalSymbol::parse_terminal(nt.as_ref()) {
             return termsym.into();
         }
 
@@ -351,19 +350,20 @@ pub enum SymbolTree {
 impl SymbolTree {
     pub(crate) fn from_iter<
         I: Iterator<Item = Terminal>,
-        S: Eq + Clone + Hash + PartialEq + Into<Symbol>,
+        T,
+        N: Eq + Clone + Hash + PartialEq + Into<Symbol>,
     >(
-        tree: TreeWrapper<S>,
+        tree: Tree<T, N>,
         iter: &mut I,
     ) -> Self {
-        match tree.inner {
+        match tree {
             Tree::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
             Tree::Branch(nt, rest) => {
                 let mut sym_trees = Vec::with_capacity(rest.len());
                 for item in rest {
                     sym_trees.push(SymbolTree::from_iter(item, iter));
                 }
-                SymbolTree::Branch(nt.symbol.into(), sym_trees)
+                SymbolTree::Branch(nt.into(), sym_trees)
             }
         }
     }
@@ -385,12 +385,8 @@ impl SymbolTree {
     }
 }
 
-impl ParseSymbol for Symbol {
+impl ParseNonTerminal for Symbol {
     type Error = ();
-
-    fn parse_terminal(s: &str) -> Result<Self, Self::Error> {
-        Ok(Self::from(s))
-    }
 
     fn parse_nonterminal(s: &str) -> Result<Self, Self::Error> {
         Ok(Self::from(s))

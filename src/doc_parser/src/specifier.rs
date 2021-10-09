@@ -15,7 +15,7 @@ use chartparse::ChartParser;
 use crate::docs::Docs;
 use crate::grammar::AsSpec;
 use crate::nl_ir::Specification;
-use crate::parse_tree::tree::S;
+use crate::parse_tree::tree::{S, TerminalSymbol};
 use crate::parse_tree::Symbol;
 use crate::search_tree::SearchTree;
 use crate::sentence::{Sentence, Token};
@@ -80,7 +80,7 @@ impl Specifier {
         }
     }
 
-    pub(crate) fn specify(&mut self, tokenizer: &Tokenizer, parser: &ChartParser<Symbol>) {
+    pub(crate) fn specify(&mut self, tokenizer: &Tokenizer, parser: &ChartParser<TerminalSymbol, Symbol>) {
         SpecifierX {
             searcher: &self.searcher,
             tokenizer,
@@ -118,7 +118,7 @@ impl Specifier {
 struct SpecifierX<'a, 'b, 'p> {
     searcher: &'a SearchTree,
     tokenizer: &'a Tokenizer<'p>,
-    parser: &'a ChartParser<'b, Symbol>,
+    parser: &'a ChartParser<'b, TerminalSymbol, Symbol>,
 }
 
 fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
@@ -314,7 +314,7 @@ impl<'a, 'p> SimMatcher<'a, 'p> {
 }
 
 pub fn sentence_to_specifications(
-    parser: &ChartParser<Symbol>,
+    parser: &ChartParser<TerminalSymbol, Symbol>,
     sentence: &Sentence,
 ) -> Vec<Specification> {
     sentence

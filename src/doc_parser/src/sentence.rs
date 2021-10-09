@@ -1,9 +1,11 @@
 use ndarray::Array1;
 use ndarray_linalg::Norm;
 
+use chartparse::ChartParser;
+use chartparse::grammar::ParseTerminal;
+
 use crate::parse_tree::tree::TerminalSymbol;
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
-use chartparse::ChartParser;
 
 #[derive(Clone)]
 pub struct Token {
@@ -15,7 +17,7 @@ pub struct Token {
 impl From<(String, String, String)> for Token {
     fn from(s: (String, String, String)) -> Self {
         Self {
-            tag: TerminalSymbol::from_terminal(s.0).unwrap(),
+            tag: TerminalSymbol::parse_terminal(&s.0).unwrap(),
             word: s.1,
             lemma: s.2,
         }
@@ -45,15 +47,15 @@ impl Sentence {
 
     /// Produces the parse trees for this sentence's tokens, using the provided parser.
     /// Whitespace tokens, and trailing DOT tokens are filtered.
-    pub fn parse_trees(&self, parser: &ChartParser<Symbol>) -> Vec<SymbolTree> {
+    pub fn parse_trees(&self, parser: &ChartParser<TerminalSymbol, Symbol>) -> Vec<SymbolTree> {
         let tokens = {
             let mut tokens: Vec<_> = self
                 .tokens
                 .iter()
                 .filter(|x| x.tag != TerminalSymbol::SPACE)
-                .map(|x| Symbol::from(x.tag))
+                .map(|x| x.tag)
                 .collect();
-            while tokens.last() == Some(&Symbol::DOT) {
+            while tokens.last() == Some(&TerminalSymbol::DOT) {
                 tokens.pop();
             }
             tokens

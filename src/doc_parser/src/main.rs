@@ -235,7 +235,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
 
     println!("Parsing Rust stdlib took {}s", (end - start).as_secs_f32());
 
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<_> {
@@ -330,7 +330,7 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
 }
 
 fn specify_sentences(sentences: Vec<String>, options: &ModelOptions) {
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     let tokens = Python::with_gil(|py| -> PyResult<_> {
@@ -362,7 +362,7 @@ fn specify_sentences(sentences: Vec<String>, options: &ModelOptions) {
 fn specify_file<P: AsRef<Path>>(path: P, options: &ModelOptions) -> Specifier {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
 
     Python::with_gil(|py| -> PyResult<()> {
@@ -399,7 +399,7 @@ fn repl(py: Python, options: &ModelOptions) -> PyResult<()> {
     use pastel::ansi::Brush;
     use pastel::Color;
 
-    let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+    let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
     let parser = ChartParser::from_grammar(&cfg);
     let brush = pastel::ansi::Brush::from_environment(pastel::ansi::Stream::Stdout);
 
@@ -565,7 +565,7 @@ fn main() {
                 path,
                 open_browser,
             } => {
-                let cfg = ContextFreeGrammar::<Symbol>::fromstring(CFG.to_string()).unwrap();
+                let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
                     let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);
