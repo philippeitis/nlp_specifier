@@ -268,7 +268,7 @@ fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &
 
     if let Some((in_quotes, rest)) = line.split_once(quote) {
         Ok((
-            T::parse_terminal(&in_quotes).map_err(|_| "Could not parse terminal")?,
+            T::parse_terminal(in_quotes).map_err(|_| "Could not parse terminal")?,
             rest,
         ))
     } else {
