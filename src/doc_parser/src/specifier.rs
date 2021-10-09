@@ -15,7 +15,7 @@ use chartparse::ChartParser;
 use crate::docs::Docs;
 use crate::grammar::AsSpec;
 use crate::nl_ir::Specification;
-use crate::parse_tree::tree::{S, TerminalSymbol};
+use crate::parse_tree::tree::{TerminalSymbol, S};
 use crate::parse_tree::Symbol;
 use crate::search_tree::SearchTree;
 use crate::sentence::{Sentence, Token};
@@ -80,7 +80,11 @@ impl Specifier {
         }
     }
 
-    pub(crate) fn specify(&mut self, tokenizer: &Tokenizer, parser: &ChartParser<TerminalSymbol, Symbol>) {
+    pub(crate) fn specify(
+        &mut self,
+        tokenizer: &Tokenizer,
+        parser: &ChartParser<TerminalSymbol, Symbol>,
+    ) {
         SpecifierX {
             searcher: &self.searcher,
             tokenizer,

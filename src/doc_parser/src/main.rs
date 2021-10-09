@@ -565,7 +565,8 @@ fn main() {
                 path,
                 open_browser,
             } => {
-                let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string()).unwrap();
+                let cfg = ContextFreeGrammar::<TerminalSymbol, Symbol>::fromstring(CFG.to_string())
+                    .unwrap();
                 let parser = ChartParser::from_grammar(&cfg);
                 Python::with_gil(|py| -> PyResult<()> {
                     let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);

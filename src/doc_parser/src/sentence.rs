@@ -1,8 +1,8 @@
 use ndarray::Array1;
 use ndarray_linalg::Norm;
 
-use chartparse::ChartParser;
 use chartparse::grammar::ParseTerminal;
+use chartparse::ChartParser;
 
 use crate::parse_tree::tree::TerminalSymbol;
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
