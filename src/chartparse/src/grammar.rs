@@ -215,13 +215,10 @@ impl ContextFreeGrammar<String, String> {
     }
 }
 
-pub fn standard_nonterm_parser<N: ParseNonTerminal>(
-    s: &str,
-    pos: usize,
-) -> Result<(N, usize), &'static str> {
-    let mut index = pos;
+pub fn standard_nonterm_parser<N: ParseNonTerminal>(s: &str) -> Result<(N, &str), &'static str> {
+    let mut index = 0;
     // Capture
-    let mut chars = s[pos..].chars().peekable();
+    let mut chars = s.chars().peekable();
     match chars.next() {
         Some(c) => match c {
             '/' => {
@@ -250,44 +247,35 @@ pub fn standard_nonterm_parser<N: ParseNonTerminal>(
         chars.next();
     }
 
-    let nt = N::parse_nonterminal(&s[pos..index]).map_err(|_| "could not parse nonterminal")?;
-    for c in chars {
-        match c {
-            x if x.is_whitespace() => {
-                index += x.width().unwrap();
-            }
-            _ => break,
-        }
-    }
+    let (nonterm, rest) = s.split_at(index);
+    let nt = N::parse_nonterminal(&nonterm).map_err(|_| "could not parse nonterminal")?;
 
-    Ok((nt, index))
+    Ok((nt, rest))
 }
 
-fn read_arrow(line: &str, mut pos: usize) -> Option<usize> {
-    let mut chars = line[pos..].chars().peekable();
+fn eat_arrow(line: &str) -> Option<&str> {
+    let mut chars = line.chars();
 
     match (chars.next(), chars.next(), chars.next()) {
-        (Some('-'), Some('>'), Some(' ')) => {
-            pos += 3;
-        }
+        (Some('-'), Some('>'), Some(' ')) => {}
         _ => return None,
     }
 
-    while let Some(' ') = chars.next() {
-        pos += 1;
-    }
-
-    Some(pos)
+    Some(chars.as_str())
 }
 
 /// Returns the end of the string, plus the start of the next string
-fn terminate_str(line: &str, mut pos: usize) -> Option<(usize, usize)> {
-    let mut chars = line[pos..].chars().peekable();
+fn standard_terminal_parser<T: ParseTerminal>(line: &str) -> Result<(T, &str), &'static str> {
+    let mut pos = 0;
+    let mut chars = line.chars().peekable();
 
-    let q = chars.next().unwrap();
+    let q = chars
+        .next()
+        .expect("Should only be called when string has at least one char");
 
     if q != '"' && q != '\'' {
-        return None;
+        // unreachable
+        return Err("Terminal did not start with leading quote");
     }
 
     pos += 1;
@@ -297,96 +285,76 @@ fn terminate_str(line: &str, mut pos: usize) -> Option<(usize, usize)> {
         if q != c {
             pos += c.width().unwrap();
         } else {
-            pos += 1;
             broke = true;
             break;
         }
     }
 
-    let end = pos;
-
-    while let Some(c) = chars.next() {
-        if c.is_whitespace() {
-            pos += c.width().unwrap();
-        } else {
-            break;
-        }
-    }
+    let (in_quotes, rest) = line.split_at(pos);
 
     if !broke {
-        None
+        Err("No terminating quote found.")
     } else {
-        Some((end, pos))
+        Ok((
+            T::parse_terminal(&in_quotes[1..]).map_err(|_| "Could not parse terminal")?,
+            &rest[1..],
+        ))
     }
 }
 
-fn eat_disjunction(line: &str, mut pos: usize) -> Option<usize> {
-    let mut chars = line[pos..].chars();
+fn eat_disjunction(line: &str) -> Option<&str> {
+    let mut chars = line.chars();
 
     match (chars.next(), chars.next()) {
-        (Some('|'), Some(' ')) => {
-            pos += 2;
-        }
+        (Some('|'), Some(' ')) => {}
         _ => return None,
     }
 
-    while let Some(c) = chars.next() {
-        if c.is_whitespace() {
-            pos += c.width().unwrap();
-        } else {
-            break;
-        }
-    }
-
-    Some(pos)
+    Some(chars.as_str())
 }
 
 pub fn read_production<
     N: Clone + ParseNonTerminal,
     T: Clone + ParseTerminal,
-    F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
+    F: Fn(&str) -> Result<(N, &str), &'static str>,
 >(
     line: &str,
     nt_parser: &F,
 ) -> Result<Vec<Production<N, T>>, &'static str> {
-    let (lhs, mut pos) = nt_parser(line, 0)?;
+    let (lhs, mut rest) = nt_parser(line)?;
+    rest = rest.trim_start();
+    rest = eat_arrow(rest).ok_or("no arrow")?;
 
-    pos = read_arrow(line, pos).ok_or("no arrow")?;
+    let mut productions: Vec<_> = vec![Production::new(lhs.clone(), vec![])];
 
-    let mut rhssides: Vec<Vec<_>> = vec![vec![]];
-
-    while pos < line.len() {
-        match line[pos..].chars().next().unwrap() {
+    while !rest.is_empty() {
+        match rest.chars().next().unwrap() {
             '\'' | '"' => {
-                let (end, xpos) =
-                    terminate_str(line, pos).ok_or("could not terminate production")?;
-                rhssides.last_mut().unwrap().push(Symbol::Terminal(
-                    T::parse_terminal(&line[pos + 1..end - 1]).unwrap(),
-                ));
-                pos = xpos;
+                let (t, rest_) = standard_terminal_parser::<T>(rest)?;
+                productions.last_mut().unwrap().rhs.push(Symbol::Terminal(t));
+                rest = rest_;
             }
             '|' => {
-                pos = eat_disjunction(line, pos).ok_or("no disjunction found")?;
-                rhssides.push(vec![]);
+                rest = eat_disjunction(rest).ok_or("no disjunction found")?;
+                productions.push(Production::new(lhs.clone(), vec![]));
             }
             _ => {
-                let (rnt, xpos) = nt_parser(line, pos)?;
-                rhssides.last_mut().unwrap().push(Symbol::NonTerminal(rnt));
-                pos = xpos;
+                let (nt, rest_) = nt_parser(rest)?;
+                productions.last_mut().unwrap().rhs.push(Symbol::NonTerminal(nt));
+                rest = rest_;
             }
         }
+
+        rest = rest.trim_start();
     }
 
-    Ok(rhssides
-        .into_iter()
-        .map(|prod| Production::new(lhs.clone(), prod))
-        .collect())
+    Ok(productions)
 }
 
 pub fn read_grammar<
     N: Hash + PartialEq + Eq + Clone + ParseNonTerminal,
     T: Hash + PartialEq + Eq + Clone + ParseTerminal,
-    F: Fn(&str, usize) -> Result<(N, usize), &'static str>,
+    F: Fn(&str) -> Result<(N, &str), &'static str>,
 >(
     input: &str,
     nt_parser: F,
@@ -447,5 +415,73 @@ impl ParseNonTerminal for String {
 
     fn parse_nonterminal(s: &str) -> Result<Self, Self::Error> {
         Ok(s.to_string())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_standard_nonterm() {
+        let s = "HELLO_WORLD -> ...";
+        assert_eq!(
+            standard_nonterm_parser::<String>(s),
+            Ok(("HELLO_WORLD".to_string(), " -> ..."))
+        )
+    }
+
+    #[test]
+    fn test_standard_term() {
+        let s = "\"terminal\" | NonTerminal";
+        assert_eq!(
+            standard_terminal_parser::<String>(s),
+            Ok(("terminal".to_string(), " | NonTerminal"))
+        );
+        let s = "\'terminal\' | NonTerminal";
+        assert_eq!(
+            standard_terminal_parser::<String>(s),
+            Ok(("terminal".to_string(), " | NonTerminal"))
+        );
+    }
+
+    #[test]
+    fn test_eat_arrow() {
+        let s = "-> some other stuff";
+        assert_eq!(eat_arrow(s), Some("some other stuff"));
+        assert_eq!(eat_arrow("<-"), None);
+    }
+
+    #[test]
+    fn test_eat_disjunction() {
+        let s = "| some other stuff";
+        assert_eq!(eat_disjunction(s), Some("some other stuff"));
+        assert_eq!(eat_disjunction("|"), None);
+    }
+
+    #[test]
+    fn test_read_production() {
+        let line = "nonterminal -> \"terminal1\" other nonterminalx \'terminal2\'     | another 'NonTerminal'";
+        assert_eq!(
+            read_production(line, &standard_nonterm_parser),
+            Ok(vec![
+                Production::new(
+                    "nonterminal".to_string(),
+                    vec![
+                        Symbol::Terminal("terminal1".to_string()),
+                        Symbol::NonTerminal("other".to_string()),
+                        Symbol::NonTerminal("nonterminalx".to_string()),
+                        Symbol::Terminal("terminal2".to_string())
+                    ],
+                ),
+                Production::new(
+                    "nonterminal".to_string(),
+                    vec![
+                        Symbol::NonTerminal("another".to_string()),
+                        Symbol::Terminal("NonTerminal".to_string()),
+                    ],
+                )
+            ])
+        );
     }
 }

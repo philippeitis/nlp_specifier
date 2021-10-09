@@ -91,3 +91,9 @@ impl<N: Display, T: Display> Display for Production<N, T> {
         )
     }
 }
+
+impl<N: Display, T: Display> Debug for Production<N, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
