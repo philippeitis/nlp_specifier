@@ -74,7 +74,7 @@ def tokenize():
 def persist_cache():
     for model in Tokenizer.TOKEN_CACHE.keys():
         Tokenizer(model).write_data(f"./cache/{model}.spacy")
-
+    return "ok", 200
 
 if __name__ == "__main__":
     app.run()

@@ -412,6 +412,7 @@ fn drag_race(options: &ModelOptions) {
     println!("RSBIND Tokenization took {}", (end - start).as_secs_f32());
     println!("Number of sentences: {}", sents2.len());
     assert!(sents1 == sents2);
+    ServerTokenizer::new("http://0.0.0.0:5000".to_string(), options.model).persist_cache();
 }
 
 fn specify_file<P: AsRef<Path>>(path: P, options: &ModelOptions) -> Specifier {
