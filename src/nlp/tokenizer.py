@@ -67,8 +67,7 @@ class Sentence:
             data.write(len(vec).to_bytes(2, byteorder="big"))
             data.write(vec)
 
-        data.seek(0)
-        return data.read()
+        return data.getbuffer()
 
 
 class SpacyModel(str, Enum):
