@@ -362,6 +362,51 @@ fn specify_sentences(sentences: Vec<String>, options: &ModelOptions) {
     }
 }
 
+fn drag_race(options: &ModelOptions) {
+    use specifier::ServerTokenizer;
+    let path = toolchain_path_to_html_root(&get_toolchain_dirs().unwrap()[0]);
+    let tree = file_from_root_dir(&path).unwrap();
+    let mut sentences = Vec::new();
+    for value in tree.search(
+        &|x| {
+            matches!(&x.item, SearchItem::Fn(_) | SearchItem::Method(_))
+                && !x.docs.sections.is_empty()
+        },
+        Depth::Infinite,
+    ) {
+        sentences.extend(&value.docs.sections[0].sentences);
+    }
+    let sentences: Vec<_> = sentences
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .map(String::from)
+        .collect();
+
+    let sents1 = Python::with_gil(|py| -> PyResult<_> {
+        let start = std::time::Instant::now();
+        let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);
+        let end = std::time::Instant::now();
+        println!("{}", (end - start).as_secs_f32());
+        let start = std::time::Instant::now();
+        let sents = tokenizer.tokenize_sents(&sentences);
+        let end = std::time::Instant::now();
+        println!("{}", (end - start).as_secs_f32());
+        sents
+    })
+    .unwrap();
+
+    let start = std::time::Instant::now();
+    let sents2 = ServerTokenizer::new("http://0.0.0.0:5000/tokenize".to_string(), options.model)
+        .tokenize_sents(&sentences)
+        .unwrap();
+
+    let end = std::time::Instant::now();
+    println!("{}", (end - start).as_secs_f32());
+    println!("{}", sents2.len());
+    assert!(sents1 == sents2);
+}
+
 fn specify_file<P: AsRef<Path>>(path: P, options: &ModelOptions) -> Specifier {
     let mut specifier = Specifier::from_path(&path).unwrap();
 
@@ -486,6 +531,8 @@ fn repl(py: Python, options: &ModelOptions) -> PyResult<()> {
 fn main() {
     let opts: Opts = Opts::parse();
     let options = ModelOptions::new(opts.model.clone(), opts.cache.clone());
+    drag_race(&options);
+    std::process::exit(0);
     // TODO: Detect duplicate invocations.
     // TODO: keyword in fn name, capitalization?
     // TODO: similarity metrics (capitalization, synonym distance via wordnet)

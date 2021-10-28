@@ -7,7 +7,7 @@ use chartparse::ChartParser;
 use crate::parse_tree::tree::TerminalSymbol;
 use crate::parse_tree::{Symbol, SymbolTree, Terminal};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Token {
     pub tag: TerminalSymbol,
     pub word: String,
@@ -24,6 +24,7 @@ impl From<(String, String, String)> for Token {
     }
 }
 
+#[derive(PartialEq)]
 pub struct Sentence {
     pub text: String,
     pub tokens: Vec<Token>,

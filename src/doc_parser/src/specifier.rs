@@ -1,6 +1,7 @@
+#![deny(unused_imports)]
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Stdio;
 use std::rc::Rc;
@@ -166,6 +167,130 @@ impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
 /// Tokenizes sentences, using spaCy through pyo3.
 /// Tokenizations are cached internally, which provides a speedup of ~700x
 /// over using Python-side caching (likely due to unidecode overhead).
+pub struct ServerTokenizer {
+    url: String,
+    model: SpacyModel,
+    cache: RefCell<HashMap<String, Rc<Sentence>>>,
+}
+
+impl ServerTokenizer {
+    pub fn new<S: Into<SpacyModel>>(url: String, model: S) -> Self {
+        Self {
+            url,
+            model: model.into(),
+            cache: Default::default(),
+        }
+    }
+
+    pub fn tokenize_sents(&self, sents: &[String]) -> Result<Vec<Rc<Sentence>>, ()> {
+        use reqwest::blocking::Client;
+
+        fn read_string<R: Read>(reader: &mut R) -> String {
+            let str_len = rmp::decode::read_str_len(reader).unwrap();
+            let mut buf = vec![0; str_len as usize];
+            reader.read_exact(&mut buf).unwrap();
+            String::from_utf8(buf).unwrap()
+        }
+
+        let sents: Vec<_> = {
+            let cache = self.cache.borrow();
+            sents.iter().map(|s| (s, cache.get(s).cloned())).collect()
+        };
+
+        let to_parse: Vec<_> = sents
+            .iter()
+            .cloned()
+            .filter_map(|(sent, tokens)| match tokens {
+                None => Some(sent.to_string()),
+                Some(_) => None,
+            })
+            .collect();
+
+        if !to_parse.is_empty() {
+            let start = std::time::Instant::now();
+            let client = Client::new();
+            let request_json = serde_json::json!({
+                "model": self.model.spacy_ident(),
+                "sentences": to_parse,
+            });
+            let end = std::time::Instant::now();
+            println!("{}", (end - start).as_secs_f32());
+            let start = std::time::Instant::now();
+
+            let bytes = client
+                .get(&self.url)
+                .json(&request_json)
+                .send()
+                .unwrap()
+                .bytes()
+                .unwrap();
+            let end = std::time::Instant::now();
+            println!("{}", (end - start).as_secs_f32());
+            let mut cache = self.cache.borrow_mut();
+            let mut bytes = std::io::Cursor::new(bytes);
+            let _map_len = rmp::decode::read_map_len(&mut bytes).unwrap();
+            assert_eq!(read_string(&mut bytes), "sentences");
+            let num_sents = rmp::decode::read_array_len(&mut bytes).unwrap();
+            for (_, src) in (0..num_sents).zip(to_parse) {
+                let sent_map_len = rmp::decode::read_map_len(&mut bytes).unwrap();
+                // can have text, tokens, and vector in that order
+                let mut text = None;
+                let mut tokens = None;
+                let mut vector = None;
+                let mut buf = [0; 16];
+                for _ in 0..sent_map_len {
+                    match rmp::decode::read_str(&mut bytes, &mut buf).unwrap() {
+                        "text" => {
+                            text = Some(read_string(&mut bytes));
+                        }
+                        "tokens" => {
+                            let num_tokens = rmp::decode::read_array_len(&mut bytes).unwrap();
+                            let mut token_vec = Vec::with_capacity(num_tokens as usize);
+                            for _ in 0..num_tokens {
+                                rmp::decode::read_array_len(&mut bytes).unwrap();
+                                let tag = read_string(&mut bytes);
+                                let tok_text = read_string(&mut bytes);
+                                let lemma = read_string(&mut bytes);
+                                token_vec.push(Token::from((tag, tok_text, lemma)));
+                            }
+                            tokens = Some(token_vec);
+                        }
+                        "vector" => {
+                            let num_bytes = rmp::decode::read_bin_len(&mut bytes).unwrap();
+                            let mut float_vec = Vec::with_capacity((num_bytes as usize) / 4);
+                            for _ in 0..num_bytes / 4 {
+                                let mut float_buf = [0; 4];
+                                bytes.read_exact(&mut float_buf).unwrap();
+                                float_vec.push(f32::from_le_bytes(float_buf))
+                            }
+                            vector = Some(float_vec);
+                        }
+                        _ => {}
+                    }
+                }
+                match (text, tokens) {
+                    (Some(sent), Some(tokens)) => {
+                        cache.insert(
+                            src,
+                            Rc::new(Sentence::new(sent, tokens, vector.unwrap_or_default())),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let cache = self.cache.borrow();
+        Ok(sents
+            .into_iter()
+            .map(|(sent, res)| res.unwrap_or_else(|| cache.get(sent).unwrap().clone()))
+            .collect())
+    }
+}
+
+/// Tokenizes sentences, using spaCy through pyo3.
+/// Tokenizations are cached internally, which provides a speedup of ~700x
+/// over using Python-side caching (likely due to unidecode overhead).
 pub struct Tokenizer<'p> {
     parser: PyObject,
     py: Python<'p>,
@@ -210,6 +335,7 @@ impl<'p> Tokenizer<'p> {
             cache: RefCell::default(),
         }
     }
+
     pub fn new<S: Into<SpacyModel>>(py: Python<'p>, model: S) -> Self {
         Self::init_with_args(py, "Tokenizer(model)", model, &[])
     }

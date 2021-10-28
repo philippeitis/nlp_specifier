@@ -33,16 +33,20 @@ def write_array_len(data: BytesIO, arr_len):
 
 @app.route("/tokenize", methods=["GET"])
 def tokenize():
+    import time
     form_data = request.get_json()
-    print(f"format_data: {form_data}")
     errors = TokenizerGet().validate(form_data)
     if errors:
         print(errors)
         return msgpack.packb({"error": "malformed input"}), 400
 
     model = form_data["model"]
+    start = time.time()
     tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
     sentences = tokenizer.stokenize(form_data["sentences"])
+    end = time.time()
+    print(end - start)
+    start = time.time()
 
     response = BytesIO()
     response.write(b"\x81")
@@ -53,6 +57,8 @@ def tokenize():
     for sentence in sentences:
         response.write(sentence.msgpack())
     response.seek(0)
+    end = time.time()
+    print(end - start)
 
     return send_file(response, mimetype="application/msgpack"), 200
 
