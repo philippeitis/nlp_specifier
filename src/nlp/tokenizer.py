@@ -77,6 +77,7 @@ class Tokenizer:
     TOKEN_CACHE = defaultdict(dict)
     ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
+    CACHE_LOADED = defaultdict(set)
 
     def __init__(self, model: SpacyModel = SpacyModel.EN_LG):
         self.token_cache = Tokenizer.TOKEN_CACHE[model]
@@ -95,8 +96,10 @@ class Tokenizer:
 
     @classmethod
     def from_cache(cls, path: Union[Path, str], model: SpacyModel = SpacyModel.EN_LG):
-        tagger = cls.load_tagger(model)
+        if path in cls.CACHE_LOADED[model]:
+            return Tokenizer(model)
 
+        tagger = cls.load_tagger(model)
         has_vec = "tok2vec" in tagger.pipe_names
         if has_vec:
             Doc.set_extension("doc_vec", default=None)
@@ -109,6 +112,7 @@ class Tokenizer:
                     doc._vector = np.array(doc._.doc_vec)
 
             cls.TOKEN_CACHE[model].update(docs)
+            cls.CACHE_LOADED[model].update(path)
         except FileNotFoundError:
             pass
 

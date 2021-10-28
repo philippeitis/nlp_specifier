@@ -49,9 +49,11 @@ def tokenize():
     response.write((0x5 << 5 | len("sentences")).to_bytes(1, byteorder="big"))
     response.write(b"sentences")
     write_array_len(response, len(sentences))
+
     for sentence in sentences:
         response.write(sentence.msgpack())
     response.seek(0)
+
     return send_file(response, mimetype="application/msgpack"), 200
 
 
