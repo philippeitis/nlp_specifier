@@ -172,6 +172,9 @@ pub(crate) fn render_tree<P: AsRef<Path>>(tree: &SymbolTree, path: P) -> std::io
         .write(format!("digraph {{ {}}}\n", dot_str).as_bytes())?;
     println!("digraph {{ {}}}\n", dot_str);
     let output = cmd.wait_with_output().unwrap();
+    if let Some(parent) = path.as_ref().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     std::fs::write(path, output.stdout)
 }
 
