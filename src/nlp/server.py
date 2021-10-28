@@ -46,12 +46,12 @@ def tokenize():
     tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
     end = time.time()
     elapsed = end - start
-    print(f"Opening model took {elapsed}s")
+    app.logger.info(f"Opening model took {elapsed}s")
     start = time.time()
     sentences = tokenizer.stokenize(form_data["sentences"])
     end = time.time()
     elapsed = end - start
-    print(f"Tokenization took {elapsed}s")
+    app.logger.info(f"Tokenization took {elapsed}s")
 
     start = time.time()
 
@@ -66,7 +66,7 @@ def tokenize():
     response.seek(0)
     end = time.time()
     elapsed = end - start
-    print(f"Serialization took {elapsed}s")
+    app.logger.info(f"Serialization took {elapsed}s")
 
     return send_file(response, mimetype="application/msgpack"), 200
 
