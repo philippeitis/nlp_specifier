@@ -2,6 +2,7 @@ from io import BytesIO
 
 import flask
 import msgpack
+import spacy
 from flask import request, send_file
 from marshmallow import Schema, fields
 from tokenizer import Tokenizer
@@ -75,6 +76,12 @@ def persist_cache():
     for model in Tokenizer.TOKEN_CACHE.keys():
         Tokenizer(model).write_data(f"./cache/{model}.spacy")
     return "ok", 200
+
+
+@app.route('/explain', methods=['POST'])
+def explain():
+    return spacy.explain(request.query_string) or "", 200
+
 
 if __name__ == "__main__":
     app.run()

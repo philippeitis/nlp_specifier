@@ -6,8 +6,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::rc::Rc;
 
-use pyo3::types::IntoPyDict;
-use pyo3::{PyObject, PyResult, Python, ToPyObject};
+use reqwest::Url;
 use syn::visit_mut::VisitMut;
 use syn::{parse_file, Attribute, File, ImplItemMethod, ItemFn};
 
@@ -120,9 +119,9 @@ impl Specifier {
     }
 }
 
-struct SpecifierX<'a, 'b, 'p> {
+struct SpecifierX<'a, 'b> {
     searcher: &'a SearchTree,
-    tokenizer: &'a Tokenizer<'p>,
+    tokenizer: &'a Tokenizer,
     parser: &'a ChartParser<'b, Symbol, TerminalSymbol>,
 }
 
@@ -134,7 +133,7 @@ fn should_specify<A: AsRef<[Attribute]>>(attrs: A) -> bool {
         .any(|x| quote::quote! {#x}.to_string() == "specify")
 }
 
-impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
+impl<'a, 'b> SpecifierX<'a, 'b> {
     fn specify_docs(&self, attrs: &mut Vec<Attribute>) {
         if should_specify(&attrs) {
             let docs = Docs::from(&attrs);
@@ -154,7 +153,7 @@ impl<'a, 'b, 'p> SpecifierX<'a, 'b, 'p> {
     }
 }
 
-impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
+impl<'a, 'b> VisitMut for SpecifierX<'a, 'b> {
     fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
         self.specify_docs(&mut i.attrs)
     }
@@ -167,14 +166,17 @@ impl<'a, 'b, 'p> VisitMut for SpecifierX<'a, 'b, 'p> {
 /// Tokenizes sentences, using spaCy through pyo3.
 /// Tokenizations are cached internally, which provides a speedup of ~700x
 /// over using Python-side caching (likely due to unidecode overhead).
-pub struct ServerTokenizer {
-    url: String,
+pub struct Tokenizer {
+    url: Url,
     model: SpacyModel,
     cache: RefCell<HashMap<String, Rc<Sentence>>>,
 }
 
-impl ServerTokenizer {
-    pub fn new<S: Into<SpacyModel>>(url: String, model: S) -> Self {
+/// Tokenizes sentences, using spaCy through pyo3.
+/// Tokenizations are cached internally, which provides a speedup of ~700x
+/// over using Python-side caching (likely due to unidecode overhead).
+impl Tokenizer {
+    pub fn new<S: Into<SpacyModel>>(url: Url, model: S) -> Self {
         Self {
             url,
             model: model.into(),
@@ -207,18 +209,11 @@ impl ServerTokenizer {
             .collect();
 
         if !to_parse.is_empty() {
-            let start = std::time::Instant::now();
             let client = Client::new();
             let request_json = serde_json::json!({
                 "model": self.model.spacy_ident(),
                 "sentences": to_parse,
             });
-            let end = std::time::Instant::now();
-            println!(
-                "RSBIND generating json took {}s",
-                (end - start).as_secs_f32()
-            );
-            let start = std::time::Instant::now();
 
             let bytes = client
                 .get(&format!("{}/tokenize", self.url))
@@ -227,8 +222,6 @@ impl ServerTokenizer {
                 .unwrap()
                 .bytes()
                 .unwrap();
-            let end = std::time::Instant::now();
-            println!("RSBIND request took {}s", (end - start).as_secs_f32());
 
             let mut cache = self.cache.borrow_mut();
             let mut bytes = std::io::Cursor::new(bytes);
@@ -296,133 +289,28 @@ impl ServerTokenizer {
         let client = Client::new();
         let _ = client.post(&format!("{}/persist_cache", self.url)).send();
     }
-}
 
-/// Tokenizes sentences, using spaCy through pyo3.
-/// Tokenizations are cached internally, which provides a speedup of ~700x
-/// over using Python-side caching (likely due to unidecode overhead).
-pub struct Tokenizer<'p> {
-    parser: PyObject,
-    py: Python<'p>,
-    cache: RefCell<HashMap<String, Rc<Sentence>>>,
-}
-
-impl<'p> Tokenizer<'p> {
-    fn init_with_args<S: Into<SpacyModel>>(
-        py: Python<'p>,
-        tokenizer_call: &str,
-        model: S,
-        args: &[(&str, PyObject)],
-    ) -> Self {
-        let path = std::env::current_dir().unwrap();
-        let locals = [
-            ("sys", py.import("sys").unwrap().to_object(py)),
-            ("pathlib", py.import("pathlib").unwrap().to_object(py)),
-            ("root_dir", path.to_object(py)),
-        ]
-        .into_py_dict(py);
-        // TODO: Make sure we fix path handling for the general case.
-        let code = "sys.path.extend([str(pathlib.Path(root_dir).parent / 'nlp'), str(pathlib.Path(root_dir).parent)])";
-        py.eval(code, None, Some(locals)).unwrap();
-
-        let locals = [
-            ("tokenizer", py.import("tokenizer").unwrap().to_object(py)),
-            ("model", model.into().spacy_ident().to_object(py)),
-        ]
-        .iter()
-        .chain(args.into_iter())
-        .into_py_dict(py);
-
-        let parser: PyObject = py
-            .eval(&format!("tokenizer.{}", tokenizer_call), None, Some(locals))
-            .unwrap()
-            .extract()
-            .unwrap();
-
-        Tokenizer {
-            parser,
-            py,
-            cache: RefCell::default(),
-        }
-    }
-
-    pub fn new<S: Into<SpacyModel>>(py: Python<'p>, model: S) -> Self {
-        Self::init_with_args(py, "Tokenizer(model)", model, &[])
-    }
-
-    pub fn from_cache<P: AsRef<Path>, S: Into<SpacyModel>>(
-        py: Python<'p>,
-        path: P,
-        model: S,
-    ) -> Self {
-        Self::init_with_args(
-            py,
-            "Tokenizer.from_cache(path, model)",
-            model,
-            &[("path", path.as_ref().to_object(py))],
-        )
-    }
-
-    pub fn tokenize_sents(&self, sents: &[String]) -> PyResult<Vec<Rc<Sentence>>> {
-        let sents: Vec<_> = {
-            let cache = self.cache.borrow();
-            sents.iter().map(|s| (s, cache.get(s).cloned())).collect()
-        };
-
-        let to_parse: Vec<_> = sents
-            .iter()
-            .cloned()
-            .filter_map(|(sent, tokens)| match tokens {
-                None => Some(sent.to_string()),
-                Some(_) => None,
-            })
-            .collect();
-
-        {
-            let mut cache = self.cache.borrow_mut();
-            for (doc, src) in self
-                .parser
-                .call_method1(self.py, "stokenize", (to_parse.to_object(self.py),))?
-                .extract::<Vec<PyObject>>(self.py)?
-                .into_iter()
-                .zip(to_parse)
-            {
-                let tokens: Vec<(String, String, String)> =
-                    doc.getattr(self.py, "metadata")?.extract(self.py)?;
-                let tokens: Vec<_> = tokens.into_iter().map(Token::from).collect();
-                let doc = doc.getattr(self.py, "doc")?;
-                let sent = doc.getattr(self.py, "text")?.extract(self.py)?;
-                let vector = doc
-                    .getattr(self.py, "vector")?
-                    .call_method0(self.py, "tolist")?
-                    .extract(self.py)?;
-                // (vec<token>, str, vec<f32>
-                cache.insert(src, Rc::new(Sentence::new(sent, tokens, vector)));
-            }
-        }
-
-        let cache = self.cache.borrow();
-        Ok(sents
-            .into_iter()
-            .map(|(sent, res)| res.unwrap_or_else(|| cache.get(sent).unwrap().clone()))
-            .collect())
-    }
-
-    pub fn write_data<P: AsRef<Path>>(&self, path: P) -> PyResult<()> {
-        self.parser
-            .call_method1(self.py, "write_data", (path.as_ref().to_object(self.py),))?;
-        Ok(())
+    pub fn explain(&self, s: &str) -> Option<String> {
+        use reqwest::blocking::Client;
+        let client = Client::new();
+        let body = s.to_string();
+        let response = client
+            .post(&format!("{}/explain", self.url))
+            .body(body)
+            .send()
+            .ok()?;
+        response.text().ok()
     }
 }
 
-pub struct SimMatcher<'a, 'p> {
-    tokenizer: &'a Tokenizer<'p>,
+pub struct SimMatcher<'a> {
+    tokenizer: &'a Tokenizer,
     sentence: Rc<Sentence>,
     cutoff: f32,
 }
 
-impl<'a, 'p> SimMatcher<'a, 'p> {
-    pub fn new(sentence: &str, tokenizer: &'a Tokenizer<'p>, cutoff: f32) -> Self {
+impl<'a> SimMatcher<'a> {
+    pub fn new(sentence: &str, tokenizer: &'a Tokenizer, cutoff: f32) -> Self {
         SimMatcher {
             sentence: tokenizer
                 .tokenize_sents(&[sentence.to_string()])
@@ -433,7 +321,7 @@ impl<'a, 'p> SimMatcher<'a, 'p> {
         }
     }
 
-    pub fn is_similar(&self, sent: &str) -> PyResult<bool> {
+    pub fn is_similar(&self, sent: &str) -> Result<bool, ()> {
         let other = self
             .tokenizer
             .tokenize_sents(&[sent.to_string()])?
@@ -441,7 +329,7 @@ impl<'a, 'p> SimMatcher<'a, 'p> {
         Ok(self.sentence.similarity(&other) > self.cutoff)
     }
 
-    pub fn any_similar(&self, sents: &[String]) -> PyResult<bool> {
+    pub fn any_similar(&self, sents: &[String]) -> Result<bool, ()> {
         let other = self.tokenizer.tokenize_sents(sents)?;
         Ok(other
             .into_iter()
