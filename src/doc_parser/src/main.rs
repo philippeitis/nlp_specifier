@@ -576,14 +576,14 @@ fn main() {
                     let trees = sent.parse_trees(&parser);
                     match trees.first() {
                         None => println!("No tree generated for the provided sentence."),
-                        Some(tree) => visualization::tree::render_tree(tree, &path).unwrap(),
-                    }
-                    if open_browser {
-                        py.run(
-                            "import webbrowser; webbrowser.open(path)",
-                            None,
-                            Some([("path", path.to_object(py))].into_py_dict(py)),
-                        )?;
+                        Some(tree) => {
+                            visualization::tree::render_tree(tree, &path).unwrap();
+                            if open_browser {
+                                if webbrowser::open(&path).is_err() {
+                                    println!("Could not open in web browser");
+                                }
+                            }
+                        }
                     }
                     Ok(())
                 })

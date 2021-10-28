@@ -17,6 +17,7 @@ syn = { version = "1.0", default-features = false, features = ["parsing", "full"
 quote = "1.0"
 
 rayon = "1.5.1"
+itertools = "0.10.1"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -26,6 +27,6 @@ pyo3 = { version = "0.14.5", features = ["auto-initialize"]}
 ndarray = "0.15.3"
 ndarray-linalg = { version = "0.14.1", features = ["openblas"] }
 
-itertools = "0.10.1"
 clap = "3.0.0-beta.4"
 pastel = "0.8.1"
+webbrowser = { version = "0.5", git = "https://github.com/philippeitis/webbrowser-rs.git" }
