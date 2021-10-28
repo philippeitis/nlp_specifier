@@ -6,7 +6,7 @@ from enum import Enum
 from functools import cached_property
 from io import BytesIO
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Iterable
 
 import msgpack
 import numpy as np
@@ -120,7 +120,7 @@ class Tokenizer:
                 for (_, doc) in docs:
                     doc._vector = np.array(doc._.doc_vec)
 
-            cls.TOKEN_CACHE[model].update(docs)
+            cls.TOKEN_CACHE[model].update((text, Sentence(doc)) for text, doc in docs)
             cls.CACHE_LOADED[model].add(path)
         except FileNotFoundError:
             pass
@@ -157,11 +157,11 @@ class Tokenizer:
         if sentence not in self.token_cache:
             doc = self.tagger(unidecode.unidecode(sentence))
             doc._.raw_text = sentence
-            self.token_cache[sentence] = doc
+            self.token_cache[sentence] = Sentence(doc)
 
-        return Sentence(self.token_cache[sentence])
+        return self.token_cache[sentence]
 
-    def stokenize(self, sentences: List[str], idents=None) -> List[Sentence]:
+    def stokenize(self, sentences: List[str], idents=None) -> Iterable[Sentence]:
         """
         Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
         (all unique sentences in stdlib).
@@ -176,10 +176,10 @@ class Tokenizer:
         for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
             sent = sentences[i]
             tokenized._.raw_text = sent
-            self.token_cache[sent] = tokenized
+            self.token_cache[sent] = Sentence(tokenized)
             sentence_dict[i] = tokenized
 
-        return [Sentence(doc) for doc in sentence_dict.values()]
+        return sentence_dict.values()
 
     def entities(self, sentence: str) -> dict:
         """Performs NER and SRL analysis of the given sentence, using the models from
