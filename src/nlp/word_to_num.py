@@ -49,7 +49,7 @@ class EnglishNumber:
         return f"Number({self.is_cardinal}, {self.num})"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cases = [
         ("first", 1, True),
         ("second", 2, True),
@@ -68,10 +68,12 @@ if __name__ == '__main__':
         ("thirty-sixth", 36, True),
         ("twenty-fifth", 25, True),
         ("minus three", -3, False),
-        ("three point five", 3.5, False)
+        ("three point five", 3.5, False),
     ]
 
     for word, expected_num, expected_cardinality in cases:
         en = EnglishNumber(word)
         assert en.num == expected_num, f"{en.num} != {expected_num} ({word})"
-        assert en.is_cardinal == expected_cardinality, f"{en.is_cardinal} != {expected_cardinality} ({word})"
+        assert (
+            en.is_cardinal == expected_cardinality
+        ), f"{en.is_cardinal} != {expected_cardinality} ({word})"

@@ -1,6 +1,6 @@
-from tokenizer import Tokenizer, SpacyModel
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from tokenizer import SpacyModel, Tokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
 class Space:
@@ -19,6 +19,7 @@ class NaiveSimilarity:
     Additionally, words like "maximum" and "minimum" tend to have similar
     classifications (though more synonymous words will be more similar)
     """
+
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
 
@@ -64,8 +65,9 @@ class SimilarityNouns(SimilarityFilter):
     Filters out all words which are not nouns or verbs from the sentence and computes the word-vector cosine similarity
      metric on the resulting sentence.
     """
+
     def __init__(self, tokenizer: Tokenizer):
-        super().__init__(tokenizer, lambda t: t.pos_ in {'NOUN', 'PROPN', "VERB"})
+        super().__init__(tokenizer, lambda t: t.pos_ in {"NOUN", "PROPN", "VERB"})
 
 
 class SimilarityBert:
@@ -75,6 +77,7 @@ class SimilarityBert:
     Is very effective at detecting dissimilar sentences, but underperforms when measuring if sentences
     are similar.
     """
+
     def __init__(self):
         # Takes a long time to load these models
         model_name = "bert-base-cased-finetuned-mrpc"
@@ -100,7 +103,7 @@ def similarity_metrics(sentence_pairs):
         ("naive", s_naive),
         ("nostop", s_nostop),
         ("nouns", s_nouns),
-        ("bert", s_bert)
+        ("bert", s_bert),
     ]
 
     for sent1, sent2 in sentence_pairs:
@@ -113,21 +116,30 @@ def similarity_metrics(sentence_pairs):
 
 
 # TODO: Expose this in a server API
-if __name__ == '__main__':
+if __name__ == "__main__":
     sentence_pairs = [
         # Tests similarity metrics on opposing words
         # BERT is more sensitive to this replacement
-        ("Returns the maximum of two `f32` values.", "Returns the minimum of two `f32` values."),
+        (
+            "Returns the maximum of two `f32` values.",
+            "Returns the minimum of two `f32` values.",
+        ),
         # Tests similarity metrics on deletion
         # BERT is quite sensitive to this compared to other models
-        ("Returns the minimum of two `f32` values.", "Returns the minimum of two values."),
+        (
+            "Returns the minimum of two `f32` values.",
+            "Returns the minimum of two values.",
+        ),
         # Tests sensitivity to tense (again, outsized effect with BERT)
         ("Delete the last element of self.", "Remove the last element of self."),
         ("Deletes the last element of self.", "Removes the last element of self."),
         # Tests similarity metrics on different sentence
         # In BERT, this is very dissimilar, but by default, quite similar
-        ("Delete the last element of self.", "Returns the maximum of two `f32` values."),
-        ("The last element of self.", "self the last element of.")
+        (
+            "Delete the last element of self.",
+            "Returns the maximum of two `f32` values.",
+        ),
+        ("The last element of self.", "self the last element of."),
     ]
 
     similarity_metrics(sentence_pairs)

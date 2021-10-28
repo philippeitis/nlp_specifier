@@ -1,24 +1,24 @@
 import io
+import logging
+import sys
 from collections import defaultdict
 from enum import Enum
+from io import BytesIO
 from pathlib import Path
 from typing import List, Union
-import logging
-from io import BytesIO
-import sys
 
+import msgpack
 import numpy as np
 import spacy
-from spacy.tokens import Doc, DocBin
 import unidecode
-import msgpack
+from spacy.tokens import Doc, DocBin
 
 try:
-    from ner import ner_and_srl
     from fix_tokens import fix_tokens
+    from ner import ner_and_srl
 except ModuleNotFoundError:
-    from .ner import ner_and_srl
     from .fix_tokens import fix_tokens
+    from .ner import ner_and_srl
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +32,9 @@ def is_quote(word: str) -> bool:
 class Sentence:
     def __init__(self, doc: Doc):
         self.doc = doc
-        self.metadata = tuple((token.tag_, token.text, token.lemma_) for token in self.doc)
+        self.metadata = tuple(
+            (token.tag_, token.text, token.lemma_) for token in self.doc
+        )
 
     def msgpack(self):
         data = BytesIO()
@@ -54,7 +56,7 @@ class Sentence:
                 vec = self.doc.vector.newbyteorder("little").tobytes()
             else:
                 vec = self.doc.vector.tobytes()
-            data.write(len(vec).to_bytes(2, byteorder='big'))
+            data.write(len(vec).to_bytes(2, byteorder="big"))
             data.write(vec)
 
         data.seek(0)
@@ -151,7 +153,9 @@ class Tokenizer:
         Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
         (all unique sentences in stdlib).
         """
-        sentence_dict = {i: self.token_cache.get(sentence) for i, sentence in enumerate(sentences)}
+        sentence_dict = {
+            i: self.token_cache.get(sentence) for i, sentence in enumerate(sentences)
+        }
 
         empty_inds = [i for i, val in sentence_dict.items() if val is None]
         empty_sents = [unidecode.unidecode(sentences[i]) for i in empty_inds]
@@ -178,14 +182,11 @@ class Tokenizer:
                 ent = {
                     "start": item["pos"],
                     "end": item["pos"] + len(item["text"]),
-                    "label": item["type"]
+                    "label": item["type"],
                 }
                 ents.append(ent)
 
-            spacy_ner = {
-                "text": sentence,
-                "ents": ents
-            }
+            spacy_ner = {"text": sentence, "ents": ents}
 
             spacy_srls = []
             for item in res["predicates"]:
@@ -200,18 +201,16 @@ class Tokenizer:
                     ent = {
                         "start": metadata["pos"],
                         "end": metadata["pos"] + len(metadata["text"]),
-                        "label": label
+                        "label": label,
                     }
                     ents.append(ent)
-                spacy_srl = {
-                    "text": sentence,
-                    "ents": ents
-                }
+                spacy_srl = {"text": sentence, "ents": ents}
                 spacy_srls.append(spacy_srl)
 
             self.entity_cache[sentence] = {"ner": spacy_ner, "srl": spacy_srls}
 
         return self.entity_cache[sentence]
+
 
 # confusing examples: log fns, trig fns, pow fns
 # TODO: Side effects:

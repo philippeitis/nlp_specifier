@@ -1,6 +1,6 @@
-from typing import List, Collection
-import re
 import itertools
+import re
+from typing import Collection, List
 
 try:
     from tokenizer import Tokenizer
@@ -44,7 +44,14 @@ def get_regex_for_tag(tag: str) -> str:
 class Word:
     EVAL_COST = 1e-3
 
-    def __init__(self, word: str, tag: str, allow_synonyms: bool, is_optional: bool, lemma: str = None):
+    def __init__(
+        self,
+        word: str,
+        tag: str,
+        allow_synonyms: bool,
+        is_optional: bool,
+        lemma: str = None,
+    ):
         self.allow_synonyms = allow_synonyms
         self.word = word
         self.tag = tag
@@ -56,7 +63,7 @@ class Word:
 
 
 class Phrase:
-    EVAL_COST = 1.
+    EVAL_COST = 1.0
 
     def __init__(self, phrase: List[Word], tokenizer: Tokenizer):
         self.tokenizer = tokenizer
@@ -99,7 +106,7 @@ class Phrase:
                     match_len = curr.count(" ") + 1
                     match_start = prev.count(" ")
 
-                    match_tokens = sent.doc[match_start: match_start + match_len]
+                    match_tokens = sent.doc[match_start : match_start + match_len]
                     word_iter = iter(match_tokens)
                     matches = True
                     for word in self.phrase:
@@ -148,5 +155,14 @@ def query_from_sentence(sentence, tokenizer: Tokenizer, *args, **kwargs) -> "Que
         else:
             is_describer = is_one_of(token.tag_, {"RB", "JJ"})
             phrases[-1].append(
-                Word(token.text, token.tag_, allow_synonyms=is_describer, is_optional=is_describer, lemma=token.lemma_))
-    return Query([Phrase(block, tokenizer) for block in phrases if block], *args, **kwargs)
+                Word(
+                    token.text,
+                    token.tag_,
+                    allow_synonyms=is_describer,
+                    is_optional=is_describer,
+                    lemma=token.lemma_,
+                )
+            )
+    return Query(
+        [Phrase(block, tokenizer) for block in phrases if block], *args, **kwargs
+    )

@@ -7,11 +7,11 @@
 from typing import Optional
 
 import spacy
+from spacy.lang.en import English
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
-from spacy.lang.en import English
 
-nlp = spacy.blank('en')
+nlp = spacy.blank("en")
 
 
 def matcher_with_rule(name, rule):
@@ -35,10 +35,8 @@ def lower(text: str):
     return {"LOWER": text}
 
 
-RET_LEMMA = {'LEMMA': {"IN": ["return", "compute"]}}
-IS_OBJ = {
-    "TAG": {"REGEX": "^((CODE)|(LIT)|(NN.*)|(STR)|(CHAR))$"}
-}
+RET_LEMMA = {"LEMMA": {"IN": ["return", "compute"]}}
+IS_OBJ = {"TAG": {"REGEX": "^((CODE)|(LIT)|(NN.*)|(STR)|(CHAR))$"}}
 ANY_TEXT = {"TEXT": {"REGEX": ".*"}}
 
 RET_RULES = [
@@ -53,15 +51,27 @@ RET_RULES = [
 ARITH = {
     "LOWER": {
         "IN": [
-            "add", "plus", "subtract", "sub", "divide", "div", "multiply", "mul", "remainder",
-            "rem", "added", "subtracted", "divided", "multiplied", "xor", "modulo",
+            "add",
+            "plus",
+            "subtract",
+            "sub",
+            "divide",
+            "div",
+            "multiply",
+            "mul",
+            "remainder",
+            "rem",
+            "added",
+            "subtracted",
+            "divided",
+            "multiplied",
+            "xor",
+            "modulo",
         ]
     }
 }
 
-ARITH_SIGN = {
-    "ORTH": {"IN": ["%", "+", "-", "/", "*"]}
-}
+ARITH_SIGN = {"ORTH": {"IN": ["%", "+", "-", "/", "*"]}}
 
 
 def ret_rule_to_matcher(rule):
@@ -77,9 +87,11 @@ def merge_bool_op(op):
     return [{"ORTH": c} for c in op]
 
 
-CODE_MATCHER = matcher_with_rule("CODE", [{'ORTH': "`"}, {'OP': '+'}, {'ORTH': "`"}])
-STR_MATCHER = matcher_with_rule("STR", [{'ORTH': "\""}, {'OP': '*'}, {'ORTH': "\""}])
-CHAR_MATCHER = matcher_with_rule("CHAR", [{'ORTH': "'"}, {"IS_ASCII": True, 'LENGTH': 1}, {'ORTH': "'"}])
+CODE_MATCHER = matcher_with_rule("CODE", [{"ORTH": "`"}, {"OP": "+"}, {"ORTH": "`"}])
+STR_MATCHER = matcher_with_rule("STR", [{"ORTH": '"'}, {"OP": "*"}, {"ORTH": '"'}])
+CHAR_MATCHER = matcher_with_rule(
+    "CHAR", [{"ORTH": "'"}, {"IS_ASCII": True, "LENGTH": 1}, {"ORTH": "'"}]
+)
 # SOME_MATCHER = matcher_with_rule("SOME", [{"TEXT": "Some"}, {'ORTH': "("}, {"OP": "+"}, {'ORTH': ")"}])
 # LIFETIME_MATCHER = matcher_with_rule("LIFETIME", [{"ORTH": "'"}, {"IS_ASCII": True}])
 # REF_MATCHER = matcher_with_rule("REF",
@@ -138,25 +150,71 @@ MERGE_MATCHERS = BOOL_OPS + [
     # ({"POS": "NOUN", "TAG": "CALL"}, FN_CALL)
 ]
 
-WORD_MATCHERS = [(idx, tag, matcher_with_rule(tag["tag_"], rule)) for idx, tag, rule in [
-    (0, {"tag_": "IF"}, [lemma("if")]),
-    (0, {"tag_": "FOR"}, [lemma("for"), tag("DT")]),
-    (1, {"tag_": "SHIFT"}, [IS_OBJ, lemma("shift"), tag("IN"), tag("DT"), tag("NN"), tag("IN"), IS_OBJ]),
-    (1, {"tag_": "SHIFT"}, [IS_OBJ, tag("VBZ"), lemma("shift"), tag("IN"), tag("DT"), tag("NN"), tag("IN"), IS_OBJ]),
-    (2, {"tag_": "SHIFT"}, [IS_OBJ, {"TAG": {"REGEX": "^JJ.*$"}}, lemma("shift"), IS_OBJ]),
-    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, IS_OBJ]),
-    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, tag("IN"), IS_OBJ]),
-    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, IS_OBJ]),
-    (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, tag("IN"), IS_OBJ]),
-    (0, {"tag_": "ENCODING"}, [{"TEXT": {"REGEX": "^(?i)UTF(_|-)?(8|16)$"}}]),
-    (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
-    (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)((i|u)(8|16|32|64|128|size))?$"}}]),
-    (0, {"tag_": "LIT"}, [{"TEXT": {"REGEX": r"^(-)?([\d_]+)(\.([\d_]*))?(e([-+]?)(\d*_))?(f32|f64)?$"}}]),
-    (0, {"tag_": "LIT"}, [{"LOWER": "nan"}]),
-    # Depends on model loaded - appears that TRF models handle this correctly (at 3x performance penalty)
-    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("IN"), IS_OBJ]),
-    (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("TO"), IS_OBJ]),
-]] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
+WORD_MATCHERS = [
+    (idx, tag, matcher_with_rule(tag["tag_"], rule))
+    for idx, tag, rule in [
+        (0, {"tag_": "IF"}, [lemma("if")]),
+        (0, {"tag_": "FOR"}, [lemma("for"), tag("DT")]),
+        (
+            1,
+            {"tag_": "SHIFT"},
+            [
+                IS_OBJ,
+                lemma("shift"),
+                tag("IN"),
+                tag("DT"),
+                tag("NN"),
+                tag("IN"),
+                IS_OBJ,
+            ],
+        ),
+        (
+            1,
+            {"tag_": "SHIFT"},
+            [
+                IS_OBJ,
+                tag("VBZ"),
+                lemma("shift"),
+                tag("IN"),
+                tag("DT"),
+                tag("NN"),
+                tag("IN"),
+                IS_OBJ,
+            ],
+        ),
+        (
+            2,
+            {"tag_": "SHIFT"},
+            [IS_OBJ, {"TAG": {"REGEX": "^JJ.*$"}}, lemma("shift"), IS_OBJ],
+        ),
+        (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, IS_OBJ]),
+        (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH, tag("IN"), IS_OBJ]),
+        (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, IS_OBJ]),
+        (1, {"tag_": "ARITH"}, [IS_OBJ, ARITH_SIGN, tag("IN"), IS_OBJ]),
+        (0, {"tag_": "ENCODING"}, [{"TEXT": {"REGEX": "^(?i)UTF(_|-)?(8|16)$"}}]),
+        (0, {"tag_": "LIT"}, [{"LOWER": {"IN": ["true", "false"]}}]),
+        (
+            0,
+            {"tag_": "LIT"},
+            [{"TEXT": {"REGEX": r"^(-)?([\d_]+)((i|u)(8|16|32|64|128|size))?$"}}],
+        ),
+        (
+            0,
+            {"tag_": "LIT"},
+            [
+                {
+                    "TEXT": {
+                        "REGEX": r"^(-)?([\d_]+)(\.([\d_]*))?(e([-+]?)(\d*_))?(f32|f64)?$"
+                    }
+                }
+            ],
+        ),
+        (0, {"tag_": "LIT"}, [{"LOWER": "nan"}]),
+        # Depends on model loaded - appears that TRF models handle this correctly (at 3x performance penalty)
+        (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("IN"), IS_OBJ]),
+        (0, {"tag_": "VBZ"}, [lemma("set"), IS_OBJ, tag("TO"), IS_OBJ]),
+    ]
+] + [ret_rule_to_matcher(rule) for rule in RET_RULES]
 
 
 def get_literal_tag(word: str) -> Optional[str]:
