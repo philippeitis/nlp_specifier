@@ -1,9 +1,21 @@
-To run cargo flamegraph:
+## Formatting
+###Python
+```console
+pip install black isort
+black target
+isort target
+```
+###Rust
+```console
+cargo fix && cargo fmt
+```
 
+## Optimization Notes
+- Using msgpack to minimize message size and overhead
+- phf (Rust) has no measurable impact on turning strings into terminals
+
+### Rust
 ```console
 sudo sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
 cargo flamegraph --bin x -- args
 ```
-
-Notes:
-- phf does not appear to influence the performance of matching terminals to symbols
