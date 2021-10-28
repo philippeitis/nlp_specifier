@@ -43,9 +43,15 @@ def tokenize():
     model = form_data["model"]
     start = time.time()
     tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
+    end = time.time()
+    elapsed = end - start
+    print(f"Opening model took {elapsed}s")
+    start = time.time()
     sentences = tokenizer.stokenize(form_data["sentences"])
     end = time.time()
-    print(end - start)
+    elapsed = end - start
+    print(f"Tokenization took {elapsed}s")
+
     start = time.time()
 
     response = BytesIO()
@@ -55,12 +61,19 @@ def tokenize():
     write_array_len(response, len(sentences))
 
     for sentence in sentences:
-        response.write(sentence.msgpack())
+        response.write(sentence.msgpack)
     response.seek(0)
     end = time.time()
-    print(end - start)
+    elapsed = end - start
+    print(f"Serialization took {elapsed}s")
 
     return send_file(response, mimetype="application/msgpack"), 200
+
+
+@app.route('/persist_cache', methods=['POST'])
+def persist_cache():
+    for model in Tokenizer.TOKEN_CACHE.keys():
+        Tokenizer(model).write_data(f"./cache/{model}.spacy")
 
 
 if __name__ == "__main__":

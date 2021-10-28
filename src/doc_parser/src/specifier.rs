@@ -214,18 +214,22 @@ impl ServerTokenizer {
                 "sentences": to_parse,
             });
             let end = std::time::Instant::now();
-            println!("{}", (end - start).as_secs_f32());
+            println!(
+                "RSBIND generating json took {}s",
+                (end - start).as_secs_f32()
+            );
             let start = std::time::Instant::now();
 
             let bytes = client
-                .get(&self.url)
+                .get(&format!("{}/tokenize", self.url))
                 .json(&request_json)
                 .send()
                 .unwrap()
                 .bytes()
                 .unwrap();
             let end = std::time::Instant::now();
-            println!("{}", (end - start).as_secs_f32());
+            println!("RSBIND request took {}s", (end - start).as_secs_f32());
+
             let mut cache = self.cache.borrow_mut();
             let mut bytes = std::io::Cursor::new(bytes);
             let _map_len = rmp::decode::read_map_len(&mut bytes).unwrap();
@@ -285,6 +289,12 @@ impl ServerTokenizer {
             .into_iter()
             .map(|(sent, res)| res.unwrap_or_else(|| cache.get(sent).unwrap().clone()))
             .collect())
+    }
+
+    pub fn persist_cache(&self) {
+        use reqwest::blocking::Client;
+        let client = Client::new();
+        let _ = client.post(&format!("{}/persist_cache", self.url)).send();
     }
 }
 

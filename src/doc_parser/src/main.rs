@@ -387,23 +387,30 @@ fn drag_race(options: &ModelOptions) {
         let start = std::time::Instant::now();
         let tokenizer = Tokenizer::from_cache(py, &options.cache, options.model);
         let end = std::time::Instant::now();
-        println!("{}", (end - start).as_secs_f32());
+        println!(
+            "PYBIND Opening tokenizer took {}s",
+            (end - start).as_secs_f32()
+        );
         let start = std::time::Instant::now();
-        let sents = tokenizer.tokenize_sents(&sentences);
+        let sents = tokenizer.tokenize_sents(&sentences)?;
         let end = std::time::Instant::now();
-        println!("{}", (end - start).as_secs_f32());
-        sents
+        println!(
+            "PYBIND Parsing sentences took {}s",
+            (end - start).as_secs_f32()
+        );
+        tokenizer.write_data(&options.cache)?;
+        Ok(sents)
     })
     .unwrap();
 
     let start = std::time::Instant::now();
-    let sents2 = ServerTokenizer::new("http://0.0.0.0:5000/tokenize".to_string(), options.model)
+    let sents2 = ServerTokenizer::new("http://0.0.0.0:5000".to_string(), options.model)
         .tokenize_sents(&sentences)
         .unwrap();
 
     let end = std::time::Instant::now();
-    println!("{}", (end - start).as_secs_f32());
-    println!("{}", sents2.len());
+    println!("RSBIND Tokenization took {}", (end - start).as_secs_f32());
+    println!("Number of sentences: {}", sents2.len());
     assert!(sents1 == sents2);
 }
 

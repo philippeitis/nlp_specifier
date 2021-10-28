@@ -3,6 +3,7 @@ import logging
 import sys
 from collections import defaultdict
 from enum import Enum
+from functools import cached_property
 from io import BytesIO
 from pathlib import Path
 from typing import List, Union
@@ -32,10 +33,14 @@ def is_quote(word: str) -> bool:
 class Sentence:
     def __init__(self, doc: Doc):
         self.doc = doc
-        self.metadata = tuple(
+
+    @cached_property
+    def metadata(self):
+        return tuple(
             (token.tag_, token.text, token.lemma_) for token in self.doc
         )
 
+    @cached_property
     def msgpack(self):
         data = BytesIO()
 
@@ -47,6 +52,9 @@ class Sentence:
         msgpack.pack(values, data)
 
         if self.doc.has_vector:
+            if not isinstance(self.doc.vector, np.ndarray):
+                self.doc._vector = self.doc.vector.get()
+
             data.seek(0)
             data.write(b"\x83")
             data.seek(0, io.SEEK_END)
@@ -97,6 +105,7 @@ class Tokenizer:
     @classmethod
     def from_cache(cls, path: Union[Path, str], model: SpacyModel = SpacyModel.EN_LG):
         if path in cls.CACHE_LOADED[model]:
+            LOGGER.info(f"Path {path} already cached.")
             return Tokenizer(model)
 
         tagger = cls.load_tagger(model)
@@ -112,7 +121,7 @@ class Tokenizer:
                     doc._vector = np.array(doc._.doc_vec)
 
             cls.TOKEN_CACHE[model].update(docs)
-            cls.CACHE_LOADED[model].update(path)
+            cls.CACHE_LOADED[model].add(path)
         except FileNotFoundError:
             pass
 
