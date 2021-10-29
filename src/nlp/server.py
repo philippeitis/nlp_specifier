@@ -128,7 +128,12 @@ class Models(BaseModel):
 
 
 @app.get("/models", response_model=Models)
-async def models(lang: str = "en", has_vec: bool = True):
+async def models(
+    has_vec: Optional[bool] = Query(
+        None, description="Filter for models which have word vectors"
+    ),
+    lang: str = "en",
+):
     import requests
     from spacy import about
     from spacy.cli.validate import reformat_version
@@ -175,7 +180,7 @@ async def models(lang: str = "en", has_vec: bool = True):
         if data["meta"].get("lang") == lang and data["compat"]:
             components = data["meta"].get("components")
             model_has_vec = components and "tok2vec" in components
-            if model_has_vec == has_vec:
+            if has_vec is None or model_has_vec == has_vec:
                 matches.append(name)
 
     return Models(models=matches)
