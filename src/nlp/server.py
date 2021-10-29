@@ -7,7 +7,7 @@ from typing import List, Optional
 
 import spacy
 import uvicorn
-from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, StreamingResponse
 from tokenizer import SpacyModel, Tokenizer
