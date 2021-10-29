@@ -1,3 +1,6 @@
+import time
+from contextlib import contextmanager
+from http import HTTPStatus
 from io import BytesIO
 
 import flask
@@ -32,61 +35,63 @@ def write_array_len(data: BytesIO, arr_len):
         data.write(arr_len.to_bytes(4, byteorder="big"))
 
 
+@contextmanager
+def timer(fstring):
+    start = time.time()
+    yield
+    end = time.time()
+    elapsed = end - start
+    app.logger.info(fstring.format(elapsed=elapsed))
+
+
 @app.route("/tokenize", methods=["GET"])
 def tokenize():
-    import time
-
     form_data = request.get_json()
     errors = TokenizerGet().validate(form_data)
     if errors:
         print(errors)
-        return msgpack.packb({"error": "malformed input"}), 400
+        return msgpack.packb({"error": "malformed input"}), HTTPStatus.BAD_REQUEST
 
     model = form_data["model"]
-    start = time.time()
-    tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
-    end = time.time()
-    elapsed = end - start
-    app.logger.info(f"Opening model took {elapsed}s")
-    start = time.time()
-    sentences = tokenizer.stokenize(form_data["sentences"])
-    end = time.time()
-    elapsed = end - start
-    app.logger.info(f"Tokenization took {elapsed}s")
 
-    start = time.time()
+    with timer("Opening model took {elapsed:.5f}s"):
+        tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
 
-    response = BytesIO()
-    response.write(b"\x81")
-    response.write((0x5 << 5 | len("sentences")).to_bytes(1, byteorder="big"))
-    response.write(b"sentences")
-    write_array_len(response, len(sentences))
+    with timer("Tokenization took {elapsed:.5f}s"):
+        sentences = tokenizer.stokenize(form_data["sentences"])
 
-    for sentence in sentences:
-        response.write(sentence.msgpack)
-    response.seek(0)
-    end = time.time()
-    elapsed = end - start
-    app.logger.info(f"Serialization took {elapsed}s")
+    with timer("Serialization took {elapsed:.5f}s"):
+        response = BytesIO()
+        response.write(b"\x81")
+        response.write((0x5 << 5 | len("sentences")).to_bytes(1, byteorder="big"))
+        response.write(b"sentences")
+        write_array_len(response, len(sentences))
 
-    return send_file(response, mimetype="application/msgpack"), 200
+        for sentence in sentences:
+            response.write(sentence.msgpack)
+        response.seek(0)
+
+    return send_file(response, mimetype="application/msgpack"), HTTPStatus.OK
 
 
 @app.route("/persist_cache", methods=["POST"])
 def persist_cache():
     for model in Tokenizer.TOKEN_CACHE.keys():
         Tokenizer(model).write_data(f"./cache/{model}.spacy")
-    return "ok", 200
+    return "", HTTPStatus.NO_CONTENT
 
 
 @app.route("/explain", methods=["GET"])
 def explain():
     target = request.args.get("q")
     if target is None:
-        return flask.jsonify({"error": "no value for 'q' specified"}), 413
+        return (
+            flask.jsonify({"error": "no value for 'q' specified"}),
+            HTTPStatus.BAD_REQUEST,
+        )
     return (
         flask.jsonify({"explanation": spacy.explain(target)}),
-        200,
+        HTTPStatus.OK,
     )
 
 
