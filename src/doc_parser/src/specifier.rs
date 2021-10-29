@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::rc::Rc;
 
+use reqwest::blocking::Client;
 use reqwest::Url;
 use syn::visit_mut::VisitMut;
 use syn::{parse_file, Attribute, File, ImplItemMethod, ItemFn};
@@ -185,8 +186,6 @@ impl Tokenizer {
     }
 
     pub fn tokenize_sents(&self, sents: &[String]) -> Result<Vec<Rc<Sentence>>, ()> {
-        use reqwest::blocking::Client;
-
         fn read_string<R: Read>(reader: &mut R) -> String {
             let str_len = rmp::decode::read_str_len(reader).unwrap();
             let mut buf = vec![0; str_len as usize];
@@ -216,7 +215,7 @@ impl Tokenizer {
             });
 
             let bytes = client
-                .get(&format!("{}/tokenize", self.url))
+                .get(self.url.join("/tokenize").unwrap())
                 .json(&request_json)
                 .send()
                 .unwrap()
@@ -285,21 +284,27 @@ impl Tokenizer {
     }
 
     pub fn persist_cache(&self) {
-        use reqwest::blocking::Client;
         let client = Client::new();
-        let _ = client.post(&format!("{}/persist_cache", self.url)).send();
+        let _ = client.post(self.url.join("/persist_cache").unwrap()).send();
     }
 
     pub fn explain(&self, s: &str) -> Option<String> {
-        use reqwest::blocking::Client;
+        use serde::Deserialize;
+        #[derive(Deserialize)]
+        struct Explanation {
+            explanation: Option<String>,
+        }
+
         let client = Client::new();
-        let body = s.to_string();
+
         let response = client
-            .post(&format!("{}/explain", self.url))
-            .body(body)
+            .post(self.url.join("/explain").unwrap())
+            .body(s.to_string())
             .send()
             .ok()?;
-        response.text().ok()
+
+        let json = response.json::<Explanation>().ok()?;
+        json.explanation
     }
 }
 

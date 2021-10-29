@@ -78,9 +78,14 @@ def persist_cache():
     return "ok", 200
 
 
-@app.route('/explain', methods=['POST'])
+@app.route("/explain", methods=["POST"])
 def explain():
-    return spacy.explain(request.query_string) or "", 200
+    if request.content_length > 12:
+        return flask.jsonify({"error": "message too long"}), 413
+    return (
+        flask.jsonify({"explanation": spacy.explain(request.get_data(as_text=True))}),
+        200,
+    )
 
 
 if __name__ == "__main__":

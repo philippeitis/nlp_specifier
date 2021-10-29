@@ -418,6 +418,8 @@ fn repl(options: &ModelOptions) {
             if let Some((_, keyword)) = sent.split_once(' ') {
                 if let Some(explanation) = tokenizer.explain(keyword) {
                     println!("{}", explanation);
+                } else {
+                    println!("No explanation was found for {}", keyword);
                 }
             }
             continue;
