@@ -73,14 +73,6 @@ def tokenize(request: TokenizeIn):
     return StreamingResponse(response, media_type="application/msgpack")
 
 
-@app.post("/persist_cache", responses={int(HTTPStatus.NO_CONTENT): {}})
-def persist_cache():
-    with timer("Persisting cache took {elapsed:.5f}s"):
-        for model in Tokenizer.TOKEN_CACHE.keys():
-            Tokenizer(model).write_data(f"./cache/{model}.spacy")
-    return Response(status_code=HTTPStatus.NO_CONTENT)
-
-
 class Explain(BaseModel):
     explanation: str
 
@@ -88,6 +80,13 @@ class Explain(BaseModel):
 @app.get("/explain", response_model=Explain)
 def explain(q: str):
     return {"explanation": spacy.explain(q)}
+
+
+@app.on_event("shutdown")
+def shutdown():
+    with timer("Persisting cache took {elapsed:.5f}s"):
+        for model in Tokenizer.TOKEN_CACHE.keys():
+            Tokenizer(model).write_data(f"./cache/{model}.spacy")
 
 
 if __name__ == "__main__":

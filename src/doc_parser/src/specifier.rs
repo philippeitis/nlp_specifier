@@ -283,11 +283,6 @@ impl Tokenizer {
             .collect())
     }
 
-    pub fn persist_cache(&self) {
-        let client = Client::new();
-        let _ = client.post(self.url.join("/persist_cache").unwrap()).send();
-    }
-
     pub fn explain(&self, s: &str) -> Option<String> {
         use serde::Deserialize;
         #[derive(Deserialize)]

@@ -260,8 +260,6 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
         (end - start).as_secs_f32()
     );
 
-    tokenizer.persist_cache();
-
     let mut ntrees = 0;
     let mut nspecs = 0;
     let mut successful_sents = 0;
