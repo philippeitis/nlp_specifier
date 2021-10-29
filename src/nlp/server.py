@@ -3,7 +3,7 @@ import time
 from contextlib import contextmanager
 from http import HTTPStatus
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 
 import spacy
 import uvicorn
@@ -74,12 +74,12 @@ def tokenize(request: TokenizeIn):
 
 
 class Explain(BaseModel):
-    explanation: str
+    explanation: Optional[str]
 
 
 @app.get("/explain", response_model=Explain)
-def explain(q: str):
-    return {"explanation": spacy.explain(q)}
+async def explain(q: str):
+    return Explain(explanation=spacy.explain(q))
 
 
 @app.on_event("shutdown")
