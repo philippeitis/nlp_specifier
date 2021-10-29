@@ -1,0 +1,9 @@
+version: "3.3"
+services:
+  specifier_nlp:
+    image: specifier_nlp:latest
+    build:
+      context: .
+      dockerfile: dev.dockerfile
+    ports:
+      - "5000:80"
