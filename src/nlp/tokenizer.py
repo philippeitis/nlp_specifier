@@ -67,6 +67,22 @@ class Sentence:
 
         return data.getbuffer()
 
+    @cached_property
+    def json(self):
+        values = {
+            "text": self.doc.text,
+            "tokens": [
+                {"tag": t[0], "text": t[1], "lemma": t[2]} for t in self.metadata
+            ],
+        }
+
+        if self.doc.has_vector:
+            if not isinstance(self.doc.vector, np.ndarray):
+                self.doc._vector = self.doc.vector.get()
+            values["vector"] = [float(x) for x in self.doc.vector]
+
+        return values
+
 
 class SpacyModel(str, Enum):
     EN_SM = "en_core_web_sm"
