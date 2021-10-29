@@ -38,7 +38,7 @@ def timer(fstring):
 
 
 class TokenizeIn(BaseModel):
-    model: SpacyModel
+    model: SpacyModel = SpacyModel.EN_SM
     sentences: List[str]
 
 
@@ -121,6 +121,64 @@ class Explain(BaseModel):
 @app.get("/explain", response_model=Explain)
 async def explain(q: str):
     return Explain(explanation=spacy.explain(q))
+
+
+class Models(BaseModel):
+    models: List[SpacyModel]
+
+
+@app.get("/models", response_model=Models)
+async def models(lang: str = "en", has_vec: bool = True):
+    import requests
+    from spacy import about
+    from spacy.cli.validate import reformat_version
+    from spacy.util import (get_installed_models, get_model_meta,
+                            get_package_path, get_package_version,
+                            is_compatible_version)
+
+    r = requests.get(about.__compatibility__)
+
+    if r.status_code != 200:
+        return Response("", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    compat = r.json()["spacy"]
+    all_models = set()
+    installed_models = get_installed_models()
+    for spacy_v, models in dict(compat).items():
+        all_models.update(models.keys())
+        for model, model_vs in models.items():
+            compat[spacy_v][model] = [reformat_version(v) for v in model_vs]
+    pkgs = {}
+
+    for pkg_name in installed_models:
+        package = pkg_name.replace("-", "_")
+        version = get_package_version(pkg_name)
+        if package in compat:
+            is_compat = version in compat[package]
+            spacy_version = about.__version__
+            model_meta = {}
+        else:
+            model_path = get_package_path(package)
+            model_meta = get_model_meta(model_path)
+            spacy_version = model_meta.get("spacy_version", "n/a")
+            is_compat = is_compatible_version(about.__version__, spacy_version)  # type: ignore[assignment]
+        pkgs[pkg_name] = {
+            "name": package,
+            "version": version,
+            "spacy": spacy_version,
+            "compat": is_compat,
+            "meta": model_meta,
+        }
+
+    matches = []
+    for name, data in pkgs.items():
+        if data["meta"].get("lang") == lang and data["compat"]:
+            components = data["meta"].get("components")
+            model_has_vec = components and "tok2vec" in components
+            if model_has_vec == has_vec:
+                matches.append(name)
+
+    return Models(models=matches)
 
 
 @app.on_event("shutdown")
