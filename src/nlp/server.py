@@ -1,27 +1,19 @@
+import logging
 import time
 from contextlib import contextmanager
 from http import HTTPStatus
 from io import BytesIO
+from typing import List
 
-import flask
-import msgpack
 import spacy
-from flask import request, send_file
-from marshmallow import Schema, fields
-from tokenizer import Tokenizer
+import uvicorn
+from fastapi import FastAPI, Response
+from pydantic import BaseModel
+from starlette.responses import StreamingResponse
+from tokenizer import SpacyModel, Tokenizer
 
-app = flask.Flask(__name__)
-app.config["DEBUG"] = True
-
-
-class TokenizerGet(Schema):
-    model = fields.Str()
-    sentences = fields.List(fields.String())
-
-
-@app.route("/", methods=["GET"])
-def main():
-    return ""
+logger = logging.getLogger(__name__)
+app = FastAPI(debug=True)
 
 
 def write_array_len(data: BytesIO, arr_len):
@@ -41,24 +33,31 @@ def timer(fstring):
     yield
     end = time.time()
     elapsed = end - start
-    app.logger.info(fstring.format(elapsed=elapsed))
+    logger.info(fstring.format(elapsed=elapsed))
 
 
-@app.route("/tokenize", methods=["GET"])
-def tokenize():
-    form_data = request.get_json()
-    errors = TokenizerGet().validate(form_data)
-    if errors:
-        print(errors)
-        return msgpack.packb({"error": "malformed input"}), HTTPStatus.BAD_REQUEST
+TOKENIZE_OUT = {
+    int(HTTPStatus.OK): {
+        "description": "Tokens, tags, lemmas, and vector corresponding to input sentences",
+        "content": {"application/msgpack": {}},
+    }
+}
 
-    model = form_data["model"]
 
+class TokenizeIn(BaseModel):
+    model: SpacyModel
+    sentences: List[str]
+
+
+@app.get("/tokenize", responses=TOKENIZE_OUT, response_class=Response)
+def tokenize(request: TokenizeIn):
+    model = request.model
+    sentences = request.sentences
     with timer("Opening model took {elapsed:.5f}s"):
         tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
 
     with timer("Tokenization took {elapsed:.5f}s"):
-        sentences = tokenizer.stokenize(form_data["sentences"])
+        sentences = tokenizer.stokenize(sentences)
 
     with timer("Serialization took {elapsed:.5f}s"):
         response = BytesIO()
@@ -71,29 +70,25 @@ def tokenize():
             response.write(sentence.msgpack)
         response.seek(0)
 
-    return send_file(response, mimetype="application/msgpack"), HTTPStatus.OK
+    return StreamingResponse(response, media_type="application/msgpack")
 
 
-@app.route("/persist_cache", methods=["POST"])
+@app.post("/persist_cache", responses={int(HTTPStatus.NO_CONTENT): {}})
 def persist_cache():
-    for model in Tokenizer.TOKEN_CACHE.keys():
-        Tokenizer(model).write_data(f"./cache/{model}.spacy")
-    return "", HTTPStatus.NO_CONTENT
+    with timer("Persisting cache took {elapsed:.5f}s"):
+        for model in Tokenizer.TOKEN_CACHE.keys():
+            Tokenizer(model).write_data(f"./cache/{model}.spacy")
+    return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
-@app.route("/explain", methods=["GET"])
-def explain():
-    target = request.args.get("q")
-    if target is None:
-        return (
-            flask.jsonify({"error": "no value for 'q' specified"}),
-            HTTPStatus.BAD_REQUEST,
-        )
-    return (
-        flask.jsonify({"explanation": spacy.explain(target)}),
-        HTTPStatus.OK,
-    )
+class Explain(BaseModel):
+    explanation: str
+
+
+@app.get("/explain", response_model=Explain)
+def explain(q: str):
+    return {"explanation": spacy.explain(q)}
 
 
 if __name__ == "__main__":
-    app.run()
+    uvicorn.run(app, host="0.0.0.0", port=5000)
