@@ -6,7 +6,7 @@ from enum import Enum
 from functools import cached_property
 from io import BytesIO
 from pathlib import Path
-from typing import List, Union, Iterable
+from typing import Dict, Iterable, List, Union
 
 import msgpack
 import numpy as np
@@ -36,9 +36,7 @@ class Sentence:
 
     @cached_property
     def metadata(self):
-        return tuple(
-            (token.tag_, token.text, token.lemma_) for token in self.doc
-        )
+        return tuple((token.tag_, token.text, token.lemma_) for token in self.doc)
 
     @cached_property
     def msgpack(self):
@@ -81,7 +79,7 @@ class SpacyModel(str, Enum):
 
 
 class Tokenizer:
-    TOKEN_CACHE = defaultdict(dict)
+    TOKEN_CACHE: Dict[SpacyModel, Dict[str, Sentence]] = defaultdict(dict)
     ENTITY_CACHE = defaultdict(dict)
     TAGGER_CACHE = {}
     CACHE_LOADED = defaultdict(set)
@@ -175,7 +173,8 @@ class Tokenizer:
         for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
             sent = sentences[i]
             tokenized._.raw_text = sent
-            self.token_cache[sent] = Sentence(tokenized)
+            tokenized = Sentence(tokenized)
+            self.token_cache[sent] = tokenized
             sentence_dict[i] = tokenized
 
         return sentence_dict.values()

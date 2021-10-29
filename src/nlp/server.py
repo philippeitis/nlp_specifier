@@ -71,7 +71,7 @@ def tokenize():
     return send_file(response, mimetype="application/msgpack"), 200
 
 
-@app.route('/persist_cache', methods=['POST'])
+@app.route("/persist_cache", methods=["POST"])
 def persist_cache():
     for model in Tokenizer.TOKEN_CACHE.keys():
         Tokenizer(model).write_data(f"./cache/{model}.spacy")
