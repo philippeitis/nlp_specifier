@@ -298,8 +298,8 @@ impl Tokenizer {
         let client = Client::new();
 
         let response = client
-            .post(self.url.join("/explain").unwrap())
-            .body(s.to_string())
+            .get(self.url.join("/explain").unwrap())
+            .query(&[("q", s.to_string())])
             .send()
             .ok()?;
 

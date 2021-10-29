@@ -35,6 +35,7 @@ def write_array_len(data: BytesIO, arr_len):
 @app.route("/tokenize", methods=["GET"])
 def tokenize():
     import time
+
     form_data = request.get_json()
     errors = TokenizerGet().validate(form_data)
     if errors:
@@ -78,12 +79,13 @@ def persist_cache():
     return "ok", 200
 
 
-@app.route("/explain", methods=["POST"])
+@app.route("/explain", methods=["GET"])
 def explain():
-    if request.content_length > 12:
-        return flask.jsonify({"error": "message too long"}), 413
+    target = request.args.get("q")
+    if target is None:
+        return flask.jsonify({"error": "no value for 'q' specified"}), 413
     return (
-        flask.jsonify({"explanation": spacy.explain(request.get_data(as_text=True))}),
+        flask.jsonify({"explanation": spacy.explain(target)}),
         200,
     )
 
