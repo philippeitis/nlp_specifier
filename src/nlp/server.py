@@ -226,4 +226,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.WARNING)
     uvilog = logging.getLogger("uvicorn")
     uvilog.propagate = False
-    uvicorn.run(app, host="0.0.0.0", port=80, log_level=logging.INFO)
+    uvicorn.run(app, host="0.0.0.0", port=5000, log_level=logging.INFO)

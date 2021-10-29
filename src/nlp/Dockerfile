@@ -12,5 +12,4 @@ RUN pip install -r /requirements.txt
 
 COPY ./*.py /app/
 
-ENV PYTHONUNBUFFERED=1
-CMD ["python", "-u", "./app/server.py"]
+CMD ["python", "./app/server.py"]
