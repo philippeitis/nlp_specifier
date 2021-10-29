@@ -4,7 +4,7 @@ services:
     image: specifier_nlp:latest
     build:
       context: .
-      dockerfile: dev.dockerfile
+      dockerfile: Dockerfile
     volumes:
       - "nlp_specifier_cache:/server/cache/"
     network_mode: "host"

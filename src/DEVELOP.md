@@ -1,3 +1,14 @@
+## Launching Server
+### Python
+```console
+python ./nlp/server.py
+```
+### Docker
+```console
+cd ./nlp
+sudo docker-compose up --build
+```
+
 ## Formatting
 ###Python
 ```console
@@ -5,6 +16,7 @@ pip install black isort
 black target
 isort target
 ```
+
 ###Rust
 ```console
 cargo fix && cargo fmt
