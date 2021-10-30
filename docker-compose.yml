@@ -1,5 +1,20 @@
 version: "3.9"
 services:
+  frontend:
+    image: webui:latest
+    env_file:
+      - nlp.env
+    build:
+      context: ./src/webui/
+      dockerfile: Dockerfile
+    ports:
+      - "${UI_SERVICE_PORT}:${UI_SERVICE_PORT}"
+    environment:
+      NLP_SERVICE_URL: "http://specifier_nlp:${CORE_SERVICE_PORT}"
+    networks:
+      - inner
+    depends_on:
+      - specifier_nlp
   specifier_nlp:
     image: specifier_nlp:latest
     env_file:
