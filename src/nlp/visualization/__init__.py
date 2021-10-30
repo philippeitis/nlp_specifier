@@ -34,7 +34,7 @@ def render_pos(sentence: str, retokenize: Optional[bool] = True):
     if retokenize:
         sent = tokenizer.tokenize(sentence)
     else:
-        sent = Sentence(tokenizer.tagger(sentence))
+        sent = Sentence(tokenizer.tagger(sentence, disable="doc_tokens"))
 
     tags_as_ents(sent.doc)
     colors = {tag: tag_color(tag) for tag, _, _ in sent.metadata}
@@ -53,7 +53,7 @@ def render_dep_graph(sentence: str, retokenize: Optional[bool] = True):
     if retokenize:
         sent = tokenizer.tokenize(sentence)
     else:
-        sent = Sentence(tokenizer.tagger(sentence))
+        sent = Sentence(tokenizer.tagger(sentence, disable="doc_tokens"))
 
     tags_as_ents(sent.doc)
     colors = {tag: tag_color(tag.tag_) for tag in sent.doc}
