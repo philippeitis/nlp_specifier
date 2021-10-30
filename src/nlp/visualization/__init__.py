@@ -17,6 +17,9 @@ class Entity(str, Enum):
     NER = "ner"
     SRL = "srl"
 
+    def __str__(self):
+        return self.value
+
 
 def tags_as_ents(doc: Doc):
     spans = []
@@ -73,9 +76,9 @@ def render_entities(sentence: str, entity_type: Entity):
     entity_type = entity_type.lower()
 
     if entity_type == "ner":
-        entities = sent[entity_type.value]
+        entities = sent[str(entity_type)]
     else:
-        entities = sent[entity_type.value][0]
+        entities = sent[str(entity_type)][0]
 
     return displacy.render(
         entities,

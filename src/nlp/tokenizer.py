@@ -235,6 +235,9 @@ class Tokenizer:
                 spacy_srl = {"text": sentence, "ents": ents}
                 spacy_srls.append(spacy_srl)
 
+            if not spacy_srls:
+                spacy_srls.append({"text": sentence, "ents": []})
+
             self.entity_cache[sentence] = {"ner": spacy_ner, "srl": spacy_srls}
 
         return self.entity_cache[sentence]

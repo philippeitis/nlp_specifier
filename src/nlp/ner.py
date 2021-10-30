@@ -1,10 +1,11 @@
 import json
+from os import getenv
 
 import requests
 import unidecode
 
-SRL_URL = "http://127.0.0.8:701/srl"
-NER_URL = "http://127.0.0.8:702/ner"
+SRL_URL = getenv("SRL_SERVICE_URL", "http://127.0.0.8:701/srl")
+NER_URL = getenv("NER_SERVICE_URL", "http://127.0.0.8:702/ner")
 
 
 class NLPError(ValueError):

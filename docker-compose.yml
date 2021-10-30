@@ -1,0 +1,80 @@
+version: "3.9"
+services:
+  specifier_nlp:
+    image: specifier_nlp:latest
+    env_file:
+      - nlp.env
+    build:
+      context: ./src/nlp/
+      dockerfile: Dockerfile
+    ports:
+      - "${CORE_SERVICE_PORT}:${CORE_SERVICE_PORT}"
+    volumes:
+      - "nlp_specifier_cache:/server/cache/"
+    networks:
+      - inner
+    depends_on:
+      - ner
+      - srl
+    environment:
+      SRL_SERVICE_URL: "http://srl:80/srl"
+      NER_SERVICE_URL: "http://ner:80/ner"
+  ner:
+    image: ner:latest
+    env_file:
+      - nlp.env
+    build:
+      context: ./jml_nlp/ner_tool
+      dockerfile: ner.dockerfile
+      args:
+        - PUID=2000
+        - GUID=2000
+        - THREADS=4
+    depends_on:
+      - lima
+    environment:
+      SERVICE_PORT: ${SERVICE_PORT}
+      PKM_PORT: ${PKM_PORT}
+      PKM_USER: ${PKM_USER}
+      PKM_PASSWORD: ${PKM_PASSWORD}
+    networks:
+      - limanet
+      - inner
+  lima:
+    image: lima:latest
+    env_file:
+      - nlp.env
+    build:
+      context: ./jml_nlp/ner_tool
+      dockerfile: lima.dockerfile
+      args:
+        - LIMAPUID=2001
+        - LIMAGUID=2001
+    networks:
+      - limanet
+  srl:
+    image: srl:latest
+    build:
+      context: ./jml_nlp/srl_tool
+      dockerfile: dev.dockerfile
+      args:
+        - PUID=2020
+        - GUID=2020
+        - THREADS=4
+    environment:
+      SERVICE_NAME: "srl"
+      SERVICE_PORT: ${SERVICE_PORT}
+      PKM_PORT: ${PKM_PORT}
+      PKM_USER: ${PKM_USER}
+      PKM_PASSWORD: ${PKM_PASSWORD}
+      PKM_CERT: ${PKM_CERT}
+    networks:
+      - inner
+networks:
+  inner:
+    name: "inner"
+  limanet:
+    driver: bridge
+volumes:
+    nlp_specifier_cache:
+        external: false

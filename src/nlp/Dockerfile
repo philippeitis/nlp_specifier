@@ -13,5 +13,5 @@ RUN pip install -r /requirements.txt
 COPY ./*.py /app/
 COPY ./visualization /app/visualization
 
-ENV SERVER_PORT = 5000
-CMD python -m app launch -p $SERVER_PORT
+ENV CORE_SERVICE_PORT = 5000
+CMD python -m app launch -p $CORE_SERVICE_PORT
