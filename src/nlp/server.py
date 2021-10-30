@@ -3,8 +3,8 @@ import time
 from contextlib import contextmanager
 from http import HTTPStatus
 from io import BytesIO
-from typing import List, Optional
 from os import getenv
+from typing import List, Optional
 
 import spacy
 from fastapi import FastAPI, Header, HTTPException, Query, Response
@@ -141,13 +141,9 @@ async def models(
     import requests
     from spacy import about
     from spacy.cli.validate import reformat_version
-    from spacy.util import (
-        get_installed_models,
-        get_model_meta,
-        get_package_path,
-        get_package_version,
-        is_compatible_version,
-    )
+    from spacy.util import (get_installed_models, get_model_meta,
+                            get_package_path, get_package_version,
+                            is_compatible_version)
 
     r = requests.get(about.__compatibility__)
 
