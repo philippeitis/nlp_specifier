@@ -1,6 +1,7 @@
 import torch
-from tokenizer import SpacyModel, Tokenizer
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+from tokenizer import SpacyModel, Tokenizer
 
 
 class Space:

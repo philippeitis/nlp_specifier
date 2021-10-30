@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from spacy import displacy
 from spacy.tokens import Doc
+
 from tokenizer import Sentence, Tokenizer
 
 from .palette import ENTITY_COLORS, tag_color

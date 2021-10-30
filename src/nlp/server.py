@@ -9,7 +9,8 @@ from typing import List, Optional
 import spacy
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse
+
 from tokenizer import SpacyModel, Tokenizer
 from visualization import router
 
@@ -17,7 +18,7 @@ REF_TEMPLATE = "#/components/schemas/{model}"
 logger = logging.getLogger("specifiernlp")
 logger.setLevel(logging.INFO)
 
-app = FastAPI(debug=getenv("DEBUG_SERVER", True))
+app = FastAPI(docs_url=None, redoc_url=None, debug=getenv("DEBUG_SERVER", True))
 app.include_router(router)
 
 
@@ -188,6 +189,25 @@ async def models(
                 matches.append(name)
 
     return Models(models=matches)
+
+
+@app.get("/docs", response_class=HTMLResponse, include_in_schema=False)
+async def docs():
+    return f"""
+        <!doctype html>
+        <html>
+            <head>
+                <meta charset="utf-8">
+                <script 
+                    type="module" 
+                    src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"
+                ></script>
+            </head>
+            <body>
+                <rapi-doc spec-url="{app.openapi_url}"></rapi-doc>
+            </body> 
+        </html>
+    """
 
 
 @app.on_event("shutdown")
