@@ -1,4 +1,4 @@
-from ..nlp_query import is_one_of
+from nlp_query import is_one_of
 
 PREDICATE = "#FF8B3D"
 A1 = "#ADD8E6"

@@ -11,12 +11,14 @@ from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, StreamingResponse
 from tokenizer import SpacyModel, Tokenizer
+from visualization import router
 
 REF_TEMPLATE = "#/components/schemas/{model}"
 logger = logging.getLogger("specifiernlp")
 logger.setLevel(logging.INFO)
 
 app = FastAPI(debug=True)
+app.include_router(router)
 
 
 def write_array_len(data: BytesIO, arr_len):

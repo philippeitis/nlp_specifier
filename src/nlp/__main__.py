@@ -40,7 +40,7 @@ def render():
     "--open_browser", "-o", default=False, help="Opens file in browser", is_flag=True
 )
 def render_dep_graph(sentence: str, retokenize: bool, open_browser: bool, path: Path):
-    from .visualization import render_dep_graph
+    from visualization import render_dep_graph
 
     render_outputs(render_dep_graph(sentence, retokenize), open_browser, path)
 
@@ -59,14 +59,14 @@ def render_dep_graph(sentence: str, retokenize: bool, open_browser: bool, path: 
 # @click.option('--idents', nargs=-1, help="Idents in string")
 def render_pos(sentence: str, retokenize: bool, open_browser: bool, path: Path):
     """Renders the part of speech tags in the provided sentence."""
-    from .visualization import render_pos
+    from visualization import render_pos
 
     render_outputs(render_pos(sentence, retokenize), open_browser, path)
 
 
 def render_entities(sentence: str, entity_type: str, open_browser: bool, path: Path):
     """Renders the NER or SRL entities in the provided sentence."""
-    from .visualization import render_entities
+    from visualization import render_entities
 
     render_outputs(render_entities(sentence, entity_type), open_browser, path)
 
