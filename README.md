@@ -25,16 +25,14 @@ This installs:
 
 | Dependency | Feature | Purpose |
 | :--- | :---: | :--- |
-| python3-dev | Core | embed a Python interpreter into the Rust executable |
 | spaCy (via pip) | Core | NLP Processing |
 | spaCy.en_core_web_lg | Core | Language model |
 | unidecode (via pip) | Core | Cleaning input to spaCy and JML NLP |
-| gfortran | Search | Build optimized BLAS routines for sentence similarity methods |
 | requests (via pip) | NER/SRL | Interfacing with JML NLP |
 | nltk (via pip) | Dev | code-generation | 
 | networkx (via pip) | Dev | detecting cycles in code-generation |
 | graphviz | Visualization | Rendering parse-trees |
-| click | Visualization | Visualization CLI interface |
+| click (via pip) | Visualization | Visualization CLI interface |
 
 Optionally, it may be useful to review these links:
 
