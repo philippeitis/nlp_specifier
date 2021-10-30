@@ -193,6 +193,7 @@ async def models(
 
 @app.get("/docs", response_class=HTMLResponse, include_in_schema=False)
 async def docs():
+    """Sourced from https://github.com/tiangolo/fastapi/issues/1198#issuecomment-609019113"""
     return f"""
         <!doctype html>
         <html>
