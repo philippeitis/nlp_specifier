@@ -23,7 +23,8 @@ except ModuleNotFoundError:
 
 LOGGER = logging.getLogger(__name__)
 
-Doc.set_extension("raw_text", default=None)
+if not Doc.has_extension("raw_text"):
+    Doc.set_extension("raw_text", default=None)
 
 
 def is_quote(word: str) -> bool:

@@ -40,4 +40,4 @@ def tag_color(pos: str) -> str:
     if is_one_of(pos, {"DT", "CC"}):
         return FADE
 
-    return TREE_COLORS.get(pos, "#000000")
+    return TREE_COLORS.get(pos, "#AAAAAA")
