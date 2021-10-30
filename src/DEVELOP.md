@@ -1,8 +1,9 @@
 ## Launching Server
 ### Python
 ```console
-python ./nlp/server.py
+python ./nlp/server.py -p 5000 -h 0.0.0.0
 ```
+
 ### Docker
 ```console
 cd ./nlp
@@ -10,14 +11,13 @@ sudo docker-compose up --build
 ```
 
 ## Formatting
-###Python
+### Python
 ```console
-pip install black isort
-black target
-isort target
+pip install -U black isort
+black target && isort target
 ```
 
-###Rust
+### Rust
 ```console
 cargo fix && cargo fmt
 ```
