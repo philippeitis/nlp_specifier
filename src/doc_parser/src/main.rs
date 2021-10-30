@@ -37,7 +37,7 @@ use visualization::tree::tag_color;
 #[macro_use]
 extern crate lazy_static;
 
-static CFG: &str = include_str!("../../nlp/codegrammar.cfg");
+static CFG: &str = include_str!("../codegrammar.cfg");
 
 type ContextFreeGrammar = chartparse::ContextFreeGrammar<Symbol, TerminalSymbol>;
 

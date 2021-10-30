@@ -398,7 +398,7 @@ impl ParseNonTerminal for Symbol {
         Ok(Self::from(s))
     }
 }"""
-    (Path(__file__).parent / Path("../nlp/codegrammar.cfg")).write_text(cfg)
+    (Path(__file__).parent / Path("../doc_parser/codegrammar.cfg")).write_text(cfg)
     tree_rs_path = (Path(__file__).parent / Path("../doc_parser/src/parse_tree/tree.rs"))
     tree_rs_path.write_text(tree_rs)
     subprocess.Popen(["rustfmt", tree_rs_path])
