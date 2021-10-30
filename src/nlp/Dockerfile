@@ -12,4 +12,5 @@ RUN pip install -r /requirements.txt
 
 COPY ./*.py /app/
 
-CMD ["python", "./app/server.py"]
+ENV SERVER_PORT = 5000
+CMD python -m app launch -p $SERVER_PORT

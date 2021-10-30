@@ -4,17 +4,12 @@ from contextlib import contextmanager
 from http import HTTPStatus
 from io import BytesIO
 from typing import List, Optional
-from sys import path
-from pathlib import Path
 
 import spacy
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, StreamingResponse
-
-path.append(str(Path(__file__).parent))
-
 from tokenizer import SpacyModel, Tokenizer
 
 REF_TEMPLATE = "#/components/schemas/{model}"
@@ -213,12 +208,8 @@ def custom_openapi():
     return app.openapi_schema
 
 
-openapi = app.openapi()
-app.openapi = custom_openapi
-app.openapi_schema = None
-
-if __name__ == "__main__":
-    formatter = logging.Formatter('[%(name)s/%(funcName)s] %(message)s')
+def init_loggers():
+    formatter = logging.Formatter("[%(name)s/%(funcName)s] %(message)s")
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
     sh.setLevel(logging.INFO)
@@ -226,4 +217,12 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.WARNING)
     uvilog = logging.getLogger("uvicorn")
     uvilog.propagate = False
+
+
+openapi = app.openapi()
+app.openapi = custom_openapi
+app.openapi_schema = None
+
+if __name__ == "__main__":
+    init_loggers()
     uvicorn.run(app, host="0.0.0.0", port=5000, log_level=logging.INFO)

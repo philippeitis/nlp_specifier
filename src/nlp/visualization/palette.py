@@ -1,28 +1,24 @@
-from nlp.nlp_query import is_one_of
+from ..nlp_query import is_one_of
 
 PREDICATE = "#FF8B3D"
 A1 = "#ADD8E6"
 A2 = "#00AA00"
 
-ENTITY_COLORS = {
-    "predicate": PREDICATE,
-    "A1": A1,
-    "A2": A2
-}
+ENTITY_COLORS = {"predicate": PREDICATE, "A1": A1, "A2": A2}
 
-NOUN = '#00AA00'
-VERB = '#FF8B3D'
-PREP = '#E3242B'
-MODIFIER = '#902010'
-COORD = '#5151b2'
-FADE = '#b0b0b0'
+NOUN = "#00AA00"
+VERB = "#FF8B3D"
+PREP = "#E3242B"
+MODIFIER = "#902010"
+COORD = "#5151b2"
+FADE = "#b0b0b0"
 
 TREE_COLORS = {
     "BOOL_EXPR": PREP,
     "QASSERT": PREP,
     "HASSERT": PREP,
     "COND": PREP,
-    "FOR": FADE
+    "FOR": FADE,
 }
 
 
