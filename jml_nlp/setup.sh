@@ -12,6 +12,3 @@ if [ ! -d "./srl_tool" ]; then
     git clone https://gitlab.ow2.org/decoder/srl_tool.git
     cd srl_tool && git lfs pull && cd ..
 fi
-
-sudo docker-compose --env-file ./nlp.env build
-sudo docker-compose --env-file ./nlp.env up

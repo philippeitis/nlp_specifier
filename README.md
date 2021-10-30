@@ -19,6 +19,12 @@ cd ./src/doc_parser/ && cargo build --release ; cd ..
 The NLP parsing code tokenizes, assigns parts of speech tags to tokens, and detects named entities using spaCy. To set up the dependencies, run [src/setup.sh](src/setup.sh):
 ```bash
 cd ./src/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+cd ./jmlnlp/ && sudo chmod +x ./setup.sh && ./setup.sh && cd .
+```
+
+Then, to launch all required services:
+```bash
+sudo docker-compose --env-file nlp.env up -d --build
 ```
 
 This installs:
