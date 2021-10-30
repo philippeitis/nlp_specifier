@@ -4,9 +4,9 @@ from contextlib import contextmanager
 from http import HTTPStatus
 from io import BytesIO
 from typing import List, Optional
+from os import getenv
 
 import spacy
-import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel
 from starlette.responses import JSONResponse, StreamingResponse
@@ -17,7 +17,7 @@ REF_TEMPLATE = "#/components/schemas/{model}"
 logger = logging.getLogger("specifiernlp")
 logger.setLevel(logging.INFO)
 
-app = FastAPI(debug=True)
+app = FastAPI(debug=getenv("DEBUG_SERVER", True))
 app.include_router(router)
 
 
@@ -228,7 +228,3 @@ def init_loggers():
 openapi = app.openapi()
 app.openapi = custom_openapi
 app.openapi_schema = None
-
-if __name__ == "__main__":
-    init_loggers()
-    uvicorn.run(app, host="0.0.0.0", port=5000, log_level=logging.INFO)
