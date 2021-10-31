@@ -26,6 +26,7 @@ body = requests.get(
     f"{SERVICE_URL}/render/{method}",
     params=params,
 ).text
+
 body = "\n".join(line for line in body.split("\n") if line.strip())
 style = "<style>mark.entity { display: inline-block }</style>"
 
