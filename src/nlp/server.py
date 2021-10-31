@@ -76,13 +76,26 @@ TOKENIZE_OUT = {
 }
 
 
+async def streaming_sentences(num_sentences, sentences):
+    header = BytesIO()
+    header.write(b"\x81")
+    header.write((0x5 << 5 | len("sentences")).to_bytes(1, byteorder="big"))
+    header.write(b"sentences")
+    write_array_len(header, num_sentences)
+    header.seek(0)
+    yield header.read()
+
+    for sentence in sentences:
+        yield sentence.msgpack
+
+
 @app.get("/tokenize", responses=TOKENIZE_OUT, response_class=Response)
 def tokenize(
     request: TokenizeIn, accept: Optional[str] = Header(default="application/msgpack")
 ):
     model = request.model
     sentences = request.sentences
-
+    len_sentences = len(sentences)
     if accept == "*/*":
         accept = "application/msgpack"
 
@@ -97,7 +110,7 @@ def tokenize(
         tokenizer = Tokenizer.from_cache(f"./cache/{model}.spacy", model)
 
     with timer("Tokenization took {elapsed:.5f}s"):
-        sentences = tokenizer.stokenize(sentences)
+        sentences = tokenizer.stream_tokenize(sentences)
 
     with timer("Serialization took {elapsed:.5f}s"):
         if accept == "application/msgpack":
@@ -105,7 +118,7 @@ def tokenize(
             response.write(b"\x81")
             response.write((0x5 << 5 | len("sentences")).to_bytes(1, byteorder="big"))
             response.write(b"sentences")
-            write_array_len(response, len(sentences))
+            write_array_len(response, len_sentences)
 
             for sentence in sentences:
                 response.write(sentence.msgpack)

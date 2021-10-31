@@ -175,26 +175,23 @@ class Tokenizer:
 
         return self.token_cache[sentence]
 
-    def stokenize(self, sentences: List[str], idents=None) -> Iterable[Sentence]:
+    def stream_tokenize(self, sentences: List[str], idents=None) -> Iterable[Sentence]:
         """
         Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
         (all unique sentences in stdlib).
         """
-        sentence_dict = {
-            i: self.token_cache.get(sentence) for i, sentence in enumerate(sentences)
-        }
+        tokenized_sentences = [self.token_cache.get(sentence) for sentence in sentences]
+        empty_inds = [i for i, val in enumerate(tokenized_sentences) if val is None]
+        new_sents = self.tagger.pipe(unidecode.unidecode(sentences[i]) for i in empty_inds)
 
-        empty_inds = [i for i, val in sentence_dict.items() if val is None]
-        empty_sents = [unidecode.unidecode(sentences[i]) for i in empty_inds]
-
-        for i, tokenized in zip(empty_inds, self.tagger.pipe(empty_sents)):
-            sent = sentences[i]
-            tokenized._.raw_text = sent
-            tokenized = Sentence(tokenized)
-            self.token_cache[sent] = tokenized
-            sentence_dict[i] = tokenized
-
-        return sentence_dict.values()
+        for i, tokenized in enumerate(tokenized_sentences):
+            if tokenized is None:
+                tokenized = next(new_sents)
+                sent = sentences[i]
+                tokenized._.raw_text = sent
+                tokenized = Sentence(tokenized)
+                self.token_cache[sent] = tokenized
+            yield tokenized
 
     def entities(self, sentence: str) -> dict:
         """Performs NER and SRL analysis of the given sentence, using the models from
