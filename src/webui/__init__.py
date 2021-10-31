@@ -20,7 +20,7 @@ def render_items(method, params):
 
 
 def read_tokenization_params():
-    sentence = st.text_input("Text to tokenize", "Returns true if and only if `x == 2`")
+    sentence = st.text_input("Text", "Returns true if and only if `x == 2`")
 
     methods = {
         "Parts of speech": "pos",
@@ -29,7 +29,7 @@ def read_tokenization_params():
         "Semantic role labels": "srl",
     }
 
-    method = methods[st.selectbox("Render", methods)]
+    method = methods[st.selectbox("Features", methods)]
 
     if method in {"pos", "deps"}:
         retokenize = st.checkbox("Apply retokenization", value=True)
@@ -37,9 +37,10 @@ def read_tokenization_params():
     else:
         params = {"sentence": sentence}
 
-    return st.button("Submit"), method, params
+    return st.button("Render"), method, params
 
 
 submit, method, params = read_tokenization_params()
 if submit:
-    render_items(method, params)
+    with st.spinner("Fetching tokenization"):
+        render_items(method, params)
