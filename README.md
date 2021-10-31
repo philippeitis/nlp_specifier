@@ -110,7 +110,6 @@ OPTIONS:
 ## Plan
 1. Straight up search using current methods, and plug in symbols
 - No slotting at all (but methods / struct fields should be attached as .x, while lone functions are wrapping)
-2. Provide API, create Docker interface for this project
 
 ## Examples of unaccepted (maybe should be accepted?)
 - Replaces first N matches of a pattern with another string
