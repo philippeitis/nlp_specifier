@@ -13,6 +13,7 @@ mod grammar;
 mod jsonl;
 mod nl_ir;
 mod parse_html;
+mod parse_json;
 mod parse_tree;
 mod search_tree;
 mod sentence;
@@ -29,6 +30,7 @@ use parse_tree::{tree::TerminalSymbol, Symbol};
 use reqwest::Url;
 use search_tree::{Depth, SearchItem};
 
+use crate::parse_html::{DocItem};
 use crate::specifier::Tokenizer;
 use specifier::{sentence_to_specifications, FileOutput, SimMatcher, SpacyModel, Specifier};
 use type_match::{FnArgLocation, HasFnArg};
@@ -104,6 +106,12 @@ enum SubCommand {
         #[clap(subcommand)]
         sub_cmd: Render,
     },
+    Parse {
+        path: PathBuf,
+    },
+    Index {
+        path: PathBuf,
+    },
 }
 
 /// Demonstrates entire pipeline from start to end on provided file, writing output to terminal.
@@ -111,7 +119,7 @@ enum SubCommand {
 #[clap(setting = AppSettings::ColoredHelp)]
 struct EndToEnd {
     /// Source file to specify.
-    #[clap(short, long, parse(from_os_str), default_value = "../../data/test3.rs")]
+    #[clap(parse(from_os_str), default_value = "../../data/test3.rs")]
     path: PathBuf,
 }
 
@@ -560,5 +568,57 @@ fn main() {
                 }
             }
         },
+        SubCommand::Parse { path } => {
+            use parse_html::parse_file;
+            match parse_file(path) {
+                Ok(doc_item) => match doc_item {
+                    DocItem::Fn(f) => {
+                        println!("{}", f.s);
+                    }
+                    DocItem::Struct(strukt) => {
+                        println!("{}", strukt.s);
+                        for method in strukt.methods {
+                            println!("\n{}", method);
+                        }
+                    }
+                    DocItem::Primitive(primitive) => {
+                        println!("{}", primitive.s);
+                        for method in primitive.methods {
+                            println!("\n{}", method);
+                        }
+                    }
+                },
+                Err(_) => println!("Error occured"),
+            }
+        }
+        SubCommand::Index { path } => {
+            use parse_json::make_index;
+            
+            use roogle_engine::search::Scope;
+            let mut own_path = std::env::current_dir().unwrap();
+            own_path.push("./index");
+            std::fs::create_dir(&own_path);
+            let mut index_dir = own_path.canonicalize().unwrap();
+            std::process::Command::new("cargo")
+                .arg("+nightly")
+                .arg("doc")
+                .env("RUSTDOCFLAGS", "-Zunstable-options --output-format=json")
+                .env("CARGO_TARGET_DIR", &index_dir)
+                .current_dir(path)
+                .output();
+            index_dir.push("debug");
+            let _ = std::fs::remove_dir_all(index_dir);
+            let index = make_index().unwrap();
+            println!("{}", index.crates.len());
+            let (x, query) = roogle_engine::query::parse::parse_query("fn (_) -> _").unwrap();
+            println!("{}", x);
+            for item in index
+                .search(&query, Scope::Crate("aaaa".to_string()), 1.)
+                .unwrap()
+            {
+                println!("{}", item.docs.unwrap_or_default());
+                println!("{}", item.name);
+            }
+        }
     }
 }

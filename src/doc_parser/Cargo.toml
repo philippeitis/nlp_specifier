@@ -32,3 +32,6 @@ ndarray-linalg = { version = "0.14.1", features = ["intel-mkl-static"] }
 clap = "3.0.0-beta.4"
 pastel = "0.8.1"
 webbrowser = { version = "0.5", git = "https://github.com/philippeitis/webbrowser-rs.git" }
+
+roogle-engine = "1.0.2"
+anyhow = "1.0"
