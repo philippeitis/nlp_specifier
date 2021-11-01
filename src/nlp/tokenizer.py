@@ -177,7 +177,9 @@ class Tokenizer:
 
     def stream_tokenize(self, sentences: List[str], idents=None) -> Iterable[Sentence]:
         """
-        Tokenizes and tags the given sentences - 2x faster than tokenize for 6000 items
+        Returns a generator, producing tokenized and tagged sentences in order of their appearance in the input.
+
+        ~2x faster than calling tokenize on an item-by-item basis for 6000 items
         (all unique sentences in stdlib).
         """
         tokenized_sentences = [self.token_cache.get(sentence) for sentence in sentences]
