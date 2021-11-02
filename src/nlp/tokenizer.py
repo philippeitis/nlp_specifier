@@ -184,7 +184,9 @@ class Tokenizer:
         """
         tokenized_sentences = [self.token_cache.get(sentence) for sentence in sentences]
         empty_inds = [i for i, val in enumerate(tokenized_sentences) if val is None]
-        new_sents = self.tagger.pipe(unidecode.unidecode(sentences[i]) for i in empty_inds)
+        new_sents = self.tagger.pipe(
+            unidecode.unidecode(sentences[i]) for i in empty_inds
+        )
 
         for i, tokenized in enumerate(tokenized_sentences):
             if tokenized is None:
