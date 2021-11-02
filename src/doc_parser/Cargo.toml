@@ -29,7 +29,7 @@ rmp = "0.8.10"
 ndarray = "0.15.3"
 ndarray-linalg = { version = "0.14.1", features = ["intel-mkl-static"] }
 
-clap = "3.0.0-beta.4"
+clap = "3.0.0-beta.5"
 pastel = "0.8.1"
 webbrowser = { version = "0.5", git = "https://github.com/philippeitis/webbrowser-rs.git" }
 

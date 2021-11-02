@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use clap::{AppSettings, Clap};
+use clap::Parser;
 
 use chartparse::ChartParser;
 
@@ -30,7 +30,7 @@ use parse_tree::{tree::TerminalSymbol, Symbol};
 use reqwest::Url;
 use search_tree::{Depth, SearchItem};
 
-use crate::parse_html::{DocItem};
+use crate::parse_html::DocItem;
 use crate::specifier::Tokenizer;
 use specifier::{sentence_to_specifications, FileOutput, SimMatcher, SpacyModel, Specifier};
 use type_match::{FnArgLocation, HasFnArg};
@@ -81,8 +81,7 @@ impl From<SpacyModelCli> for SpacyModel {
 fn parse_url(s: &str) -> Result<Url, url::ParseError> {
     Url::parse(s)
 }
-#[derive(Clap)]
-#[clap(setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 struct Opts {
     #[clap(short, long, arg_enum, default_value = "lg")]
     model: SpacyModelCli,
@@ -92,7 +91,7 @@ struct Opts {
     command: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
     #[clap(name = "end-to-end")]
     EndToEnd(EndToEnd),
@@ -115,8 +114,7 @@ enum SubCommand {
 }
 
 /// Demonstrates entire pipeline from start to end on provided file, writing output to terminal.
-#[derive(Clap)]
-#[clap(setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 struct EndToEnd {
     /// Source file to specify.
     #[clap(parse(from_os_str), default_value = "../../data/test3.rs")]
@@ -124,14 +122,11 @@ struct EndToEnd {
 }
 
 /// Creates specifications for a variety of sources.
-#[derive(Clap)]
-#[clap(setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 enum Specify {
     /// Specifies the sentence, and prints the result to the terminal.
-    #[clap(setting = AppSettings::ColoredHelp)]
     Sentence { sentence: String },
     /// Specifies the newline separated sentences in the provided file, and prints the results to the terminal.
-    #[clap(setting = AppSettings::ColoredHelp)]
     Testcases {
         #[clap(
             short,
@@ -142,7 +137,6 @@ enum Specify {
         path: PathBuf,
     },
     /// Specifies the file at `path`, and writes the result to `dest`.
-    #[clap(setting = AppSettings::ColoredHelp)]
     File {
         /// The root file to be parsed. If no file is provided, defaults to a test case.
         #[clap(short, long, parse(from_os_str), default_value = "../../data/test3.rs")]
@@ -156,7 +150,6 @@ enum Specify {
     /// defaults to Rust's standard library documentation.
     ///
     /// Documentation can be generated using `cargo doc`, or can be downloaded via `rustup`.
-    #[clap(setting = AppSettings::ColoredHelp)]
     Docs {
         /// The root directory of the documentation to be parsed. If no directory is provided,
         /// defaults to the Rust toolchain root.
@@ -164,15 +157,12 @@ enum Specify {
         path: Option<PathBuf>,
     },
     /// Provides a REPL for specifying sentences repeatedly.
-    #[clap(setting = AppSettings::ColoredHelp)]
     Repl,
 }
 
 /// Visualization of various components in the pipeline
-#[derive(Clap)]
-#[clap(setting = AppSettings::ColoredHelp)]
+#[derive(Parser)]
 enum Render {
-    #[clap(setting = AppSettings::ColoredHelp)]
     ParseTree {
         /// Sentence to specify.
         sentence: String,
@@ -593,7 +583,7 @@ fn main() {
         }
         SubCommand::Index { path } => {
             use parse_json::make_index;
-            
+
             use roogle_engine::search::Scope;
             let mut own_path = std::env::current_dir().unwrap();
             own_path.push("./index");
