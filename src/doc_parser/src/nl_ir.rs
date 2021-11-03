@@ -258,10 +258,10 @@ pub struct PropertyOf {
 impl From<PROP_OF> for PropertyOf {
     fn from(prop_of: PROP_OF) -> Self {
         match prop_of {
-            PROP_OF::_0(_, mnn, _, _) | PROP_OF::_1(_, mnn, _) => PropertyOf {
+            PROP_OF::_0(_, mnn, _, _) => PropertyOf {
                 prop: PropOfMod::Mnn(mnn.into()),
             },
-            PROP_OF::_2(_, mjj, _) | PROP_OF::_3(_, mjj, _, _) => PropertyOf {
+            PROP_OF::_1(_, mjj, _, _) => PropertyOf {
                 prop: PropOfMod::Mjj(mjj),
             },
         }

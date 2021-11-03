@@ -563,10 +563,8 @@ impl From<Vec<SymbolTree>> for PROP {
 
 #[derive(Clone)]
 pub enum PROP_OF {
-    _0(DT, MNN, IN, DT),
-    _1(DT, MNN, IN),
-    _2(DT, MJJ, IN),
-    _3(DT, MJJ, IN, DT),
+    _0(DT, MNN, IN, Option<DT>),
+    _1(DT, MJJ, IN, Option<DT>),
 }
 
 impl From<SymbolTree> for PROP_OF {
@@ -580,17 +578,17 @@ impl From<Vec<SymbolTree>> for PROP_OF {
     fn from(branches: Vec<SymbolTree>) -> Self {
         let mut labels = branches.into_iter().map(|x| x.unwrap_branch());
         match (labels.next(), labels.next(), labels.next(), labels.next()) {
-            (Some((Symbol::DT, dt_0)), Some((Symbol::MNN, mnn_1)), Some((Symbol::IN, in_2)), Some((Symbol::DT, dt_3))) => {
-                PROP_OF::_0(DT::from(dt_0), MNN::from(mnn_1), IN::from(in_2), DT::from(dt_3))
-            },
             (Some((Symbol::DT, dt_0)), Some((Symbol::MNN, mnn_1)), Some((Symbol::IN, in_2)), None) => {
-                PROP_OF::_1(DT::from(dt_0), MNN::from(mnn_1), IN::from(in_2))
+                PROP_OF::_0(DT::from(dt_0), MNN::from(mnn_1), IN::from(in_2), None)
+            },
+            (Some((Symbol::DT, dt_0)), Some((Symbol::MNN, mnn_1)), Some((Symbol::IN, in_2)), Some((Symbol::DT, dt_3))) => {
+                PROP_OF::_0(DT::from(dt_0), MNN::from(mnn_1), IN::from(in_2), Some(DT::from(dt_3)))
             },
             (Some((Symbol::DT, dt_0)), Some((Symbol::MJJ, mjj_1)), Some((Symbol::IN, in_2)), None) => {
-                PROP_OF::_2(DT::from(dt_0), MJJ::from(mjj_1), IN::from(in_2))
+                PROP_OF::_1(DT::from(dt_0), MJJ::from(mjj_1), IN::from(in_2), None)
             },
             (Some((Symbol::DT, dt_0)), Some((Symbol::MJJ, mjj_1)), Some((Symbol::IN, in_2)), Some((Symbol::DT, dt_3))) => {
-                PROP_OF::_3(DT::from(dt_0), MJJ::from(mjj_1), IN::from(in_2), DT::from(dt_3))
+                PROP_OF::_1(DT::from(dt_0), MJJ::from(mjj_1), IN::from(in_2), Some(DT::from(dt_3)))
             },
             _ => panic!("Unexpected SymbolTree - have you used the code generation with the latest grammar?"),
         }
