@@ -95,16 +95,15 @@ struct Opts {
 enum SubCommand {
     #[clap(name = "end-to-end")]
     EndToEnd(EndToEnd),
-    #[clap(name = "specify")]
     Specify {
         #[clap(subcommand)]
         sub_cmd: Specify,
     },
-    #[clap(name = "render")]
     Render {
         #[clap(subcommand)]
         sub_cmd: Render,
     },
+    Search,
     Parse {
         path: PathBuf,
     },
@@ -585,7 +584,7 @@ fn main() {
             use roogle_engine::search::Scope;
             let mut own_path = std::env::current_dir().unwrap();
             own_path.push("./index");
-            std::fs::create_dir(&own_path);
+            let _ = std::fs::create_dir(&own_path);
             let mut index_dir = own_path.canonicalize().unwrap();
             std::process::Command::new("cargo")
                 .arg("+nightly")
@@ -607,6 +606,9 @@ fn main() {
                 println!("{}", item.docs.unwrap_or_default());
                 println!("{}", item.name);
             }
+        }
+        SubCommand::Search => {
+            search_demo(&options);
         }
     }
 }
