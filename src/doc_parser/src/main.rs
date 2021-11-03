@@ -261,7 +261,6 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
     let mut ntrees = 0;
     let mut nspecs = 0;
     let mut successful_sents = 0;
-    let mut unsucessful_sents = 0;
     let mut specified_sents = 0;
 
     let start = std::time::Instant::now();
@@ -285,7 +284,6 @@ fn specify_docs<P: AsRef<Path>>(path: P, options: &ModelOptions) {
             successful_sents += 1;
         } else {
             unsuccessful_vec.push(sent);
-            unsucessful_sents += 1;
         }
         ntrees += specs.len();
         let count = specs
