@@ -20,7 +20,7 @@ def render_items(method, params):
 
 
 def read_tokenization_params():
-    sentence = st.text_input("Text", "Returns true if and only if `x == 2`")
+    sentence = st.text_input("Text", "", placeholder="Returns true if and only if `x == 2`")
 
     methods = {
         "Parts of speech": "pos",
