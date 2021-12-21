@@ -17,21 +17,22 @@ syn = { version = "1.0", default-features = false, features = ["parsing", "full"
 quote = "1.0"
 
 rayon = "1.5.1"
-itertools = "0.10.1"
+itertools = "0.10.3"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 chartparse = { path = "../chartparse" }
-reqwest = { version = "0.11.6", features = ["blocking", "json"] }
+reqwest = { version = "0.11.8", features = ["blocking", "json"] }
 url = "2.2.2"
 rmp = "0.8.10"
-ndarray = "0.15.3"
+ndarray = "0.15.4"
 ndarray-linalg = { version = "0.14.1", features = ["intel-mkl-static"] }
 
-clap = "3.0.0-beta.5"
+clap = { version = "3.0.0-rc.7", features = ["derive"] }
 pastel = "0.8.1"
 webbrowser = { version = "0.5", git = "https://github.com/philippeitis/webbrowser-rs.git" }
 
 roogle-engine = "1.0.2"
-anyhow = "1.0"
+# intel-mkl-tool has issues here: https://github.com/rust-math/intel-mkl-src/pull/70
+anyhow = "<1.0.49"
