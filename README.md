@@ -1,4 +1,4 @@
-## Introduction
+# Introduction
 Formal verification allows users to verify properties of program execution - for instance, they can verify properties of a function's output, or that a program does not crash. This is useful for a variety of purposes - from formally verifying the behaviour of cyptography libraries to ensuring that applications used for sensitive medical application do not crash.
 
 NLPSpecifier is an application that allows you to produce formal specifications from software documentation. These formal specifications can then be used by Prusti to verify the behaviour of your source code. In particular, NLPSpecifier can parse documentation embedded within Rust documentation pages (produced through `cargo doc`, or downloaded from `rustup`) and Rust source code.
