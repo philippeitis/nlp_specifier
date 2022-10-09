@@ -1,10 +1,18 @@
+## Introduction
+Formal verification allows users to verify properties of program execution - for instance, they can verify properties of a function's output, or that a program does not crash. This is useful for a variety of purposes - from formally verifying the behaviour of cyptography libraries to ensuring that applications used for sensitive medical application do not crash.
+
+NLPSpecifier is an application that allows you to produce formal specifications from software documentation. These formal specifications can then be used by Prusti to verify the behaviour of your source code. In particular, NLPSpecifier can parse documentation embedded within Rust documentation pages (produced through `cargo doc`, or downloaded from `rustup`) and Rust source code.
+
 # Installation
 Python 3.6+ and Rust should already be installed for the parsing steps. To perform verification of output specifcations, Prusti should also be installed.
 Dependencies for individual components of the system are specified below, or are otherwise manually installed using provided `setup.sh` scripts.
 Note that all .sh files and commands provided are specific to Linux. 
 
 Also note that to avoid contaminating your Python installation, it is best to use `venv`.
-
+The main functionality of this application is available through [src/doc_parser/](src/doc_parser/). To build this executable for your system, use 
+```bash
+cd ./src/doc_parser/ && cargo build --release ; cd ..
+```
 # Usage
 Once installation is complete, this project can be used through `doc_parser`. To run the program, use `./doc_parser`, or `cargo run --release` at the 
 appropriate locations. Run the following command to see a list of all possible commands.
@@ -43,13 +51,6 @@ FLAGS:
 
 OPTIONS:
     -p, --path <PATH>    Source file to specify [default: ../../data/test3.rs]
-```
-
-## Specifying Documentation
-This project allows specifying both Rust documentation pages (produced through `cargo doc`, or downloaded from `rustup`) and Rust source code. This functionality
-is primarily available through [src/doc_parser/](src/doc_parser/). To build this executable for your system, use 
-```bash
-cd ./src/doc_parser/ && cargo build --release ; cd ..
 ```
 
 ## NLP Processing
