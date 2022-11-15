@@ -116,9 +116,106 @@ def read_terminals(path: Path):
     return lines
 
 
+class Variants:
+    def __init__(self, rhsv):
+        # Generate all possible variants
+        variants = []
+        counter = 0
+
+        for rhs in rhsv:
+            rhsx = [nt_to_rust(r, lhs, terminal_set) for r in rhs._rhs]
+            name = None
+            if len(rhs._rhs) == 1:
+                name = str(rhs._rhs[0]).capitalize()
+            variants.append((name, rhsx))
+
+        counter = 0
+        names = set(name for name, _ in variants)
+        for i, (name, rhs) in enumerate(variants):
+            if name is not None:
+                continue
+            if len([r for r in rhs if isinstance(r, Option)]) == len(rhs) - 1:
+                name = [r for r in rhs if not isinstance(r, Option)][0].value
+                if name in names:
+                    name = None
+            if name is None:
+                name = f"_{counter}"
+                counter += 1
+            variants[i] = (name, rhs)
+
+        # Generate all possible variants
+        variants_desugared = []
+
+        for name, variant in variants:
+            num_opts = len([v for v in variant if isinstance(v, Option)])
+            if num_opts == 0:
+                variant_desugar = [variant]
+            else:
+                variant_desugar = []
+                for i in range(0, 2 ** num_opts):
+                    variant_desugar.append([])
+                    for item in variant:
+                        if isinstance(item, Option):
+                            if i & 1:
+                                variant_desugar[-1].append(item)
+                            else:
+                                variant_desugar[-1].append(NoneItem())
+                            i >>= 1
+                        else:
+                            variant_desugar[-1].append(item)
+            variants_desugared += [(name, variant) for variant in variant_desugar]
+        self.max_rhs = max(len(rhs) for _, rhs in variants)
+        self.variants = variants
+        self.desugared_variants = variants_desugared
+
+
+def rust_impl_lhs(lhs, variants: Variants):
+    impl_t = f"impl From<SymbolTree> for {lhs} {{\n"
+    impl_t += "    fn from(tree: SymbolTree) -> Self {\n"
+    impl_t += "        let (_symbol, branches) = tree.unwrap_branch();\n"
+    impl_t += "        Self::from(branches)\n"
+    impl_t += "    }\n"
+    impl_t += "}\n"
+    impl_l = f"impl From<Vec<SymbolTree>> for {lhs} {{\n"
+    impl_l += "    fn from(branches: Vec<SymbolTree>) -> Self {\n"
+    impl_l += "        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());\n"
+
+
+    # Generate From<> impl
+
+    labels = ("labels.next(), " * variants.max_rhs)[:-2]
+    impl_l += f"        match ({labels}) {{\n"
+
+    for name, variant in variants.desugared_variants:
+        impl_l += " " * 12
+        ids = [x.ident(i) for i, x in enumerate(variant)]
+        variant_e = [f"Some((Symbol::{x.value}, {idx}))" for x, idx in zip(variant, ids) if
+                     not isinstance(x, NoneItem)]
+        variant_p = variant_e + ["None"] * (variants.max_rhs - len(variant_e))
+        impl_l += f"({', '.join(variant_p)}) => {{\n"
+        impl_l += " " * 16
+        variant_c = [x.constructor(idx) for x, idx in zip(variant, ids)]
+        impl_l += f"{lhs}::{name}({', '.join(variant_c)})\n"
+        impl_l += " " * 12
+        impl_l += f"}},\n"
+
+    impl_l += "            _ => panic!(\"Unexpected SymbolTree - have you used the code generation with the latest grammar?\"),\n"
+    impl_l += "        }\n"
+    impl_l += "    }\n"
+    impl_l += "}\n"
+
+    # Generate enum
+    e = f"#[derive(Clone)]\npub enum {lhs} {{\n"
+    e += "\n".join(f"    {name}({', '.join(str(x) for x in rhs)})," for name, rhs in variants.variants)
+    e += "}\n"
+
+    return impl_t, impl_l, e
+
+
 if __name__ == '__main__':
-    non_terminals = CFG.fromstring((Path(__file__).parent / Path("nonterminals.cfg")).read_text())
-    terminals = read_terminals(Path(__file__).parent / Path("terminals.cfg"))
+    PWD = Path(__file__).parent
+    non_terminals = CFG.fromstring((PWD / Path("nonterminals.cfg")).read_text())
+    terminals = read_terminals(PWD / Path("terminals.cfg"))
     terminal_set = {Nonterminal(v) for v, _ in terminals}
     graph = networkx.DiGraph()
 
@@ -141,99 +238,13 @@ if __name__ == '__main__':
     tree_rs += "use crate::parse_tree::{SymbolTree, Symbol, Terminal};\n\n"
 
     for lhs, rhsv in non_terminals._lhs_index.items():
-        tree_rs += f"#[derive(Clone)]\n"
-        e = f"pub enum {lhs} {{\n"
-        impl_t = f"impl From<SymbolTree> for {lhs} {{\n"
-        impl_t += "    fn from(tree: SymbolTree) -> Self {\n"
-        impl_t += "        let (_symbol, branches) = tree.unwrap_branch();\n"
-        impl_t += "        Self::from(branches)\n"
-        impl_t += "    }\n"
-        impl_t += "}\n"
-        impl_l = f"impl From<Vec<SymbolTree>> for {lhs} {{\n"
-        impl_l += "    fn from(branches: Vec<SymbolTree>) -> Self {\n"
-        impl_l += "        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());\n"
-
-        variants = []
-        counter = 0
-
-        # Convert to format, apply naming schemes.
-        for rhs in rhsv:
-            rhsx = [nt_to_rust(r, lhs, terminal_set) for r in rhs._rhs]
-            name = None
-            if len(rhs._rhs) == 1:
-                name = str(rhs._rhs[0]).capitalize()
-            variants.append((name, rhsx))
-
-        names = set(name for name, _ in variants)
-        for i, (name, rhs) in enumerate(variants):
-            if name is not None:
-                continue
-            if len([r for r in rhs if isinstance(r, Option)]) == len(rhs) - 1:
-                name = [r for r in rhs if not isinstance(r, Option)][0].value
-                if name in names:
-                    name = None
-            if name is None:
-                name = f"_{counter}"
-                counter += 1
-            variants[i] = (name, rhs)
-
-        # Generate all possible variants
-        variants_desugared = []
-
-        enum_matches = []
-        for name, variant in variants:
-            num_opts = len([v for v in variant if isinstance(v, Option)])
-            if num_opts == 0:
-                variant_desugar = [variant]
-            else:
-                variant_desugar = []
-                for i in range(0, 2 ** num_opts):
-                    variant_desugar.append([])
-                    for item in variant:
-                        if isinstance(item, Option):
-                            if i & 1:
-                                variant_desugar[-1].append(item)
-                            else:
-                                variant_desugar[-1].append(NoneItem())
-                            i >>= 1
-                        else:
-                            variant_desugar[-1].append(item)
-            variants_desugared += [(name, variant) for variant in variant_desugar]
-
-        # Generate From<> impl
-        max_len = max(len(rhs) for _, rhs in variants)
-
-        labels = ("labels.next(), " * max_len)[:-2]
-        impl_l += f"        match ({labels}) {{\n"
-
-        for name, variant in variants_desugared:
-            impl_l += " " * 12
-            ids = [x.ident(i) for i, x in enumerate(variant)]
-            variant_e = [f"Some((Symbol::{x.value}, {idx}))" for x, idx in zip(variant, ids) if
-                         not isinstance(x, NoneItem)]
-            variant_p = variant_e + ["None"] * (max_len - len(variant_e))
-            impl_l += f"({', '.join(variant_p)}) => {{\n"
-            impl_l += " " * 16
-            variant_c = [x.constructor(idx) for x, idx in zip(variant, ids)]
-            impl_l += f"{lhs}::{name}({', '.join(variant_c)})\n"
-            impl_l += " " * 12
-            impl_l += f"}},\n"
-
-        impl_l += "            _ => panic!(\"Unexpected SymbolTree - have you used the code generation with the latest grammar?\"),\n"
-        impl_l += "        }\n"
-        impl_l += "    }\n"
-        impl_l += "}\n"
-
-        # Generate enum
-        for name, rhs in variants:
-            e += f"    {name}({', '.join(str(x) for x in rhs)}),\n"
-        e += "}\n"
-
+        variants = Variants(rhsv)
+        impl_t, impl_l, e = rust_impl_lhs(lhs, variants)
         tree_rs += e + "\n"
         tree_rs += impl_t + "\n"
         tree_rs += impl_l + "\n"
 
-        for _, variant in variants_desugared:
+        for _, variant in variants.desugared_variants:
             rhs = " ".join(v.value for v in variant if not isinstance(v, NoneItem))
             cfg += f"{lhs} -> {rhs}\n"
         cfg += "\n"
@@ -351,53 +362,8 @@ pub enum Symbol {
     eir_rs += "    }\n"
     eir_rs += "}\n\n"
 
-    eir_rs += """#[derive(Clone, Debug)]
-pub enum SymbolTree {
-    Terminal(Terminal),
-    Branch(Symbol, Vec<SymbolTree>),
-}
+    eir_rs += (PWD / Path("./symbol_tree.rs")).read_text()
 
-impl SymbolTree {
-    pub(crate) fn from_iter<I: Iterator<Item=Terminal>, N: Eq + Clone + Hash + PartialEq + Into<Symbol>, T>(tree: Tree<N, T>, iter: &mut I) -> Self {
-        match tree {
-            Tree::Terminal(_) => SymbolTree::Terminal(iter.next().unwrap()),
-            Tree::Branch(nt, rest) => {
-                let mut sym_trees = Vec::with_capacity(rest.len());
-                for item in rest {
-                    sym_trees.push(SymbolTree::from_iter(item, iter));
-                }
-                SymbolTree::Branch(
-                    nt.into(),
-                    sym_trees
-                )
-            }
-        }
-    }
-}
-
-impl SymbolTree {
-    pub fn unwrap_terminal(self) -> Terminal {
-        match self {
-            SymbolTree::Terminal(t) => t,
-            SymbolTree::Branch(_, _) => panic!("Called unwrap_terminal with non-terminal Tree"),
-        }
-    }
-
-    pub fn unwrap_branch(self) -> (Symbol, Vec<SymbolTree>) {
-        match self {
-            SymbolTree::Terminal(_) => panic!("Called unwrap_branch with terminal Tree"),
-            SymbolTree::Branch(sym, trees) => (sym, trees),
-        }
-    }
-}
-
-impl ParseNonTerminal for Symbol {
-    type Error = ();
-
-    fn parse_nonterminal(s: &str) -> Result<Self, Self::Error> {
-        Ok(Self::from(s))
-    }
-}"""
     (Path(__file__).parent / Path("../doc_parser/codegrammar.cfg")).write_text(cfg)
     tree_rs_path = (Path(__file__).parent / Path("../doc_parser/src/parse_tree/tree.rs"))
     tree_rs_path.write_text(tree_rs)
