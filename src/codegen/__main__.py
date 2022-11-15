@@ -169,6 +169,19 @@ class Variants:
         self.desugared_variants = variants_desugared
 
 
+class RustEnum:
+    def __init__(self, name, vis, variants, attributes):
+        self.name = name
+        self.vis = vis
+        self.variants = variants
+        self.attributes = attributes
+
+    def __str__(self):
+        attrs = "\n".join(f"#[{attr}]" for attr in self.attributes)
+        variants = "\n".join(f"    {variant}," for variant in self.variants)
+        return f"{attrs}\n{self.vis} enum {self.name} {{\n{variants}\n}}"
+
+
 def rust_impl_lhs(lhs, variants: Variants):
     impl_t = f"impl From<SymbolTree> for {lhs} {{\n"
     impl_t += "    fn from(tree: SymbolTree) -> Self {\n"
@@ -179,7 +192,6 @@ def rust_impl_lhs(lhs, variants: Variants):
     impl_l = f"impl From<Vec<SymbolTree>> for {lhs} {{\n"
     impl_l += "    fn from(branches: Vec<SymbolTree>) -> Self {\n"
     impl_l += "        let mut labels = branches.into_iter().map(|x| x.unwrap_branch());\n"
-
 
     # Generate From<> impl
 
@@ -205,11 +217,10 @@ def rust_impl_lhs(lhs, variants: Variants):
     impl_l += "}\n"
 
     # Generate enum
-    e = f"#[derive(Clone)]\npub enum {lhs} {{\n"
-    e += "\n".join(f"    {name}({', '.join(str(x) for x in rhs)})," for name, rhs in variants.variants)
-    e += "}\n"
+    enum_variants = [f"{name}({', '.join(str(x) for x in rhs)})"
+                     for name, rhs in variants.variants]
 
-    return impl_t, impl_l, e
+    return impl_t, impl_l, RustEnum(lhs, "pub", enum_variants, ["derive(Clone)"])
 
 
 if __name__ == '__main__':
